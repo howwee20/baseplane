@@ -248,8 +248,23 @@
 
     .canvas {
       position: relative;
-      width: 1550px;
-      height: 1040px;
+      width: 1280px;
+      height: 1260px;
+    }
+
+    .flow-guide {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      border-top: 1px solid rgba(14, 26, 20, 0.08);
+      color: rgba(14, 26, 20, 0.42);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      padding-top: 8px;
+      pointer-events: none;
+      text-transform: uppercase;
+      z-index: 1;
     }
 
     .edges {
@@ -496,6 +511,154 @@
       .panel { max-height: none; }
       .workspace { height: 760px; }
     }
+
+    /* Graph-first shell: the graph is the interface; tools appear only as overlays. */
+    .app {
+      display: block;
+      height: 100vh;
+      position: relative;
+    }
+
+    .topbar {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      height: 46px;
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 48px rgba(17, 30, 23, 0.1);
+      z-index: 20;
+    }
+
+    .body {
+      display: block;
+      height: 100vh;
+      min-height: 0;
+    }
+
+    .workspace {
+      height: 100vh;
+      width: 100vw;
+      padding-top: 74px;
+    }
+
+    .canvas {
+      width: 1280px;
+      height: 1260px;
+    }
+
+    .panel {
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 74px rgba(17, 30, 23, 0.14);
+    }
+
+    .left {
+      position: fixed;
+      top: 74px;
+      left: 14px;
+      bottom: 14px;
+      width: 326px;
+      transform: translateX(calc(-100% - 24px));
+      transition: transform 180ms ease, opacity 180ms ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .left.open {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .right {
+      position: fixed;
+      top: 74px;
+      right: 14px;
+      bottom: 14px;
+      width: min(420px, calc(100vw - 28px));
+      transform: translateX(calc(100% + 24px));
+      transition: transform 180ms ease, opacity 180ms ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .right.open {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .right.is-empty {
+      display: none;
+    }
+
+    .drawer-head {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer-title {
+      font-size: 18px;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+      margin: 0;
+    }
+
+    .close-button {
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.82);
+      color: var(--muted);
+      display: inline-flex;
+      font-size: 18px;
+      font-weight: 700;
+      height: 30px;
+      justify-content: center;
+      line-height: 1;
+      width: 30px;
+    }
+
+    .close-button:hover {
+      border-color: rgba(242, 106, 27, 0.44);
+      color: var(--orange);
+    }
+
+    @media (max-width: 760px) {
+      body { overflow: hidden; }
+      .topbar {
+        align-items: flex-start;
+        height: auto;
+        padding: 12px;
+      }
+      .top-actions { justify-content: flex-start; }
+      .button { padding: 7px 9px; }
+      .left,
+      .right {
+        left: 10px;
+        right: 10px;
+        top: 86px;
+        width: auto;
+      }
+      .left {
+        transform: translateY(calc(100vh + 24px));
+      }
+      .right {
+        transform: translateY(calc(100vh + 24px));
+      }
+      .left.open,
+      .right.open {
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 <body>
@@ -505,14 +668,20 @@
         <a href="../">Baseplane</a>
       </div>
       <div class="top-actions">
-        <button class="button" id="download-json">Download JSON</button>
-        <button class="button primary" id="export-zip">Export backend package</button>
-        <button class="button warn" id="reset-local">Reset local graph</button>
+        <button class="button" id="open-tools">Command</button>
+        <button class="button" id="open-simulator">Simulate</button>
+        <button class="button" id="reset-layout">Reset Layout</button>
+        <button class="button primary" id="export-zip">Export</button>
+        <button class="button" id="download-json">JSON</button>
       </div>
     </header>
 
     <div class="body">
-      <aside class="panel left">
+      <aside class="panel left" id="tools-panel" aria-label="Graph tools">
+        <div class="drawer-head">
+          <h2 class="drawer-title">Graph tools</h2>
+          <button class="close-button" id="close-tools" aria-label="Close tools">×</button>
+        </div>
         <section class="section">
           <div class="label">Intent</div>
           <textarea id="intent">Build a research portal with researchers, projects, devices, sensor readings, invites, and quote requests. Add an analysis agent that can read only safe fields.</textarea>
@@ -522,7 +691,7 @@
           <p class="small">This alpha uses deterministic templates. No external AI call, no credentials, no customer data.</p>
         </section>
 
-        <section class="section">
+        <section class="section" id="tools-templates">
           <div class="label">Templates</div>
           <div class="template-grid">
             <button class="template-button" data-template="research">Generic telemetry</button>
@@ -571,7 +740,7 @@
           </div>
         </section>
 
-        <section class="section">
+        <section class="section" id="tools-simulator">
           <div class="label">Policy simulator</div>
           <div class="stack">
             <select id="sim-principal"></select>
@@ -603,11 +772,20 @@
             <div class="package-item"><strong>deploy_plan.md</strong><span>dry run</span></div>
             <div class="package-item"><strong>README.md</strong><span>handoff docs</span></div>
           </div>
+          <div class="mini-actions">
+            <button class="mini-button warn" id="reset-local">Reset local graph</button>
+          </div>
         </section>
       </aside>
 
       <main class="workspace" id="workspace">
         <div class="canvas" id="canvas">
+          <div class="flow-guide" style="top:86px">Entry</div>
+          <div class="flow-guide" style="top:236px">Routes and APIs</div>
+          <div class="flow-guide" style="top:406px">Identity, projects, devices, and secrets</div>
+          <div class="flow-guide" style="top:646px">Data and functions</div>
+          <div class="flow-guide" style="top:836px">Agents</div>
+          <div class="flow-guide" style="top:1026px">Deployment target</div>
           <svg class="edges" id="edges"></svg>
           <div id="nodes"></div>
         </div>
@@ -620,7 +798,7 @@
 <script type="module">
 import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
 
-const storageKey = "baseplane-alpha-graph-v2";
+const storageKey = "baseplane-alpha-graph-v3";
 const typeLabels = {
   domain: "domain",
   route: "route",
@@ -638,13 +816,14 @@ const typeLabels = {
 const templates = createFullStackTemplates();
 
 let graph = loadGraph();
-let selectedId = graph.nodes[0]?.id || "";
+let selectedId = "";
 let dragState = null;
 
 const canvas = document.getElementById("canvas");
 const nodesLayer = document.getElementById("nodes");
 const edgesSvg = document.getElementById("edges");
 const inspector = document.getElementById("inspector");
+const toolsPanel = document.getElementById("tools-panel");
 
 function node(id, name, type, description, x, y, fields) {
   return {
@@ -767,6 +946,26 @@ function createFullStackTemplates() {
     ],
     deployments: [{ id: "postgres", name: "Postgres", target: "customer-owned postgres", environment: "production" }]
   };
+  applyNodePositions(telemetry, {
+    app_domain: [545, 92],
+    dashboard_page: [180, 242],
+    api_device_ingest: [545, 242],
+    api_agent_query: [910, 242],
+    users: [60, 412],
+    organizations: [300, 412],
+    projects: [540, 412],
+    device_publisher: [780, 412],
+    devices: [1020, 412],
+    device_tokens: [1020, 560],
+    telemetry_readings: [300, 652],
+    latest_device_state: [540, 652],
+    get_project_readings: [780, 652],
+    get_device_health: [1020, 652],
+    analysis_agent: [300, 842],
+    coding_agent: [540, 842],
+    support_agent: [780, 842],
+    postgres: [545, 1032]
+  });
 
   const saas = clone(telemetry);
   saas.app = { name: "Generic SaaS App", description: "A team SaaS backend with organization membership, project data, routes, and support-agent boundaries." };
@@ -780,6 +979,20 @@ function createFullStackTemplates() {
     policyObject("dashboard_page", "service", "read", "table", "projects_data", "", "allow", "signed-in member", "dashboard reads project rows")
   ];
   saas.routes = [route("dashboard_page", "/dashboard", "page", "member session", ["projects_data"], [], [], ["researcher", "admin"], ["anonymous"], [], ["log exports"])];
+  applyNodePositions(saas, {
+    app_domain: [545, 92],
+    dashboard_page: [365, 242],
+    api_agent_query: [725, 242],
+    users: [180, 412],
+    organizations: [420, 412],
+    projects: [660, 412],
+    devices: [900, 412],
+    projects_data: [545, 652],
+    analysis_agent: [300, 842],
+    coding_agent: [540, 842],
+    support_agent: [780, 842],
+    postgres: [545, 1032]
+  });
 
   const privateAgent = clone(telemetry);
   privateAgent.app = { name: "Private Agent App", description: "An app where agents can inspect schema and selected fields without inheriting production row or secret access." };
@@ -796,8 +1009,26 @@ function createFullStackTemplates() {
     policyObject("api_agent_query", "service", "read", "field", "customer_records", "account_name", "allow", "agent identity checked", "API returns scoped fields")
   ];
   privateAgent.routes = [route("api_agent_query", "/api/agent-query", "api", "agent identity", ["customer_records.account_name"], [], [], ["analysis_agent"], ["coding_agent row access", "anonymous"], [], ["log every query"])];
+  applyNodePositions(privateAgent, {
+    app_domain: [545, 92],
+    api_agent_query: [545, 242],
+    customer_records: [420, 512],
+    api_keys: [660, 512],
+    analysis_agent: [300, 782],
+    coding_agent: [540, 782],
+    postgres: [545, 1032]
+  });
 
   return { research: telemetry, saas, telemetry, privateAgent };
+}
+
+function applyNodePositions(target, positions) {
+  for (const item of target.nodes || []) {
+    const position = positions[item.id];
+    if (!position) continue;
+    item.x = position[0];
+    item.y = position[1];
+  }
 }
 
 function stableEdge(from, to, type) {
@@ -845,9 +1076,10 @@ function saveGraph() {
 
 function setGraph(next) {
   graph = clone(next);
-  selectedId = graph.nodes[0]?.id || "";
+  selectedId = "";
   saveGraph();
   render();
+  requestAnimationFrame(frameGraph);
 }
 
 function getNode(id) {
@@ -944,6 +1176,7 @@ function renderNodes() {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         selectedId = el.dataset.node;
+        closeToolsPanel();
         render();
       }
     });
@@ -982,14 +1215,22 @@ function renderEdges() {
 function renderInspector() {
   const selected = getNode(selectedId);
   if (!selected) {
-    inspector.innerHTML = `<h2 class="inspector-title">No node selected</h2>`;
+    inspector.classList.remove("open");
+    inspector.classList.add("is-empty");
+    inspector.innerHTML = "";
     return;
   }
 
+  inspector.classList.add("open");
+  inspector.classList.remove("is-empty");
   const connected = graph.edges.filter((item) => item.from === selected.id || item.to === selected.id);
   const matchingPolicies = graph.policies.filter((item) => item.principal_id === selected.id || item.resource_id === selected.id);
   inspector.innerHTML = `
     <section class="section">
+      <div class="drawer-head">
+        <h2 class="drawer-title">Node</h2>
+        <button class="close-button" id="close-inspector" aria-label="Close inspector">×</button>
+      </div>
       <h2 class="inspector-title">${escapeHtml(selected.name)}</h2>
       <p class="inspector-subtitle">${escapeHtml(selected.type)}</p>
       <div class="form-grid">
@@ -1041,6 +1282,10 @@ function renderInspector() {
 }
 
 function bindInspector(selected) {
+  document.getElementById("close-inspector").addEventListener("click", () => {
+    selectedId = "";
+    render();
+  });
   document.getElementById("node-name").addEventListener("input", (event) => {
     selected.name = event.target.value;
     saveGraph();
@@ -1313,6 +1558,7 @@ function startDrag(event) {
   const element = event.currentTarget;
   const current = getNode(element.dataset.node);
   selectedId = current.id;
+  closeToolsPanel();
   element.setPointerCapture(event.pointerId);
   element.classList.add("dragging");
   dragState = {
@@ -1326,9 +1572,9 @@ function startDrag(event) {
   };
   renderEdges();
   renderInspector();
-  element.addEventListener("pointermove", moveDrag);
-  element.addEventListener("pointerup", endDrag);
-  element.addEventListener("pointercancel", endDrag);
+  window.addEventListener("pointermove", moveDrag);
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("pointercancel", endDrag);
 }
 
 function moveDrag(event) {
@@ -1347,12 +1593,16 @@ function moveDrag(event) {
 
 function endDrag(event) {
   if (!dragState || event.pointerId !== dragState.pointerId) return;
-  const element = event.currentTarget;
-  element.classList.remove("dragging");
-  element.releasePointerCapture(event.pointerId);
-  element.removeEventListener("pointermove", moveDrag);
-  element.removeEventListener("pointerup", endDrag);
-  element.removeEventListener("pointercancel", endDrag);
+  const element = document.querySelector(`[data-node="${dragState.id}"]`);
+  if (element) {
+    element.classList.remove("dragging");
+    if (element.hasPointerCapture(event.pointerId)) {
+      element.releasePointerCapture(event.pointerId);
+    }
+  }
+  window.removeEventListener("pointermove", moveDrag);
+  window.removeEventListener("pointerup", endDrag);
+  window.removeEventListener("pointercancel", endDrag);
   saveGraph();
   dragState = null;
   render();
@@ -1503,10 +1753,36 @@ function render() {
   renderInspector();
 }
 
+function openToolsPanel(targetId = "") {
+  toolsPanel.classList.add("open");
+  if (targetId) {
+    requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
+}
+
+function closeToolsPanel() {
+  toolsPanel.classList.remove("open");
+}
+
+function resetGraphLayout() {
+  localStorage.removeItem(storageKey);
+  closeToolsPanel();
+  setGraph(templates.research);
+}
+
+function frameGraph() {
+  const workspace = document.getElementById("workspace");
+  workspace.scrollTo({ left: 0, top: 0, behavior: "auto" });
+}
+
 document.getElementById("apply-intent").addEventListener("click", applyIntent);
 document.getElementById("add-edge").addEventListener("click", addEdgeFromForm);
 document.getElementById("download-json").addEventListener("click", downloadJson);
 document.getElementById("export-zip").addEventListener("click", exportZip);
+document.getElementById("open-tools").addEventListener("click", () => openToolsPanel());
+document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
+document.getElementById("close-tools").addEventListener("click", closeToolsPanel);
+document.getElementById("reset-layout").addEventListener("click", resetGraphLayout);
 document.getElementById("sim-principal").addEventListener("change", renderPolicyResult);
 document.getElementById("sim-action").addEventListener("change", renderPolicyResult);
 document.getElementById("sim-resource").addEventListener("change", () => {
@@ -1515,14 +1791,36 @@ document.getElementById("sim-resource").addEventListener("change", () => {
 });
 document.getElementById("sim-field").addEventListener("change", renderPolicyResult);
 document.getElementById("reset-local").addEventListener("click", () => {
-  localStorage.removeItem(storageKey);
-  setGraph(templates.research);
+  resetGraphLayout();
+});
+document.getElementById("workspace").addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".node")) return;
+  closeToolsPanel();
+  selectedId = "";
+  render();
 });
 document.querySelectorAll("[data-template]").forEach((button) => {
-  button.addEventListener("click", () => setGraph(templates[button.dataset.template]));
+  button.addEventListener("click", () => {
+    setGraph(templates[button.dataset.template]);
+    closeToolsPanel();
+  });
 });
 document.querySelectorAll("[data-add-node]").forEach((button) => {
-  button.addEventListener("click", () => addNode(button.dataset.addNode));
+  button.addEventListener("click", () => {
+    addNode(button.dataset.addNode);
+    closeToolsPanel();
+  });
+});
+window.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    toolsPanel.classList.toggle("open");
+  }
+  if (event.key === "Escape") {
+    closeToolsPanel();
+    selectedId = "";
+    render();
+  }
 });
 window.addEventListener("resize", renderEdges);
 

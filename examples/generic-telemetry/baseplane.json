@@ -10,8 +10,8 @@
       "name": "app.example.com",
       "type": "domain",
       "description": "Primary production domain.",
-      "x": 56,
-      "y": 96
+      "x": 545,
+      "y": 92
     },
     {
       "id": "dashboard_page",
@@ -19,8 +19,8 @@
       "type": "page",
       "description": "Authenticated telemetry dashboard.",
       "path": "/dashboard",
-      "x": 260,
-      "y": 92
+      "x": 180,
+      "y": 242
     },
     {
       "id": "api_device_ingest",
@@ -28,8 +28,8 @@
       "type": "api",
       "description": "Device-token telemetry ingest endpoint.",
       "path": "/api/device-ingest",
-      "x": 260,
-      "y": 300
+      "x": 545,
+      "y": 242
     },
     {
       "id": "api_agent_query",
@@ -37,16 +37,16 @@
       "type": "api",
       "description": "Scoped AI-agent query endpoint.",
       "path": "/api/agent-query",
-      "x": 260,
-      "y": 510
+      "x": 910,
+      "y": 242
     },
     {
       "id": "users",
       "name": "users",
       "type": "table",
       "description": "Human account records.",
-      "x": 560,
-      "y": 36,
+      "x": 60,
+      "y": 412,
       "fields": [
         { "name": "id", "type": "uuid primary key" },
         { "name": "email", "type": "text not null", "private": true },
@@ -58,8 +58,8 @@
       "name": "organizations",
       "type": "table",
       "description": "Tenant boundary.",
-      "x": 560,
-      "y": 210,
+      "x": 300,
+      "y": 412,
       "fields": [
         { "name": "id", "type": "uuid primary key" },
         { "name": "name", "type": "text not null" },
@@ -71,8 +71,8 @@
       "name": "projects",
       "type": "table",
       "description": "Project and data boundary.",
-      "x": 560,
-      "y": 384,
+      "x": 540,
+      "y": 412,
       "fields": [
         { "name": "id", "type": "uuid primary key" },
         { "name": "organization_id", "type": "uuid not null" },
@@ -84,8 +84,8 @@
       "name": "devices",
       "type": "table",
       "description": "Registered hardware publishers.",
-      "x": 850,
-      "y": 168,
+      "x": 1020,
+      "y": 412,
       "fields": [
         { "name": "id", "type": "text primary key" },
         { "name": "project_id", "type": "uuid not null" },
@@ -97,8 +97,8 @@
       "name": "device_tokens",
       "type": "secret",
       "description": "Device token hashes. Secret by default.",
-      "x": 850,
-      "y": 350,
+      "x": 1020,
+      "y": 560,
       "fields": [
         { "name": "device_id", "type": "text primary key" },
         { "name": "token_hash", "type": "text not null", "secret": true, "private": true },
@@ -110,8 +110,8 @@
       "name": "telemetry_readings",
       "type": "table",
       "description": "Append-only telemetry measurements.",
-      "x": 1120,
-      "y": 175,
+      "x": 300,
+      "y": 652,
       "fields": [
         { "name": "id", "type": "bigint generated always as identity primary key" },
         { "name": "event_id", "type": "text not null unique" },
@@ -127,8 +127,8 @@
       "name": "latest_device_state",
       "type": "table",
       "description": "Current device health snapshot.",
-      "x": 1120,
-      "y": 420,
+      "x": 540,
+      "y": 652,
       "fields": [
         { "name": "device_id", "type": "text primary key" },
         { "name": "project_id", "type": "uuid not null" },
@@ -141,8 +141,8 @@
       "name": "get_project_readings",
       "type": "function",
       "description": "Returns scoped project readings.",
-      "x": 1410,
-      "y": 150,
+      "x": 780,
+      "y": 652,
       "fields": [
         { "name": "project_id", "type": "uuid" },
         { "name": "range", "type": "tstzrange" }
@@ -153,8 +153,8 @@
       "name": "get_device_health",
       "type": "function",
       "description": "Returns visible device health rows.",
-      "x": 1410,
-      "y": 350,
+      "x": 1020,
+      "y": 652,
       "fields": [
         { "name": "project_id", "type": "uuid" }
       ]
@@ -164,40 +164,40 @@
       "name": "analysis_agent",
       "type": "agent",
       "description": "Agent with field-scoped telemetry reads.",
-      "x": 560,
-      "y": 650
+      "x": 300,
+      "y": 842
     },
     {
       "id": "coding_agent",
       "name": "coding_agent",
       "type": "agent",
       "description": "Agent that can inspect schema but not production rows.",
-      "x": 820,
-      "y": 650
+      "x": 540,
+      "y": 842
     },
     {
       "id": "support_agent",
       "name": "support_agent",
       "type": "agent",
       "description": "Agent with operational status access only.",
-      "x": 1080,
-      "y": 650
+      "x": 780,
+      "y": 842
     },
     {
       "id": "device_publisher",
       "name": "device_publisher",
       "type": "device",
       "description": "Non-human device principal that publishes telemetry.",
-      "x": 56,
-      "y": 300
+      "x": 780,
+      "y": 412
     },
     {
       "id": "postgres",
       "name": "postgres",
       "type": "deployment",
       "description": "Customer-owned Postgres target.",
-      "x": 1410,
-      "y": 560
+      "x": 545,
+      "y": 1032
     }
   ],
   "edges": [
