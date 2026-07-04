@@ -1,0 +1,1548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baseplane App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f1eb;
+      --panel: #fffdf8;
+      --panel-2: #f9f5ec;
+      --ink: #0e1a14;
+      --muted: #66736b;
+      --line: rgba(14, 26, 20, 0.14);
+      --line-strong: rgba(14, 26, 20, 0.24);
+      --orange: #f26a1b;
+      --orange-2: #ff8a3d;
+      --blue: #2f69d9;
+      --purple: #7453d8;
+      --teal: #168983;
+      --amber: #bd7b29;
+      --red: #c74f3d;
+      --mono: 'DM Mono', monospace;
+      --sans: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 68px 1fr;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.86);
+      backdrop-filter: blur(18px);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand a {
+      color: var(--orange);
+      font-size: 22px;
+      font-weight: 850;
+      letter-spacing: -0.055em;
+      text-decoration: none;
+    }
+
+    .brand span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.92);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 12px;
+    }
+
+    .button.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: white;
+    }
+
+    .button.warn {
+      color: #8c402f;
+    }
+
+    .body {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 300px minmax(650px, 1fr) 390px;
+    }
+
+    .panel {
+      min-height: 0;
+      overflow: auto;
+      background: rgba(255, 253, 248, 0.82);
+      border-color: var(--line);
+      padding: 18px;
+    }
+
+    .left {
+      border-right: 1px solid var(--line);
+    }
+
+    .right {
+      border-left: 1px solid var(--line);
+    }
+
+    .section {
+      padding: 0 0 18px;
+      margin: 0 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .label {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      margin: 0 0 10px;
+      text-transform: uppercase;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 7px 0 0;
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: var(--panel);
+      color: var(--ink);
+      outline: 0;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: rgba(242, 106, 27, 0.54);
+      box-shadow: 0 0 0 3px rgba(242, 106, 27, 0.1);
+    }
+
+    textarea {
+      min-height: 118px;
+      padding: 11px;
+      resize: vertical;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    input,
+    select {
+      height: 36px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .template-grid,
+    .quick-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .template-button,
+    .quick-button {
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.48);
+      color: #2e3a33;
+      padding: 10px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .template-button:hover,
+    .quick-button:hover {
+      border-color: rgba(242, 106, 27, 0.44);
+      background: var(--panel);
+    }
+
+    .workspace {
+      position: relative;
+      min-height: 0;
+      overflow: auto;
+      background:
+        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 32px 32px;
+    }
+
+    .canvas {
+      position: relative;
+      width: 1550px;
+      height: 1040px;
+    }
+
+    .edges {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .edge {
+      fill: none;
+      stroke: rgba(61, 77, 69, 0.31);
+      stroke-dasharray: 9 8;
+      animation: dash-flow 1.5s linear infinite;
+      stroke-linecap: round;
+      stroke-width: 1.55;
+    }
+
+    @keyframes dash-flow {
+      to {
+        stroke-dashoffset: -34;
+      }
+    }
+
+    .edge.related {
+      stroke: rgba(242, 106, 27, 0.86);
+      stroke-width: 2.2;
+      stroke-dasharray: 11 7;
+      animation-duration: 1s;
+    }
+
+    .edge-label {
+      fill: rgba(14, 26, 20, 0.65);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.02em;
+      paint-order: stroke;
+      stroke: rgba(255, 253, 248, 0.92);
+      stroke-width: 5px;
+    }
+
+    .node {
+      position: absolute;
+      width: 190px;
+      min-height: 98px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--line-strong);
+      background: rgba(255, 253, 248, 0.96);
+      box-shadow: 0 18px 42px rgba(17, 30, 23, 0.08);
+      padding: 13px 14px 12px;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .node:hover,
+    .node.selected {
+      border-color: rgba(242, 106, 27, 0.62);
+      box-shadow: 0 24px 62px rgba(17, 30, 23, 0.15);
+    }
+
+    .node.dragging {
+      z-index: 6;
+      cursor: grabbing;
+      box-shadow: 0 34px 84px rgba(17, 30, 23, 0.22);
+    }
+
+    .node.table { border-top-color: var(--blue); }
+    .node.auth { border-top-color: var(--purple); }
+    .node.function { border-top-color: var(--amber); }
+    .node.device { border-top-color: var(--teal); }
+    .node.secret { border-top-color: var(--red); }
+    .node.website { border-top-color: var(--orange); }
+    .node.agent { border-top-color: #111827; }
+    .node.deployment { border-top-color: #6b7280; }
+
+    .node-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+
+    .node-name {
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+    }
+
+    .node-type {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      flex: 0 0 auto;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.05em;
+      padding: 3px 6px;
+      text-transform: uppercase;
+    }
+
+    .node-desc {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.38;
+      margin: 0;
+    }
+
+    .field-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .field-pill {
+      border-radius: 999px;
+      background: #eee9df;
+      color: #526058;
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 3px 7px;
+    }
+
+    .inspector-title {
+      margin: 0 0 4px;
+      font-size: 22px;
+      letter-spacing: -0.045em;
+    }
+
+    .inspector-subtitle {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      margin: 0 0 16px;
+      text-transform: uppercase;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 9px;
+    }
+
+    .field-row,
+    .policy-row,
+    .edge-row {
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.42);
+      padding: 9px;
+    }
+
+    .field-row {
+      display: grid;
+      gap: 7px;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 7px;
+      margin-top: 9px;
+      flex-wrap: wrap;
+    }
+
+    .mini-button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      color: #2d3c33;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 9px;
+    }
+
+    .mini-button.danger {
+      color: #984233;
+    }
+
+    pre {
+      margin: 0;
+      max-height: 245px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      background: #0e1a14;
+      color: #d8f1e4;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      padding: 12px;
+      white-space: pre-wrap;
+    }
+
+    .sim-result {
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.42);
+      padding: 10px;
+    }
+
+    .sim-result strong {
+      display: block;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .sim-result.allow {
+      border-color: rgba(22, 137, 131, 0.38);
+      background: rgba(22, 137, 131, 0.08);
+    }
+
+    .sim-result.deny {
+      border-color: rgba(199, 79, 61, 0.38);
+      background: rgba(199, 79, 61, 0.08);
+    }
+
+    .package-list {
+      display: grid;
+      gap: 7px;
+      margin: 10px 0 0;
+    }
+
+    .package-item {
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.48);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      padding: 8px;
+    }
+
+    @media (max-width: 1160px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100vh; }
+      .body { grid-template-columns: 1fr; }
+      .panel { max-height: none; }
+      .workspace { height: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <a href="../">Baseplane</a>
+      </div>
+      <div class="top-actions">
+        <button class="button" id="download-json">Download JSON</button>
+        <button class="button primary" id="export-zip">Export backend package</button>
+        <button class="button warn" id="reset-local">Reset local graph</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <aside class="panel left">
+        <section class="section">
+          <div class="label">Intent</div>
+          <textarea id="intent">Build a research portal with researchers, projects, devices, sensor readings, invites, and quote requests. Add an analysis agent that can read only safe fields.</textarea>
+          <div class="mini-actions">
+            <button class="mini-button" id="apply-intent">Apply intent</button>
+          </div>
+          <p class="small">This alpha uses deterministic templates. No external AI call, no credentials, no customer data.</p>
+        </section>
+
+        <section class="section">
+          <div class="label">Templates</div>
+          <div class="template-grid">
+            <button class="template-button" data-template="research">Research telemetry</button>
+            <button class="template-button" data-template="saas">SaaS app</button>
+            <button class="template-button" data-template="telemetry">Device telemetry app</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="label">Add resource</div>
+          <div class="quick-grid">
+            <button class="quick-button" data-add-node="table">Add table</button>
+            <button class="quick-button" data-add-node="function">Add function</button>
+            <button class="quick-button" data-add-node="agent">Add AI agent</button>
+            <button class="quick-button" data-add-node="secret">Add secret</button>
+            <button class="quick-button" data-add-node="deployment">Add deployment</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="label">Add edge</div>
+          <div class="stack">
+            <select id="edge-from"></select>
+            <select id="edge-type">
+              <option value="reads">reads</option>
+              <option value="writes">writes</option>
+              <option value="owns">owns</option>
+              <option value="validates">validates</option>
+              <option value="executes">executes</option>
+              <option value="publishes">publishes</option>
+              <option value="exports">exports</option>
+            </select>
+            <select id="edge-to"></select>
+            <button class="mini-button" id="add-edge">Create edge</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="label">Policy simulator</div>
+          <div class="stack">
+            <select id="sim-principal"></select>
+            <select id="sim-action">
+              <option value="read">read</option>
+              <option value="write">write</option>
+              <option value="execute">execute</option>
+              <option value="inspect">inspect</option>
+            </select>
+            <select id="sim-resource"></select>
+            <select id="sim-field"></select>
+            <div class="sim-result" id="policy-result">
+              <strong>Run a policy check</strong>
+              <p class="small">Pick an actor, action, resource, and optional field.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="label">Package</div>
+          <div class="package-list">
+            <div class="package-item"><strong>baseplane.json</strong><span>graph source</span></div>
+            <div class="package-item"><strong>schema.sql</strong><span>tables</span></div>
+            <div class="package-item"><strong>rls_policies.sql</strong><span>access rules</span></div>
+            <div class="package-item"><strong>agent_policies.json</strong><span>agent permissions</span></div>
+            <div class="package-item"><strong>policy_tests.json</strong><span>simulator cases</span></div>
+            <div class="package-item"><strong>README.md</strong><span>handoff docs</span></div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="workspace" id="workspace">
+        <div class="canvas" id="canvas">
+          <svg class="edges" id="edges"></svg>
+          <div id="nodes"></div>
+        </div>
+      </main>
+
+      <aside class="panel right" id="inspector"></aside>
+    </div>
+  </div>
+
+<script>
+const storageKey = "baseplane-alpha-graph-v2";
+const typeLabels = {
+  table: "table",
+  auth: "auth",
+  function: "function",
+  device: "device",
+  secret: "secret",
+  website: "website",
+  agent: "agent",
+  deployment: "deploy",
+};
+
+const templates = {
+  research: {
+    version: "0.1.0",
+    appName: "Research Telemetry Portal",
+    description: "Research portal, device ingest, request flow, and agent-scoped telemetry access.",
+    nodes: [
+      node("public_site", "Public Site", "website", "Public website and entry point.", 60, 110, [["pages", "static_html"], ["portal", "route"], ["request", "route"]]),
+      node("research_portal", "Research Portal", "website", "Authenticated dashboard for time-series telemetry.", 60, 350, [["session", "auth_session"], ["graph", "view"], ["export", "csv"]]),
+      node("request_form", "Request Form", "website", "Public intake form on the website.", 60, 595, [["name", "text"], ["email", "text"], ["message", "text"]]),
+      node("auth", "Auth", "auth", "Human account and session identity.", 350, 105, [["users", "identity"], ["jwt", "token"]]),
+      node("project_members", "project_members", "table", "Permission join table for project access.", 350, 335, [["project_id", "uuid not null"], ["user_id", "uuid not null"], ["role", "text not null"]]),
+      node("project_invites", "project_invites", "table", "One-time invite records for account access.", 350, 575, [["token_hash", "text not null unique"], ["email", "text not null"], ["expires_at", "timestamptz not null"]]),
+      node("projects", "projects", "table", "Project and data boundary.", 655, 180, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
+      node("devices", "devices", "table", "Device registry.", 940, 105, [["id", "text primary key"], ["project_id", "uuid not null"], ["last_seen_at", "timestamptz"]]),
+      node("device_secrets", "device_secrets", "secret", "Hashed device token storage.", 940, 325, [["device_id", "text primary key"], ["token_hash", "text not null"], ["revoked_at", "timestamptz"]]),
+      node("device_ingest", "device_ingest", "function", "Controlled write path from device to database.", 940, 548, [["device_token", "secret_input"], ["payload", "jsonb"]]),
+      node("telemetry_readings", "telemetry_readings", "table", "Time-series measurement data.", 1225, 318, [["event_id", "text not null unique"], ["project_id", "uuid not null"], ["measurement_value", "double precision"], ["device_recorded_at", "timestamptz not null"]]),
+      node("request_intake", "request_intake", "table", "Private business or access request table.", 655, 650, [["name", "text not null"], ["email", "text not null"], ["notification_status", "text"]]),
+      node("submit_request", "submit-request", "function", "Saves requests and sends notification.", 655, 805, [["payload", "json"], ["message_id", "text"]]),
+      node("analysis_agent", "Analysis Agent", "agent", "AI agent with limited access to safe measurement fields.", 1225, 585, [["identity", "agent"], ["scope", "field_limited"]]),
+      node("coding_agent", "Coding Agent", "agent", "Agent that can inspect schema but not production rows.", 1225, 795, [["identity", "agent"], ["scope", "schema_only"]])
+    ],
+    edges: [
+      edge("public_site", "research_portal", "opens"),
+      edge("public_site", "request_form", "opens"),
+      edge("research_portal", "auth", "authenticates"),
+      edge("auth", "project_members", "checks"),
+      edge("project_members", "projects", "allows"),
+      edge("projects", "devices", "owns"),
+      edge("devices", "device_ingest", "publishes"),
+      edge("device_secrets", "device_ingest", "validates"),
+      edge("device_ingest", "telemetry_readings", "writes"),
+      edge("research_portal", "telemetry_readings", "reads"),
+      edge("request_form", "submit_request", "writes"),
+      edge("submit_request", "request_intake", "writes"),
+      edge("analysis_agent", "telemetry_readings", "reads"),
+      edge("coding_agent", "telemetry_readings", "inspect")
+    ],
+    policies: [
+      policy("human", "project_member", "table", "telemetry_readings", "read", "allow", "user is a member of row.project_id"),
+      policy("agent", "analysis_agent", "field", "telemetry_readings", "read", "allow", "fields: project_id, measurement_value, device_recorded_at only"),
+      policy("agent", "coding_agent", "table", "telemetry_readings", "read", "deny", "schema inspection allowed; production rows denied"),
+      policy("device", "devices", "function", "device_ingest", "execute", "allow", "valid device token hash")
+    ],
+    agents: [
+      agent("analysis_agent", "Analysis Agent", [{ action: "read_rows", resource: "telemetry_readings", fields: ["project_id", "measurement_value", "device_recorded_at"], where: "project_id = allowed_project_id" }]),
+      agent("coding_agent", "Coding Agent", [{ action: "inspect_schema", resource: "public.*" }, { action: "read_rows", resource: "telemetry_readings", condition: "deny" }])
+    ]
+  },
+  saas: {
+    version: "0.1.0",
+    appName: "SaaS Starter",
+    description: "Organizations, members, subscriptions, projects, app data, and support agent access.",
+    nodes: [
+      node("web_app", "Web App", "website", "Customer-facing SaaS application.", 70, 170, [["session", "auth"], ["dashboard", "route"]]),
+      node("auth", "Auth", "auth", "User identity and sessions.", 350, 160, [["users", "identity"], ["jwt", "token"]]),
+      node("organizations", "organizations", "table", "Customer account boundary.", 650, 110, [["id", "uuid primary key"], ["name", "text not null"], ["plan", "text"]]),
+      node("members", "members", "table", "User membership and roles.", 650, 335, [["organization_id", "uuid not null"], ["user_id", "uuid not null"], ["role", "text not null"]]),
+      node("projects", "projects", "table", "Customer-owned work objects.", 950, 220, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
+      node("support_agent", "Support Agent", "agent", "Support copilot with scoped metadata access.", 1210, 360, [["identity", "agent"], ["scope", "metadata_only"]])
+    ],
+    edges: [
+      edge("web_app", "auth", "authenticates"),
+      edge("auth", "members", "checks"),
+      edge("organizations", "members", "owns"),
+      edge("organizations", "projects", "owns"),
+      edge("members", "projects", "allows"),
+      edge("support_agent", "projects", "reads")
+    ],
+    policies: [
+      policy("human", "member", "table", "projects", "read", "allow", "user belongs to organization"),
+      policy("agent", "support_agent", "table", "projects", "read", "allow", "metadata fields only")
+    ],
+    agents: [
+      agent("support_agent", "Support Agent", [{ action: "read_rows", resource: "projects", fields: ["id", "organization_id", "name"], where: "organization has active support" }])
+    ]
+  },
+  telemetry: {
+    version: "0.1.0",
+    appName: "Device Telemetry App",
+    description: "Device registry, tokenized ingest, readings, alerts, and analysis agent.",
+    nodes: [
+      node("dashboard", "Telemetry Dashboard", "website", "Private data dashboard.", 70, 220, [["session", "auth"], ["chart", "view"]]),
+      node("devices", "devices", "table", "Registered devices.", 360, 145, [["id", "text primary key"], ["owner_id", "uuid"], ["last_seen_at", "timestamptz"]]),
+      node("device_tokens", "device_tokens", "secret", "Hashed device credentials.", 360, 360, [["device_id", "text"], ["token_hash", "text"], ["revoked_at", "timestamptz"]]),
+      node("ingest", "ingest", "function", "Validated telemetry write path.", 660, 260, [["device_token", "secret_input"], ["payload", "jsonb"]]),
+      node("readings", "readings", "table", "Time-series device readings.", 960, 195, [["event_id", "text unique"], ["device_id", "text"], ["value", "double precision"], ["recorded_at", "timestamptz"]]),
+      node("alerts", "alerts", "table", "Derived alert queue.", 960, 420, [["device_id", "text"], ["severity", "text"], ["message", "text"]]),
+      node("analysis_agent", "Analysis Agent", "agent", "Agent can read telemetry but not tokens.", 1230, 300, [["identity", "agent"], ["scope", "readings_only"]])
+    ],
+    edges: [
+      edge("dashboard", "readings", "reads"),
+      edge("devices", "ingest", "publishes"),
+      edge("device_tokens", "ingest", "validates"),
+      edge("ingest", "readings", "writes"),
+      edge("ingest", "alerts", "writes"),
+      edge("analysis_agent", "readings", "reads")
+    ],
+    policies: [
+      policy("device", "devices", "function", "ingest", "execute", "allow", "valid device token"),
+      policy("agent", "analysis_agent", "table", "readings", "read", "allow", "readings only; secrets denied"),
+      policy("agent", "analysis_agent", "table", "device_tokens", "read", "deny", "never expose device tokens")
+    ],
+    agents: [
+      agent("analysis_agent", "Analysis Agent", [{ action: "read_rows", resource: "readings", fields: ["device_id", "value", "recorded_at"] }, { action: "read_rows", resource: "device_tokens", condition: "deny" }])
+    ]
+  }
+};
+
+let graph = loadGraph();
+let selectedId = graph.nodes[0]?.id || "";
+let dragState = null;
+
+const canvas = document.getElementById("canvas");
+const nodesLayer = document.getElementById("nodes");
+const edgesSvg = document.getElementById("edges");
+const inspector = document.getElementById("inspector");
+
+function node(id, name, type, description, x, y, fields) {
+  return {
+    id,
+    name,
+    type,
+    description,
+    x,
+    y,
+    fields: fields.map(([fieldName, fieldType]) => ({ name: fieldName, type: fieldType, description: "" })),
+    policies: []
+  };
+}
+
+function edge(from, to, type) {
+  return { id: `edge_${from}_${to}_${type}_${Math.random().toString(36).slice(2, 8)}`, from, to, type, description: "" };
+}
+
+function policy(principal_type, principal_id, resource_type, resource_id, action, effect, conditions) {
+  return {
+    id: `policy_${Math.random().toString(36).slice(2, 10)}`,
+    principal_type,
+    principal_id,
+    resource_type,
+    resource_id,
+    action,
+    effect,
+    conditions
+  };
+}
+
+function agent(id, name, can) {
+  return { id, name, can };
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function loadGraph() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (saved?.nodes?.length) return saved;
+  } catch {}
+  return clone(templates.research);
+}
+
+function saveGraph() {
+  localStorage.setItem(storageKey, JSON.stringify(graph));
+}
+
+function setGraph(next) {
+  graph = clone(next);
+  selectedId = graph.nodes[0]?.id || "";
+  saveGraph();
+  render();
+}
+
+function getNode(id) {
+  return graph.nodes.find((item) => item.id === id);
+}
+
+function connectedIds(id) {
+  const ids = new Set([id]);
+  for (const item of graph.edges) {
+    if (item.from === id) ids.add(item.to);
+    if (item.to === id) ids.add(item.from);
+  }
+  return ids;
+}
+
+function nodeRect(node) {
+  const el = document.querySelector(`[data-node="${node.id}"]`);
+  return {
+    x: node.x,
+    y: node.y,
+    width: el?.offsetWidth || 190,
+    height: el?.offsetHeight || 98
+  };
+}
+
+function anchors(source, target) {
+  const a = nodeRect(source);
+  const b = nodeRect(target);
+  const ac = { x: a.x + a.width / 2, y: a.y + a.height / 2 };
+  const bc = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  const dx = bc.x - ac.x;
+  const dy = bc.y - ac.y;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    const dir = dx > 0 ? 1 : -1;
+    return {
+      start: { x: dir > 0 ? a.x + a.width : a.x, y: ac.y },
+      end: { x: dir > 0 ? b.x : b.x + b.width, y: bc.y },
+      axis: "x",
+      dir
+    };
+  }
+  const dir = dy > 0 ? 1 : -1;
+  return {
+    start: { x: ac.x, y: dir > 0 ? a.y + a.height : a.y },
+    end: { x: bc.x, y: dir > 0 ? b.y : b.y + b.height },
+    axis: "y",
+    dir
+  };
+}
+
+function edgePath(source, target) {
+  const anchor = anchors(source, target);
+  if (anchor.axis === "x") {
+    const d = Math.max(68, Math.abs(anchor.end.x - anchor.start.x) * 0.42);
+    return `M ${anchor.start.x} ${anchor.start.y} C ${anchor.start.x + d * anchor.dir} ${anchor.start.y}, ${anchor.end.x - d * anchor.dir} ${anchor.end.y}, ${anchor.end.x} ${anchor.end.y}`;
+  }
+  const d = Math.max(68, Math.abs(anchor.end.y - anchor.start.y) * 0.42);
+  return `M ${anchor.start.x} ${anchor.start.y} C ${anchor.start.x} ${anchor.start.y + d * anchor.dir}, ${anchor.end.x} ${anchor.end.y - d * anchor.dir}, ${anchor.end.x} ${anchor.end.y}`;
+}
+
+function edgeLabelPoint(source, target) {
+  const anchor = anchors(source, target);
+  return {
+    x: (anchor.start.x + anchor.end.x) / 2,
+    y: (anchor.start.y + anchor.end.y) / 2 - 8
+  };
+}
+
+function renderNodes() {
+  const related = connectedIds(selectedId);
+  nodesLayer.innerHTML = graph.nodes.map((item) => {
+    const selected = item.id === selectedId;
+    const connected = related.has(item.id);
+    return `
+      <article class="node ${item.type} ${selected ? "selected" : ""}"
+        data-node="${escapeHtml(item.id)}"
+        style="left:${item.x}px;top:${item.y}px"
+        tabindex="0">
+        <div class="node-head">
+          <div class="node-name">${escapeHtml(item.name)}</div>
+          <div class="node-type">${escapeHtml(typeLabels[item.type] || item.type)}</div>
+        </div>
+        <p class="node-desc">${escapeHtml(item.description || "")}</p>
+        <div class="field-pills">
+          ${(item.fields || []).slice(0, 4).map((field) => `<span class="field-pill">${escapeHtml(field.name)}</span>`).join("")}
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  nodesLayer.querySelectorAll(".node").forEach((el) => {
+    el.addEventListener("pointerdown", startDrag);
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectedId = el.dataset.node;
+        render();
+      }
+    });
+  });
+}
+
+function renderEdges() {
+  const related = connectedIds(selectedId);
+  edgesSvg.setAttribute("viewBox", `0 0 ${canvas.scrollWidth} ${canvas.scrollHeight}`);
+  edgesSvg.innerHTML = `
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="strokeWidth">
+        <path d="M1,1 L9,5 L1,9 Q3,5 1,1" fill="rgba(61,77,69,0.34)"></path>
+      </marker>
+      <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="strokeWidth">
+        <path d="M1,1 L9,5 L1,9 Q3,5 1,1" fill="#f26a1b"></path>
+      </marker>
+    </defs>
+    ${graph.edges.map((item) => {
+      const from = getNode(item.from);
+      const to = getNode(item.to);
+      if (!from || !to) return "";
+      const isRelated = item.from === selectedId || item.to === selectedId;
+      const point = edgeLabelPoint(from, to);
+      return `
+        <path class="edge ${escapeHtml(item.type)} ${isRelated ? "related" : ""}"
+          d="${edgePath(from, to)}"
+          opacity="${selectedId && !related.has(item.from) && !related.has(item.to) ? "0.16" : "1"}"
+          marker-end="url(#${isRelated ? "arrow-active" : "arrow"})"></path>
+        ${isRelated ? `<text class="edge-label" x="${point.x}" y="${point.y}" text-anchor="middle">${escapeHtml(item.type)}</text>` : ""}
+      `;
+    }).join("")}
+  `;
+}
+
+function renderInspector() {
+  const selected = getNode(selectedId);
+  if (!selected) {
+    inspector.innerHTML = `<h2 class="inspector-title">No node selected</h2>`;
+    return;
+  }
+
+  const connected = graph.edges.filter((item) => item.from === selected.id || item.to === selected.id);
+  const matchingPolicies = graph.policies.filter((item) => item.principal_id === selected.id || item.resource_id === selected.id);
+  inspector.innerHTML = `
+    <section class="section">
+      <h2 class="inspector-title">${escapeHtml(selected.name)}</h2>
+      <p class="inspector-subtitle">${escapeHtml(selected.type)}</p>
+      <div class="form-grid">
+        <input id="node-name" value="${escapeAttr(selected.name)}" placeholder="Name">
+        <select id="node-type">${nodeTypeOptions(selected.type)}</select>
+        <textarea id="node-description" placeholder="Description">${escapeHtml(selected.description || "")}</textarea>
+      </div>
+      <div class="mini-actions">
+        <button class="mini-button danger" id="delete-node">Delete node</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">Fields</div>
+      <div class="stack" id="field-list">
+        ${(selected.fields || []).map((field, index) => fieldEditor(field, index)).join("")}
+      </div>
+      <div class="mini-actions">
+        <button class="mini-button" id="add-field">Add field</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">Policies</div>
+      <div class="stack" id="policy-list">
+        ${matchingPolicies.length ? matchingPolicies.map(policyView).join("") : `<p class="small">No explicit policy for this node yet.</p>`}
+      </div>
+      <div class="mini-actions">
+        <button class="mini-button" id="add-policy">Add policy</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">Connected edges</div>
+      <div class="stack">
+        ${connected.length ? connected.map(edgeView).join("") : `<p class="small">No connected edges.</p>`}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">Generated SQL preview</div>
+      <pre>${escapeHtml(sqlForNode(selected))}</pre>
+    </section>
+  `;
+
+  bindInspector(selected);
+}
+
+function bindInspector(selected) {
+  document.getElementById("node-name").addEventListener("input", (event) => {
+    selected.name = event.target.value;
+    saveGraph();
+    renderNodes();
+    renderEdgeSelectors();
+  });
+  document.getElementById("node-type").addEventListener("change", (event) => {
+    selected.type = event.target.value;
+    saveGraph();
+    render();
+  });
+  document.getElementById("node-description").addEventListener("input", (event) => {
+    selected.description = event.target.value;
+    saveGraph();
+    renderNodes();
+  });
+  document.getElementById("delete-node").addEventListener("click", () => {
+    graph.nodes = graph.nodes.filter((item) => item.id !== selected.id);
+    graph.edges = graph.edges.filter((item) => item.from !== selected.id && item.to !== selected.id);
+    graph.policies = graph.policies.filter((item) => item.principal_id !== selected.id && item.resource_id !== selected.id);
+    graph.agents = graph.agents.filter((item) => item.id !== selected.id);
+    selectedId = graph.nodes[0]?.id || "";
+    saveGraph();
+    render();
+  });
+  document.getElementById("add-field").addEventListener("click", () => {
+    selected.fields = selected.fields || [];
+    selected.fields.push({ name: "new_field", type: "text", description: "" });
+    saveGraph();
+    render();
+  });
+  document.querySelectorAll("[data-field-name]").forEach((input) => {
+    input.addEventListener("input", (event) => {
+      selected.fields[Number(input.dataset.fieldName)].name = event.target.value;
+      saveGraph();
+      renderNodes();
+    });
+  });
+  document.querySelectorAll("[data-field-type]").forEach((input) => {
+    input.addEventListener("input", (event) => {
+      selected.fields[Number(input.dataset.fieldType)].type = event.target.value;
+      saveGraph();
+    });
+  });
+  document.querySelectorAll("[data-field-description]").forEach((input) => {
+    input.addEventListener("input", (event) => {
+      selected.fields[Number(input.dataset.fieldDescription)].description = event.target.value;
+      saveGraph();
+    });
+  });
+  document.querySelectorAll("[data-remove-field]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selected.fields.splice(Number(button.dataset.removeField), 1);
+      saveGraph();
+      render();
+    });
+  });
+  document.getElementById("add-policy").addEventListener("click", () => {
+    const isAgent = selected.type === "agent";
+    graph.policies.push(policy(
+      isAgent ? "agent" : "human",
+      isAgent ? selected.id : "project_member",
+      selected.type === "function" ? "function" : "table",
+      selected.id,
+      selected.type === "function" ? "execute" : "read",
+      "allow",
+      isAgent ? "scoped by Baseplane policy graph" : "project membership required"
+    ));
+    if (isAgent && !graph.agents.find((item) => item.id === selected.id)) {
+      graph.agents.push(agent(selected.id, selected.name, [{ action: "inspect_schema", resource: "public.*" }]));
+    }
+    saveGraph();
+    render();
+  });
+}
+
+function fieldEditor(field, index) {
+  return `
+    <div class="field-row">
+      <input data-field-name="${index}" value="${escapeAttr(field.name)}" placeholder="field name">
+      <input data-field-type="${index}" value="${escapeAttr(field.type)}" placeholder="field type">
+      <input data-field-description="${index}" value="${escapeAttr(field.description || "")}" placeholder="description">
+      <button class="mini-button danger" data-remove-field="${index}">Remove field</button>
+    </div>
+  `;
+}
+
+function policyView(item) {
+  return `
+    <div class="policy-row">
+      <strong>${escapeHtml(item.effect.toUpperCase())} ${escapeHtml(item.action)}</strong>
+      <p class="small">${escapeHtml(item.principal_type)}:${escapeHtml(item.principal_id)} -> ${escapeHtml(item.resource_type)}:${escapeHtml(item.resource_id)}</p>
+      <p class="small">${escapeHtml(item.conditions || "no condition")}</p>
+    </div>
+  `;
+}
+
+function edgeView(item) {
+  const from = getNode(item.from)?.name || item.from;
+  const to = getNode(item.to)?.name || item.to;
+  return `
+    <div class="edge-row">
+      <strong>${escapeHtml(from)} -> ${escapeHtml(to)}</strong>
+      <p class="small">${escapeHtml(item.type)}</p>
+    </div>
+  `;
+}
+
+function nodeTypeOptions(value) {
+  return Object.keys(typeLabels)
+    .map((type) => `<option value="${type}" ${type === value ? "selected" : ""}>${type}</option>`)
+    .join("");
+}
+
+function renderEdgeSelectors() {
+  const options = graph.nodes
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)}</option>`)
+    .join("");
+  document.getElementById("edge-from").innerHTML = options;
+  document.getElementById("edge-to").innerHTML = options;
+}
+
+function renderPolicySimulator() {
+  const principalEl = document.getElementById("sim-principal");
+  const resourceEl = document.getElementById("sim-resource");
+  const actionEl = document.getElementById("sim-action");
+  if (!principalEl || !resourceEl || !actionEl) return;
+
+  const previousPrincipal = principalEl.value;
+  const previousResource = resourceEl.value;
+  const principals = graph.nodes.filter((item) => ["agent", "device", "auth", "website"].includes(item.type));
+  const resources = graph.nodes.filter((item) => ["table", "function", "secret", "website", "deployment"].includes(item.type));
+
+  principalEl.innerHTML = principals
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.type)})</option>`)
+    .join("");
+  resourceEl.innerHTML = resources
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.type)})</option>`)
+    .join("");
+
+  if (principals.some((item) => item.id === previousPrincipal)) principalEl.value = previousPrincipal;
+  if (resources.some((item) => item.id === previousResource)) resourceEl.value = previousResource;
+  updateSimulatorFieldOptions();
+  renderPolicyResult();
+}
+
+function updateSimulatorFieldOptions() {
+  const fieldEl = document.getElementById("sim-field");
+  const resource = getNode(document.getElementById("sim-resource")?.value);
+  if (!fieldEl) return;
+  const previous = fieldEl.value;
+  const fields = resource?.fields || [];
+  fieldEl.innerHTML = [
+    `<option value="">any field</option>`,
+    ...fields.map((item) => `<option value="${escapeAttr(item.name)}">${escapeHtml(item.name)}</option>`)
+  ].join("");
+  if (fields.some((item) => item.name === previous)) fieldEl.value = previous;
+}
+
+function renderPolicyResult() {
+  const resultEl = document.getElementById("policy-result");
+  if (!resultEl) return;
+  const request = {
+    principal_id: document.getElementById("sim-principal")?.value || "",
+    action: document.getElementById("sim-action")?.value || "read",
+    resource_id: document.getElementById("sim-resource")?.value || "",
+    field: document.getElementById("sim-field")?.value || ""
+  };
+  if (!request.principal_id || !request.resource_id) return;
+  const result = policyDecision(request);
+  resultEl.className = `sim-result ${result.effect}`;
+  resultEl.innerHTML = `
+    <strong>${result.effect.toUpperCase()}</strong>
+    <p class="small">${escapeHtml(request.principal_id)} ${escapeHtml(request.action)} ${escapeHtml(request.resource_id)}${request.field ? `.${escapeHtml(request.field)}` : ""}</p>
+    <p class="small">${escapeHtml(result.reason)}</p>
+  `;
+}
+
+function policyDecision(request) {
+  const action = normalizeAction(request.action);
+  const matching = graph.policies.filter((item) =>
+    principalMatches(item, request.principal_id) &&
+    resourceMatches(item, request.resource_id) &&
+    normalizeAction(item.action) === action
+  );
+
+  const fieldGate = matching.find((item) => item.effect === "allow" && request.field && !fieldAllowed(item.conditions, request.field));
+  if (fieldGate) {
+    return { effect: "deny", policy: fieldGate.id, reason: `${request.field} is outside the allowed field set.` };
+  }
+
+  const deny = matching.find((item) => item.effect === "deny");
+  if (deny) return { effect: "deny", policy: deny.id, reason: deny.conditions || "explicit deny" };
+
+  const allow = matching.find((item) => item.effect === "allow");
+  if (allow) return { effect: "allow", policy: allow.id, reason: allow.conditions || "explicit allow" };
+
+  return { effect: "deny", policy: null, reason: "no matching allow policy" };
+}
+
+function principalMatches(item, principalId) {
+  return item.principal_id === principalId || item.principal_id === "*";
+}
+
+function resourceMatches(item, resourceId) {
+  return item.resource_id === resourceId || item.resource_id === "*" || resourceId.startsWith(`${item.resource_id}.`);
+}
+
+function normalizeAction(action) {
+  if (action === "read_rows") return "read";
+  if (action === "inspect_schema") return "inspect";
+  return action || "";
+}
+
+function fieldAllowed(conditions = "", field = "") {
+  const fields = parseAllowedFields(conditions);
+  if (!fields.length) return true;
+  return fields.includes(field);
+}
+
+function parseAllowedFields(conditions = "") {
+  const match = String(conditions).match(/fields:\s*([^.;]+?)(?:\s+only|$)/i);
+  if (!match) return [];
+  return match[1].split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function addNode(type) {
+  const id = uniqueId(type);
+  const created = node(id, titleCase(type), type, `New ${type} resource.`, 180 + graph.nodes.length * 18, 160 + graph.nodes.length * 14, defaultFields(type));
+  graph.nodes.push(created);
+  if (type === "agent") {
+    graph.agents.push(agent(id, created.name, [{ action: "inspect_schema", resource: "public.*" }]));
+    graph.policies.push(policy("agent", id, "graph", "*", "inspect", "allow", "schema-only by default"));
+  }
+  selectedId = id;
+  saveGraph();
+  render();
+}
+
+function defaultFields(type) {
+  if (type === "table") return [["id", "uuid primary key"], ["created_at", "timestamptz not null default now()"]];
+  if (type === "function") return [["payload", "jsonb"]];
+  if (type === "secret") return [["name", "text"], ["value_hash", "text"]];
+  if (type === "agent") return [["identity", "agent"], ["scope", "schema_only"]];
+  if (type === "deployment") return [["target", "text"], ["status", "text"]];
+  return [["name", "text"]];
+}
+
+function addEdgeFromForm() {
+  const from = document.getElementById("edge-from").value;
+  const to = document.getElementById("edge-to").value;
+  const type = document.getElementById("edge-type").value;
+  if (!from || !to || from === to) return;
+  graph.edges.push(edge(from, to, type));
+  saveGraph();
+  render();
+}
+
+function applyIntent() {
+  const text = document.getElementById("intent").value.toLowerCase();
+  if (text.includes("saas") || text.includes("subscription") || text.includes("customer")) {
+    setGraph(templates.saas);
+  } else if (text.includes("device") || text.includes("telemetry") || text.includes("sensor")) {
+    setGraph(templates.telemetry);
+  } else {
+    setGraph(templates.research);
+  }
+}
+
+function startDrag(event) {
+  const element = event.currentTarget;
+  const current = getNode(element.dataset.node);
+  selectedId = current.id;
+  element.setPointerCapture(event.pointerId);
+  element.classList.add("dragging");
+  dragState = {
+    id: current.id,
+    pointerId: event.pointerId,
+    startX: current.x,
+    startY: current.y,
+    pointerX: event.clientX,
+    pointerY: event.clientY,
+    moved: false
+  };
+  renderEdges();
+  renderInspector();
+  element.addEventListener("pointermove", moveDrag);
+  element.addEventListener("pointerup", endDrag);
+  element.addEventListener("pointercancel", endDrag);
+}
+
+function moveDrag(event) {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const current = getNode(dragState.id);
+  const dx = event.clientX - dragState.pointerX;
+  const dy = event.clientY - dragState.pointerY;
+  if (Math.abs(dx) + Math.abs(dy) > 4) dragState.moved = true;
+  current.x = Math.max(12, Math.min(canvas.scrollWidth - 210, dragState.startX + dx));
+  current.y = Math.max(12, Math.min(canvas.scrollHeight - 130, dragState.startY + dy));
+  const element = document.querySelector(`[data-node="${current.id}"]`);
+  element.style.left = `${current.x}px`;
+  element.style.top = `${current.y}px`;
+  renderEdges();
+}
+
+function endDrag(event) {
+  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const element = event.currentTarget;
+  element.classList.remove("dragging");
+  element.releasePointerCapture(event.pointerId);
+  element.removeEventListener("pointermove", moveDrag);
+  element.removeEventListener("pointerup", endDrag);
+  element.removeEventListener("pointercancel", endDrag);
+  saveGraph();
+  dragState = null;
+  render();
+}
+
+function sqlIdentifier(value) {
+  return String(value || "unnamed").replace(/[^a-zA-Z0-9_]/g, "_").replace(/^([0-9])/, "_$1").toLowerCase();
+}
+
+function sqlForNode(item) {
+  if (item.type !== "table") {
+    if (item.type === "function") return `-- Function node: ${item.name}\n-- Implement ${sqlIdentifier(item.name)} as an Edge Function, RPC, or private service.\n-- Inputs:\n${(item.fields || []).map((field) => `--   ${field.name}: ${field.type}`).join("\n")}`;
+    if (item.type === "agent") return `-- Agent node: ${item.name}\n-- Give this agent an identity and compile policies into a gateway.\n${JSON.stringify(agentPolicyFor(item.id), null, 2)}`;
+    return `-- ${item.type} node: ${item.name}\n-- This resource is represented in baseplane.json.`;
+  }
+  const table = sqlIdentifier(item.name);
+  const fields = (item.fields || []).length ? item.fields : [{ name: "id", type: "uuid primary key" }];
+  const fieldSql = fields.map((field) => `  ${sqlIdentifier(field.name)} ${field.type || "text"}`).join(",\n");
+  return `create table if not exists public.${table} (\n${fieldSql}\n);\n\nalter table public.${table} enable row level security;\n\n-- Starter policy generated by Baseplane.\n-- Tighten this before production if needed.\ncreate policy \"members read ${table}\"\non public.${table}\nfor select\nto authenticated\nusing (true);`;
+}
+
+function generateSchemaSql() {
+  return graph.nodes
+    .filter((item) => item.type === "table")
+    .map(sqlForNode)
+    .join("\n\n");
+}
+
+function generateRlsSql() {
+  const lines = [
+    "-- Baseplane generated policy sketch",
+    "-- Review before applying to production.",
+    ""
+  ];
+  for (const item of graph.policies) {
+    lines.push(`-- ${item.effect.toUpperCase()} ${item.principal_type}:${item.principal_id} ${item.action} ${item.resource_type}:${item.resource_id}`);
+    lines.push(`-- condition: ${item.conditions || "none"}`);
+    if (item.resource_type === "table" && item.effect === "allow") {
+      const table = sqlIdentifier(item.resource_id);
+      lines.push(`create policy \"baseplane_${sqlIdentifier(item.principal_id)}_${item.action}_${table}\"`);
+      lines.push(`on public.${table}`);
+      lines.push(item.action === "write" ? "for insert" : "for select");
+      lines.push("to authenticated");
+      lines.push("using (true);");
+    } else {
+      lines.push("-- Represent this policy in the Baseplane agent gateway or service layer.");
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function agentPolicyFor(agentId) {
+  const existing = graph.agents.find((item) => item.id === agentId);
+  if (existing) return existing;
+  return {
+    id: agentId,
+    name: getNode(agentId)?.name || agentId,
+    can: graph.policies
+      .filter((item) => item.principal_id === agentId)
+      .map((item) => ({
+        action: item.action,
+        resource: item.resource_id,
+        effect: item.effect,
+        conditions: item.conditions
+      }))
+  };
+}
+
+function generateAgentPolicies() {
+  const agentNodes = graph.nodes.filter((item) => item.type === "agent");
+  return {
+    agents: agentNodes.map((item) => agentPolicyFor(item.id))
+  };
+}
+
+function generatePolicyTests() {
+  return graph.policies.map((item) => ({
+    name: `${item.principal_id} ${item.effect === "allow" ? "can" : "cannot"} ${item.action} ${item.resource_id}`,
+    principal_id: item.principal_id,
+    action: item.action,
+    resource_id: item.resource_id,
+    field: parseAllowedFields(item.conditions)[0] || "",
+    expect: item.effect
+  }));
+}
+
+function generateReadme() {
+  return `# ${graph.appName}\n\nGenerated by Baseplane.\n\n${graph.description || ""}\n\n## Files\n\n- baseplane.json: graph source of truth\n- schema.sql: Postgres table sketch\n- rls_policies.sql: policy sketch\n- agent_policies.json: AI-agent permission model\n- policy_tests.json: policy simulator cases\n\n## Important\n\nThis package does not contain production credentials or customer data.\nReview generated SQL and policies before applying to production.\n`;
+}
+
+function exportModel() {
+  return {
+    ...graph,
+    exportedAt: new Date().toISOString()
+  };
+}
+
+function downloadJson() {
+  downloadBlob("baseplane.json", new Blob([JSON.stringify(exportModel(), null, 2)], { type: "application/json" }));
+}
+
+async function exportZip() {
+  const files = {
+    "baseplane.json": JSON.stringify(exportModel(), null, 2),
+    "schema.sql": generateSchemaSql(),
+    "rls_policies.sql": generateRlsSql(),
+    "agent_policies.json": JSON.stringify(generateAgentPolicies(), null, 2),
+    "policy_tests.json": JSON.stringify(generatePolicyTests(), null, 2),
+    "README.md": generateReadme()
+  };
+  downloadBlob("baseplane-backend-package.zip", new Blob([makeZip(files)], { type: "application/zip" }));
+}
+
+function makeZip(files) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  for (const [name, content] of Object.entries(files)) {
+    const nameBytes = encoder.encode(name);
+    const data = encoder.encode(content);
+    const crc = crc32(data);
+    const local = concatBytes([
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0),
+      nameBytes, data
+    ]);
+    localParts.push(local);
+    const central = concatBytes([
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), u16(0),
+      u16(0), u16(0), u32(0), u32(offset), nameBytes
+    ]);
+    centralParts.push(central);
+    offset += local.length;
+  }
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const centralOffset = offset;
+  const end = concatBytes([
+    u32(0x06054b50), u16(0), u16(0), u16(Object.keys(files).length), u16(Object.keys(files).length),
+    u32(centralSize), u32(centralOffset), u16(0)
+  ]);
+  return concatBytes([...localParts, ...centralParts, end]);
+}
+
+function u16(value) {
+  return Uint8Array.of(value & 255, (value >> 8) & 255);
+}
+
+function u32(value) {
+  return Uint8Array.of(value & 255, (value >> 8) & 255, (value >> 16) & 255, (value >> 24) & 255);
+}
+
+function concatBytes(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+const crcTable = (() => {
+  const table = [];
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(data) {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function uniqueId(prefix) {
+  let index = graph.nodes.length + 1;
+  let id = `${prefix}_${index}`;
+  while (graph.nodes.some((item) => item.id === id)) {
+    index += 1;
+    id = `${prefix}_${index}`;
+  }
+  return id;
+}
+
+function titleCase(value) {
+  return String(value).replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("\n", " ");
+}
+
+function render() {
+  renderEdgeSelectors();
+  renderPolicySimulator();
+  renderNodes();
+  renderEdges();
+  renderInspector();
+}
+
+document.getElementById("apply-intent").addEventListener("click", applyIntent);
+document.getElementById("add-edge").addEventListener("click", addEdgeFromForm);
+document.getElementById("download-json").addEventListener("click", downloadJson);
+document.getElementById("export-zip").addEventListener("click", exportZip);
+document.getElementById("sim-principal").addEventListener("change", renderPolicyResult);
+document.getElementById("sim-action").addEventListener("change", renderPolicyResult);
+document.getElementById("sim-resource").addEventListener("change", () => {
+  updateSimulatorFieldOptions();
+  renderPolicyResult();
+});
+document.getElementById("sim-field").addEventListener("change", renderPolicyResult);
+document.getElementById("reset-local").addEventListener("click", () => {
+  localStorage.removeItem(storageKey);
+  setGraph(templates.research);
+});
+document.querySelectorAll("[data-template]").forEach((button) => {
+  button.addEventListener("click", () => setGraph(templates[button.dataset.template]));
+});
+document.querySelectorAll("[data-add-node]").forEach((button) => {
+  button.addEventListener("click", () => addNode(button.dataset.addNode));
+});
+window.addEventListener("resize", renderEdges);
+
+render();
+</script>
+</body>
+</html>

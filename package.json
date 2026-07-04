@@ -1,0 +1,25 @@
+{
+  "name": "baseplane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Graph-first backend control plane for AI-built apps.",
+  "bin": {
+    "baseplane": "./cli/baseplane.js"
+  },
+  "scripts": {
+    "serve": "python3 -m http.server 8130",
+    "check": "node --check src/baseplane.js && node --check cli/baseplane.js && node --check tests/baseplane.test.js",
+    "test": "node tests/baseplane.test.js",
+    "generate:sample": "node cli/baseplane.js generate --file examples/research/baseplane.json --out generated"
+  },
+  "keywords": [
+    "backend",
+    "postgres",
+    "rls",
+    "infrastructure",
+    "agents",
+    "schema"
+  ],
+  "license": "UNLICENSED"
+}

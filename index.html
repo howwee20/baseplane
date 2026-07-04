@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baseplane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f1eb;
+      --ink: #0e1a14;
+      --muted: #66736b;
+      --orange: #f26a1b;
+      --panel: #fffdf8;
+      --line: rgba(14, 26, 20, 0.14);
+      --mono: 'DM Mono', monospace;
+      --sans: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 34px 34px;
+      color: var(--ink);
+      font-family: var(--sans);
+    }
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    header {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 34px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.78);
+      backdrop-filter: blur(16px);
+    }
+    .brand {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav a {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 14px;
+      text-decoration: none;
+    }
+    .nav a.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: white;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 0.86fr) minmax(520px, 1.14fr);
+      gap: 54px;
+      align-items: center;
+      padding: 64px clamp(28px, 5vw, 76px);
+    }
+    .eyebrow {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      margin-bottom: 18px;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: clamp(56px, 8vw, 112px);
+      line-height: 0.88;
+      letter-spacing: -0.075em;
+      margin: 0 0 24px;
+      max-width: 9ch;
+    }
+    .lead {
+      color: #37443c;
+      font-size: clamp(19px, 2vw, 26px);
+      line-height: 1.25;
+      letter-spacing: -0.03em;
+      margin: 0 0 30px;
+      max-width: 28ch;
+    }
+    .copy {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 58ch;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 34px;
+    }
+    .button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      padding: 13px 18px;
+      text-decoration: none;
+    }
+    .button.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #fff;
+    }
+    .graph-card {
+      min-height: 620px;
+      border: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.78);
+      box-shadow: 0 30px 90px rgba(17, 30, 23, 0.11);
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .graph-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(242, 106, 27, 0.09), transparent 28%),
+        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px);
+      background-size: auto, 30px 30px, 30px 30px;
+      pointer-events: none;
+    }
+    .node {
+      position: absolute;
+      width: 158px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--orange);
+      background: rgba(255, 253, 248, 0.96);
+      box-shadow: 0 16px 38px rgba(17, 30, 23, 0.09);
+      padding: 12px;
+    }
+    .node strong {
+      display: block;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+      margin-bottom: 7px;
+    }
+    .node span {
+      color: var(--muted);
+      display: block;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .line {
+      position: absolute;
+      height: 1px;
+      background: rgba(242, 106, 27, 0.38);
+      transform-origin: left center;
+    }
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+      .graph-card {
+        min-height: 460px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a class="brand" href="/">Baseplane</a>
+      <nav class="nav">
+        <a href="examples/research/baseplane.json">Example JSON</a>
+        <a class="primary" href="app/">Open Alpha</a>
+      </nav>
+    </header>
+    <main>
+      <section>
+        <div class="eyebrow">Backend control plane for AI-built apps</div>
+        <h1>Your backend on one page.</h1>
+        <p class="lead">Design databases, auth, functions, devices, and AI-agent permissions as one permissioned graph.</p>
+        <p class="copy">Baseplane owns the blueprint and policy graph. The customer owns the data plane. Export to Supabase/Postgres today. Run privately tomorrow.</p>
+        <div class="actions">
+          <a class="button primary" href="app/">Open Alpha</a>
+          <a class="button" href="examples/research/baseplane.json">View sample blueprint</a>
+        </div>
+      </section>
+      <section class="graph-card" aria-label="Baseplane graph preview">
+        <div class="line" style="left:178px;top:154px;width:180px;transform:rotate(17deg)"></div>
+        <div class="line" style="left:360px;top:215px;width:190px;transform:rotate(30deg)"></div>
+        <div class="line" style="left:352px;top:363px;width:210px;transform:rotate(-18deg)"></div>
+        <div class="line" style="left:180px;top:390px;width:205px;transform:rotate(-34deg)"></div>
+        <article class="node" style="left:42px;top:104px">
+          <strong>Research Portal</strong>
+          <span>authenticated website</span>
+        </article>
+        <article class="node" style="left:300px;top:168px;border-top-color:#7453d8">
+          <strong>Project Members</strong>
+          <span>human access rules</span>
+        </article>
+        <article class="node" style="left:540px;top:292px;border-top-color:#168983">
+          <strong>Sensor Readings</strong>
+          <span>private telemetry table</span>
+        </article>
+        <article class="node" style="left:84px;top:376px;border-top-color:#bd7b29">
+          <strong>Analysis Agent</strong>
+          <span>field-scoped access</span>
+        </article>
+        <article class="node" style="left:332px;top:480px;border-top-color:#c74f3d">
+          <strong>Device Token</strong>
+          <span>write-only ingest gate</span>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
