@@ -4,8 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Baseplane App</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #f4f1eb;
@@ -22,8 +20,8 @@
       --teal: #168983;
       --amber: #bd7b29;
       --red: #c74f3d;
-      --mono: 'DM Mono', monospace;
-      --sans: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
@@ -321,13 +319,16 @@
       box-shadow: 0 34px 84px rgba(17, 30, 23, 0.22);
     }
 
+    .node.domain { border-top-color: var(--orange); }
+    .node.route,
+    .node.page,
+    .node.api,
+    .node.webhook { border-top-color: var(--purple); }
     .node.table { border-top-color: var(--blue); }
-    .node.auth { border-top-color: var(--purple); }
     .node.function { border-top-color: var(--amber); }
-    .node.device { border-top-color: var(--teal); }
     .node.secret { border-top-color: var(--red); }
-    .node.website { border-top-color: var(--orange); }
     .node.agent { border-top-color: #111827; }
+    .node.device { border-top-color: var(--teal); }
     .node.deployment { border-top-color: #6b7280; }
 
     .node-head {
@@ -524,19 +525,25 @@
         <section class="section">
           <div class="label">Templates</div>
           <div class="template-grid">
-            <button class="template-button" data-template="research">Research telemetry</button>
-            <button class="template-button" data-template="saas">SaaS app</button>
-            <button class="template-button" data-template="telemetry">Device telemetry app</button>
+            <button class="template-button" data-template="research">Generic telemetry</button>
+            <button class="template-button" data-template="saas">Generic SaaS</button>
+            <button class="template-button" data-template="privateAgent">Private agent</button>
           </div>
         </section>
 
         <section class="section">
           <div class="label">Add resource</div>
           <div class="quick-grid">
+            <button class="quick-button" data-add-node="domain">Add domain</button>
+            <button class="quick-button" data-add-node="route">Add route</button>
+            <button class="quick-button" data-add-node="page">Add page</button>
+            <button class="quick-button" data-add-node="api">Add API</button>
+            <button class="quick-button" data-add-node="webhook">Add webhook</button>
             <button class="quick-button" data-add-node="table">Add table</button>
             <button class="quick-button" data-add-node="function">Add function</button>
-            <button class="quick-button" data-add-node="agent">Add AI agent</button>
             <button class="quick-button" data-add-node="secret">Add secret</button>
+            <button class="quick-button" data-add-node="agent">Add agent</button>
+            <button class="quick-button" data-add-node="device">Add device</button>
             <button class="quick-button" data-add-node="deployment">Add deployment</button>
           </div>
         </section>
@@ -549,10 +556,15 @@
               <option value="reads">reads</option>
               <option value="writes">writes</option>
               <option value="owns">owns</option>
-              <option value="validates">validates</option>
-              <option value="executes">executes</option>
-              <option value="publishes">publishes</option>
-              <option value="exports">exports</option>
+              <option value="calls">calls</option>
+              <option value="serves">serves</option>
+              <option value="deploys_to">deploys_to</option>
+              <option value="authenticates">authenticates</option>
+              <option value="authorizes">authorizes</option>
+              <option value="stores_secret">stores_secret</option>
+              <option value="publishes_to">publishes_to</option>
+              <option value="denies">denies</option>
+              <option value="allows">allows</option>
             </select>
             <select id="edge-to"></select>
             <button class="mini-button" id="add-edge">Create edge</button>
@@ -584,8 +596,11 @@
             <div class="package-item"><strong>baseplane.json</strong><span>graph source</span></div>
             <div class="package-item"><strong>schema.sql</strong><span>tables</span></div>
             <div class="package-item"><strong>rls_policies.sql</strong><span>access rules</span></div>
-            <div class="package-item"><strong>agent_policies.json</strong><span>agent permissions</span></div>
+            <div class="package-item"><strong>route_contracts.md</strong><span>routes</span></div>
+            <div class="package-item"><strong>function_stubs.md</strong><span>functions</span></div>
+            <div class="package-item"><strong>agent_gateway_policy.json</strong><span>agents</span></div>
             <div class="package-item"><strong>policy_tests.json</strong><span>simulator cases</span></div>
+            <div class="package-item"><strong>deploy_plan.md</strong><span>dry run</span></div>
             <div class="package-item"><strong>README.md</strong><span>handoff docs</span></div>
           </div>
         </section>
@@ -602,127 +617,25 @@
     </div>
   </div>
 
-<script>
+<script type="module">
+import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
+
 const storageKey = "baseplane-alpha-graph-v2";
 const typeLabels = {
+  domain: "domain",
+  route: "route",
+  page: "page",
+  api: "api",
+  webhook: "webhook",
   table: "table",
-  auth: "auth",
   function: "function",
-  device: "device",
   secret: "secret",
-  website: "website",
   agent: "agent",
+  device: "device",
   deployment: "deploy",
 };
 
-const templates = {
-  research: {
-    version: "0.1.0",
-    appName: "Research Telemetry Portal",
-    description: "Research portal, device ingest, request flow, and agent-scoped telemetry access.",
-    nodes: [
-      node("public_site", "Public Site", "website", "Public website and entry point.", 60, 110, [["pages", "static_html"], ["portal", "route"], ["request", "route"]]),
-      node("research_portal", "Research Portal", "website", "Authenticated dashboard for time-series telemetry.", 60, 350, [["session", "auth_session"], ["graph", "view"], ["export", "csv"]]),
-      node("request_form", "Request Form", "website", "Public intake form on the website.", 60, 595, [["name", "text"], ["email", "text"], ["message", "text"]]),
-      node("auth", "Auth", "auth", "Human account and session identity.", 350, 105, [["users", "identity"], ["jwt", "token"]]),
-      node("project_members", "project_members", "table", "Permission join table for project access.", 350, 335, [["project_id", "uuid not null"], ["user_id", "uuid not null"], ["role", "text not null"]]),
-      node("project_invites", "project_invites", "table", "One-time invite records for account access.", 350, 575, [["token_hash", "text not null unique"], ["email", "text not null"], ["expires_at", "timestamptz not null"]]),
-      node("projects", "projects", "table", "Project and data boundary.", 655, 180, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
-      node("devices", "devices", "table", "Device registry.", 940, 105, [["id", "text primary key"], ["project_id", "uuid not null"], ["last_seen_at", "timestamptz"]]),
-      node("device_secrets", "device_secrets", "secret", "Hashed device token storage.", 940, 325, [["device_id", "text primary key"], ["token_hash", "text not null"], ["revoked_at", "timestamptz"]]),
-      node("device_ingest", "device_ingest", "function", "Controlled write path from device to database.", 940, 548, [["device_token", "secret_input"], ["payload", "jsonb"]]),
-      node("telemetry_readings", "telemetry_readings", "table", "Time-series measurement data.", 1225, 318, [["event_id", "text not null unique"], ["project_id", "uuid not null"], ["measurement_value", "double precision"], ["device_recorded_at", "timestamptz not null"]]),
-      node("request_intake", "request_intake", "table", "Private business or access request table.", 655, 650, [["name", "text not null"], ["email", "text not null"], ["notification_status", "text"]]),
-      node("submit_request", "submit-request", "function", "Saves requests and sends notification.", 655, 805, [["payload", "json"], ["message_id", "text"]]),
-      node("analysis_agent", "Analysis Agent", "agent", "AI agent with limited access to safe measurement fields.", 1225, 585, [["identity", "agent"], ["scope", "field_limited"]]),
-      node("coding_agent", "Coding Agent", "agent", "Agent that can inspect schema but not production rows.", 1225, 795, [["identity", "agent"], ["scope", "schema_only"]])
-    ],
-    edges: [
-      edge("public_site", "research_portal", "opens"),
-      edge("public_site", "request_form", "opens"),
-      edge("research_portal", "auth", "authenticates"),
-      edge("auth", "project_members", "checks"),
-      edge("project_members", "projects", "allows"),
-      edge("projects", "devices", "owns"),
-      edge("devices", "device_ingest", "publishes"),
-      edge("device_secrets", "device_ingest", "validates"),
-      edge("device_ingest", "telemetry_readings", "writes"),
-      edge("research_portal", "telemetry_readings", "reads"),
-      edge("request_form", "submit_request", "writes"),
-      edge("submit_request", "request_intake", "writes"),
-      edge("analysis_agent", "telemetry_readings", "reads"),
-      edge("coding_agent", "telemetry_readings", "inspect")
-    ],
-    policies: [
-      policy("human", "project_member", "table", "telemetry_readings", "read", "allow", "user is a member of row.project_id"),
-      policy("agent", "analysis_agent", "field", "telemetry_readings", "read", "allow", "fields: project_id, measurement_value, device_recorded_at only"),
-      policy("agent", "coding_agent", "table", "telemetry_readings", "read", "deny", "schema inspection allowed; production rows denied"),
-      policy("device", "devices", "function", "device_ingest", "execute", "allow", "valid device token hash")
-    ],
-    agents: [
-      agent("analysis_agent", "Analysis Agent", [{ action: "read_rows", resource: "telemetry_readings", fields: ["project_id", "measurement_value", "device_recorded_at"], where: "project_id = allowed_project_id" }]),
-      agent("coding_agent", "Coding Agent", [{ action: "inspect_schema", resource: "public.*" }, { action: "read_rows", resource: "telemetry_readings", condition: "deny" }])
-    ]
-  },
-  saas: {
-    version: "0.1.0",
-    appName: "SaaS Starter",
-    description: "Organizations, members, subscriptions, projects, app data, and support agent access.",
-    nodes: [
-      node("web_app", "Web App", "website", "Customer-facing SaaS application.", 70, 170, [["session", "auth"], ["dashboard", "route"]]),
-      node("auth", "Auth", "auth", "User identity and sessions.", 350, 160, [["users", "identity"], ["jwt", "token"]]),
-      node("organizations", "organizations", "table", "Customer account boundary.", 650, 110, [["id", "uuid primary key"], ["name", "text not null"], ["plan", "text"]]),
-      node("members", "members", "table", "User membership and roles.", 650, 335, [["organization_id", "uuid not null"], ["user_id", "uuid not null"], ["role", "text not null"]]),
-      node("projects", "projects", "table", "Customer-owned work objects.", 950, 220, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
-      node("support_agent", "Support Agent", "agent", "Support copilot with scoped metadata access.", 1210, 360, [["identity", "agent"], ["scope", "metadata_only"]])
-    ],
-    edges: [
-      edge("web_app", "auth", "authenticates"),
-      edge("auth", "members", "checks"),
-      edge("organizations", "members", "owns"),
-      edge("organizations", "projects", "owns"),
-      edge("members", "projects", "allows"),
-      edge("support_agent", "projects", "reads")
-    ],
-    policies: [
-      policy("human", "member", "table", "projects", "read", "allow", "user belongs to organization"),
-      policy("agent", "support_agent", "table", "projects", "read", "allow", "metadata fields only")
-    ],
-    agents: [
-      agent("support_agent", "Support Agent", [{ action: "read_rows", resource: "projects", fields: ["id", "organization_id", "name"], where: "organization has active support" }])
-    ]
-  },
-  telemetry: {
-    version: "0.1.0",
-    appName: "Device Telemetry App",
-    description: "Device registry, tokenized ingest, readings, alerts, and analysis agent.",
-    nodes: [
-      node("dashboard", "Telemetry Dashboard", "website", "Private data dashboard.", 70, 220, [["session", "auth"], ["chart", "view"]]),
-      node("devices", "devices", "table", "Registered devices.", 360, 145, [["id", "text primary key"], ["owner_id", "uuid"], ["last_seen_at", "timestamptz"]]),
-      node("device_tokens", "device_tokens", "secret", "Hashed device credentials.", 360, 360, [["device_id", "text"], ["token_hash", "text"], ["revoked_at", "timestamptz"]]),
-      node("ingest", "ingest", "function", "Validated telemetry write path.", 660, 260, [["device_token", "secret_input"], ["payload", "jsonb"]]),
-      node("readings", "readings", "table", "Time-series device readings.", 960, 195, [["event_id", "text unique"], ["device_id", "text"], ["value", "double precision"], ["recorded_at", "timestamptz"]]),
-      node("alerts", "alerts", "table", "Derived alert queue.", 960, 420, [["device_id", "text"], ["severity", "text"], ["message", "text"]]),
-      node("analysis_agent", "Analysis Agent", "agent", "Agent can read telemetry but not tokens.", 1230, 300, [["identity", "agent"], ["scope", "readings_only"]])
-    ],
-    edges: [
-      edge("dashboard", "readings", "reads"),
-      edge("devices", "ingest", "publishes"),
-      edge("device_tokens", "ingest", "validates"),
-      edge("ingest", "readings", "writes"),
-      edge("ingest", "alerts", "writes"),
-      edge("analysis_agent", "readings", "reads")
-    ],
-    policies: [
-      policy("device", "devices", "function", "ingest", "execute", "allow", "valid device token"),
-      policy("agent", "analysis_agent", "table", "readings", "read", "allow", "readings only; secrets denied"),
-      policy("agent", "analysis_agent", "table", "device_tokens", "read", "deny", "never expose device tokens")
-    ],
-    agents: [
-      agent("analysis_agent", "Analysis Agent", [{ action: "read_rows", resource: "readings", fields: ["device_id", "value", "recorded_at"] }, { action: "read_rows", resource: "device_tokens", condition: "deny" }])
-    ]
-  }
-};
+const templates = createFullStackTemplates();
 
 let graph = loadGraph();
 let selectedId = graph.nodes[0]?.id || "";
@@ -759,12 +672,159 @@ function policy(principal_type, principal_id, resource_type, resource_id, action
     resource_id,
     action,
     effect,
-    conditions
+    condition: conditions,
+    reason: conditions
   };
 }
 
 function agent(id, name, can) {
   return { id, name, can };
+}
+
+function createFullStackTemplates() {
+  const telemetry = {
+    version: "0.1.0",
+    app: {
+      name: "Generic Telemetry App",
+      description: "A private telemetry backend with scoped human, device, route, and AI-agent access."
+    },
+    nodes: [
+      node("app_domain", "app.example.com", "domain", "Primary production domain.", 56, 96, []),
+      { ...node("dashboard_page", "/dashboard", "page", "Authenticated telemetry dashboard.", 260, 92, []), path: "/dashboard" },
+      { ...node("api_device_ingest", "/api/device-ingest", "api", "Device-token telemetry ingest endpoint.", 260, 300, [["device_token", "secret_input"], ["payload", "jsonb"]]), path: "/api/device-ingest" },
+      { ...node("api_agent_query", "/api/agent-query", "api", "Scoped AI-agent query endpoint.", 260, 510, [["agent_identity", "token"], ["query", "jsonb"]]), path: "/api/agent-query" },
+      node("users", "users", "table", "Human account records.", 560, 36, [["id", "uuid primary key"], ["email", "text not null"]]),
+      node("organizations", "organizations", "table", "Tenant boundary.", 560, 210, [["id", "uuid primary key"], ["name", "text not null"], ["plan", "text"]]),
+      node("projects", "projects", "table", "Project and data boundary.", 560, 384, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
+      node("devices", "devices", "table", "Registered hardware publishers.", 850, 168, [["id", "text primary key"], ["project_id", "uuid not null"], ["last_seen_at", "timestamptz"]]),
+      node("device_tokens", "device_tokens", "secret", "Device token hashes. Secret by default.", 850, 350, [["device_id", "text primary key"], ["token_hash", "text not null"], ["revoked_at", "timestamptz"]]),
+      node("telemetry_readings", "telemetry_readings", "table", "Append-only telemetry measurements.", 1120, 175, [["id", "bigint generated always as identity primary key"], ["event_id", "text not null unique"], ["project_id", "uuid not null"], ["timestamp", "timestamptz not null"], ["measurement_value", "double precision not null"], ["raw_payload", "jsonb"]]),
+      node("latest_device_state", "latest_device_state", "table", "Current device health snapshot.", 1120, 420, [["device_id", "text primary key"], ["project_id", "uuid not null"], ["status", "text not null"], ["updated_at", "timestamptz not null"]]),
+      node("get_project_readings", "get_project_readings", "function", "Returns scoped project readings.", 1410, 150, [["project_id", "uuid"], ["range", "tstzrange"]]),
+      node("get_device_health", "get_device_health", "function", "Returns visible device health rows.", 1410, 350, [["project_id", "uuid"]]),
+      node("analysis_agent", "analysis_agent", "agent", "Agent with field-scoped telemetry reads.", 560, 650, []),
+      node("coding_agent", "coding_agent", "agent", "Agent that can inspect schema but not production rows.", 820, 650, []),
+      node("support_agent", "support_agent", "agent", "Agent with operational status access only.", 1080, 650, []),
+      node("device_publisher", "device_publisher", "device", "Non-human device principal that publishes telemetry.", 56, 300, []),
+      node("postgres", "postgres", "deployment", "Customer-owned Postgres target.", 1410, 560, [["target", "customer-owned postgres"]])
+    ],
+    edges: [
+      stableEdge("app_domain", "dashboard_page", "serves"),
+      stableEdge("app_domain", "api_device_ingest", "serves"),
+      stableEdge("app_domain", "api_agent_query", "serves"),
+      stableEdge("dashboard_page", "telemetry_readings", "reads"),
+      stableEdge("dashboard_page", "latest_device_state", "reads"),
+      stableEdge("dashboard_page", "projects", "reads"),
+      stableEdge("dashboard_page", "get_project_readings", "calls"),
+      stableEdge("dashboard_page", "get_device_health", "calls"),
+      stableEdge("device_publisher", "api_device_ingest", "publishes_to"),
+      stableEdge("api_device_ingest", "devices", "reads"),
+      stableEdge("api_device_ingest", "device_tokens", "reads"),
+      stableEdge("api_device_ingest", "telemetry_readings", "writes"),
+      stableEdge("api_device_ingest", "latest_device_state", "writes"),
+      stableEdge("analysis_agent", "telemetry_readings", "reads"),
+      stableEdge("coding_agent", "telemetry_readings", "reads"),
+      stableEdge("postgres", "telemetry_readings", "deploys_to")
+    ],
+    principals: [
+      principal("researcher", "human", "Researcher"),
+      principal("admin", "human", "Admin"),
+      principal("anonymous", "anonymous", "Anonymous"),
+      principal("analysis_agent", "agent", "analysis_agent"),
+      principal("coding_agent", "agent", "coding_agent"),
+      principal("support_agent", "agent", "support_agent"),
+      principal("device_publisher", "device", "device_publisher"),
+      principal("dashboard_page", "service", "/dashboard"),
+      principal("api_device_ingest", "service", "/api/device-ingest"),
+      principal("api_agent_query", "service", "/api/agent-query")
+    ],
+    policies: [
+      policyObject("researcher", "human", "read", "table", "telemetry_readings", "", "allow", "project membership required", "researcher can read telemetry for their project"),
+      policyObject("device_publisher", "device", "write", "table", "telemetry_readings", "", "allow", "valid device token", "device can insert telemetry"),
+      policyObject("device_publisher", "device", "read", "table", "telemetry_readings", "", "deny", "", "device write access does not imply read access"),
+      policyObject("coding_agent", "agent", "inspect", "schema", "public", "", "allow", "", "schema inspection is separate from row access"),
+      policyObject("coding_agent", "agent", "read", "table", "telemetry_readings", "", "deny", "", "coding agent cannot read production rows"),
+      policyObject("analysis_agent", "agent", "read", "field", "telemetry_readings", "timestamp", "allow", "project-scoped agent session", "analysis agent can read timestamp only"),
+      policyObject("analysis_agent", "agent", "read", "field", "telemetry_readings", "measurement_value", "allow", "project-scoped agent session", "analysis agent can read measurement value only"),
+      policyObject("support_agent", "agent", "read", "table", "latest_device_state", "", "allow", "", "support agent can read operational device status"),
+      policyObject("support_agent", "agent", "read", "secret", "device_tokens", "", "deny", "", "support agent cannot read device secrets"),
+      policyObject("dashboard_page", "service", "read", "table", "telemetry_readings", "", "allow", "authenticated researcher session", "dashboard reads chart data"),
+      policyObject("dashboard_page", "service", "read", "table", "latest_device_state", "", "allow", "authenticated researcher session", "dashboard reads device state"),
+      policyObject("dashboard_page", "service", "read", "table", "projects", "", "allow", "authenticated researcher session", "dashboard reads project metadata"),
+      policyObject("dashboard_page", "service", "read", "secret", "device_tokens", "", "deny", "", "dashboard cannot read secrets"),
+      policyObject("api_device_ingest", "service", "write", "table", "telemetry_readings", "", "allow", "valid device token", "ingest writes telemetry rows"),
+      policyObject("api_device_ingest", "service", "write", "table", "latest_device_state", "", "allow", "valid device token", "ingest updates latest state"),
+      policyObject("api_device_ingest", "service", "read", "table", "devices", "", "allow", "lookup device by token", "ingest validates device identity"),
+      policyObject("api_device_ingest", "service", "read", "field", "device_tokens", "token_hash", "allow", "hash compare only", "ingest can compare token hash but not expose it"),
+      policyObject("api_agent_query", "service", "read", "field", "telemetry_readings", "timestamp", "allow", "agent identity checked", "agent query API can return timestamp only"),
+      policyObject("api_agent_query", "service", "read", "field", "telemetry_readings", "measurement_value", "allow", "agent identity checked", "agent query API can return measurement value only"),
+      policyObject("anonymous", "anonymous", "read", "page", "dashboard_page", "", "deny", "", "dashboard requires authentication")
+    ],
+    routes: [
+      route("dashboard_page", "/dashboard", "page", "researcher session", ["telemetry_readings", "latest_device_state", "projects"], [], ["get_project_readings", "get_device_health"], ["researcher", "admin", "analysis_agent scoped fields only"], ["anonymous", "device_publisher", "coding_agent row access"], [], ["log dashboard export requests"]),
+      route("api_device_ingest", "/api/device-ingest", "api", "device token", ["devices", "device_tokens.token_hash"], ["telemetry_readings", "latest_device_state"], [], ["device_publisher"], ["anonymous", "browser users", "coding_agent"], ["device_tokens.token_hash"], ["log every insert", "log token failures"]),
+      route("api_agent_query", "/api/agent-query", "api", "agent identity", ["telemetry_readings.timestamp", "telemetry_readings.measurement_value"], [], [], ["analysis_agent"], ["coding_agent row access", "anonymous"], [], ["log every agent query", "log denied field requests"])
+    ],
+    deployments: [{ id: "postgres", name: "Postgres", target: "customer-owned postgres", environment: "production" }]
+  };
+
+  const saas = clone(telemetry);
+  saas.app = { name: "Generic SaaS App", description: "A team SaaS backend with organization membership, project data, routes, and support-agent boundaries." };
+  saas.nodes = saas.nodes.filter((item) => !["device_publisher", "api_device_ingest", "device_tokens", "telemetry_readings", "latest_device_state"].includes(item.id));
+  saas.nodes.push(node("projects_data", "projects_data", "table", "Customer-owned project rows.", 1120, 175, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"], ["private_notes", "text"]]));
+  saas.edges = [stableEdge("app_domain", "dashboard_page", "serves"), stableEdge("dashboard_page", "projects_data", "reads"), stableEdge("support_agent", "projects_data", "reads"), stableEdge("postgres", "projects_data", "deploys_to")];
+  saas.policies = [
+    policyObject("researcher", "human", "read", "table", "projects_data", "", "allow", "organization membership required", "member can read organization projects"),
+    policyObject("support_agent", "agent", "read", "field", "projects_data", "name", "allow", "", "support can read project names"),
+    policyObject("support_agent", "agent", "read", "field", "projects_data", "private_notes", "deny", "", "support cannot read private notes"),
+    policyObject("dashboard_page", "service", "read", "table", "projects_data", "", "allow", "signed-in member", "dashboard reads project rows")
+  ];
+  saas.routes = [route("dashboard_page", "/dashboard", "page", "member session", ["projects_data"], [], [], ["researcher", "admin"], ["anonymous"], [], ["log exports"])];
+
+  const privateAgent = clone(telemetry);
+  privateAgent.app = { name: "Private Agent App", description: "An app where agents can inspect schema and selected fields without inheriting production row or secret access." };
+  privateAgent.nodes = privateAgent.nodes.filter((item) => ["app_domain", "api_agent_query", "analysis_agent", "coding_agent", "postgres"].includes(item.id));
+  privateAgent.nodes.push(node("customer_records", "customer_records", "table", "Private customer records.", 620, 120, [["id", "uuid primary key"], ["account_name", "text"], ["private_notes", "text"]]));
+  privateAgent.nodes.push(node("api_keys", "api_keys", "secret", "Private API key hashes.", 620, 360, [["id", "uuid primary key"], ["token_hash", "text not null"]]));
+  privateAgent.edges = [stableEdge("app_domain", "api_agent_query", "serves"), stableEdge("api_agent_query", "customer_records", "reads"), stableEdge("analysis_agent", "customer_records", "reads"), stableEdge("coding_agent", "customer_records", "reads")];
+  privateAgent.policies = [
+    policyObject("analysis_agent", "agent", "read", "field", "customer_records", "account_name", "allow", "", "analysis agent can read account names"),
+    policyObject("analysis_agent", "agent", "read", "field", "customer_records", "private_notes", "deny", "", "private notes remain private"),
+    policyObject("coding_agent", "agent", "inspect", "schema", "public", "", "allow", "", "coding agent can inspect schema"),
+    policyObject("coding_agent", "agent", "read", "table", "customer_records", "", "deny", "", "coding agent cannot read rows"),
+    policyObject("analysis_agent", "agent", "read", "secret", "api_keys", "", "deny", "", "secrets are denied by default"),
+    policyObject("api_agent_query", "service", "read", "field", "customer_records", "account_name", "allow", "agent identity checked", "API returns scoped fields")
+  ];
+  privateAgent.routes = [route("api_agent_query", "/api/agent-query", "api", "agent identity", ["customer_records.account_name"], [], [], ["analysis_agent"], ["coding_agent row access", "anonymous"], [], ["log every query"])];
+
+  return { research: telemetry, saas, telemetry, privateAgent };
+}
+
+function stableEdge(from, to, type) {
+  return { id: `edge_${from}_${to}_${type}`, from, to, type, description: "" };
+}
+
+function principal(id, type, name) {
+  return { id, type, name };
+}
+
+function policyObject(principal_id, principal_type, action, resource_type, resource_id, field, effect, condition, reason) {
+  return {
+    id: `policy_${principal_id}_${action}_${resource_id}${field ? `_${field}` : ""}`.replace(/[^a-zA-Z0-9_]/g, "_"),
+    principal_type,
+    principal_id,
+    action,
+    resource_type,
+    resource_id,
+    field,
+    effect,
+    condition,
+    reason
+  };
+}
+
+function route(id, path, type, auth, reads, writes, calls, allowed_principals, denied_principals, secrets, audit) {
+  return { id, node_id: id, path, type, auth, reads, writes, calls, allowed_principals, denied_principals, secrets, audit };
 }
 
 function clone(value) {
@@ -774,7 +834,7 @@ function clone(value) {
 function loadGraph() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (saved?.nodes?.length) return saved;
+    if (saved?.nodes?.length && saved?.app?.name && Array.isArray(saved.principals) && Array.isArray(saved.routes)) return saved;
   } catch {}
   return clone(templates.research);
 }
@@ -969,6 +1029,8 @@ function renderInspector() {
       </div>
     </section>
 
+    ${routeContractSection(selected)}
+
     <section class="section">
       <div class="label">Generated SQL preview</div>
       <pre>${escapeHtml(sqlForNode(selected))}</pre>
@@ -999,7 +1061,9 @@ function bindInspector(selected) {
     graph.nodes = graph.nodes.filter((item) => item.id !== selected.id);
     graph.edges = graph.edges.filter((item) => item.from !== selected.id && item.to !== selected.id);
     graph.policies = graph.policies.filter((item) => item.principal_id !== selected.id && item.resource_id !== selected.id);
-    graph.agents = graph.agents.filter((item) => item.id !== selected.id);
+    graph.principals = (graph.principals || []).filter((item) => item.id !== selected.id);
+    graph.routes = (graph.routes || []).filter((item) => item.id !== selected.id && item.node_id !== selected.id);
+    graph.deployments = (graph.deployments || []).filter((item) => item.id !== selected.id);
     selectedId = graph.nodes[0]?.id || "";
     saveGraph();
     render();
@@ -1037,22 +1101,49 @@ function bindInspector(selected) {
     });
   });
   document.getElementById("add-policy").addEventListener("click", () => {
-    const isAgent = selected.type === "agent";
+    const principalInfo = principalForSelectedNode(selected);
     graph.policies.push(policy(
-      isAgent ? "agent" : "human",
-      isAgent ? selected.id : "project_member",
-      selected.type === "function" ? "function" : "table",
+      principalInfo.type,
+      principalInfo.id,
+      selected.type === "function" ? "function" : selected.type === "secret" ? "secret" : selected.type === "deployment" ? "deployment" : "table",
       selected.id,
       selected.type === "function" ? "execute" : "read",
       "allow",
-      isAgent ? "scoped by Baseplane policy graph" : "project membership required"
+      principalInfo.type === "agent" ? "scoped by Baseplane policy graph" : "project membership required"
     ));
-    if (isAgent && !graph.agents.find((item) => item.id === selected.id)) {
-      graph.agents.push(agent(selected.id, selected.name, [{ action: "inspect_schema", resource: "public.*" }]));
+    graph.principals = graph.principals || [];
+    if (!graph.principals.some((item) => item.id === principalInfo.id)) {
+      graph.principals.push(principal(principalInfo.id, principalInfo.type, principalInfo.name));
     }
     saveGraph();
     render();
   });
+}
+
+function routeContractSection(selected) {
+  if (!["route", "page", "api", "webhook"].includes(selected.type)) return "";
+  const routeRecord = (graph.routes || []).find((item) => item.id === selected.id || item.node_id === selected.id);
+  if (!routeRecord) {
+    return `
+      <section class="section">
+        <div class="label">Route contract</div>
+        <p class="small">No route contract exists yet. Add reads, writes, calls, auth, and audit fields to make this route compile.</p>
+      </section>
+    `;
+  }
+  return `
+    <section class="section">
+      <div class="label">Route contract</div>
+      <pre>${escapeHtml(generateRouteContracts({ ...graph, routes: [routeRecord] }))}</pre>
+    </section>
+  `;
+}
+
+function principalForSelectedNode(selected) {
+  if (selected.type === "agent") return { id: selected.id, type: "agent", name: selected.name };
+  if (selected.type === "device") return { id: selected.id, type: "device", name: selected.name };
+  if (["route", "page", "api", "webhook"].includes(selected.type)) return { id: selected.id, type: "service", name: selected.name };
+  return { id: "researcher", type: "human", name: "Researcher" };
 }
 
 function fieldEditor(field, index) {
@@ -1071,7 +1162,7 @@ function policyView(item) {
     <div class="policy-row">
       <strong>${escapeHtml(item.effect.toUpperCase())} ${escapeHtml(item.action)}</strong>
       <p class="small">${escapeHtml(item.principal_type)}:${escapeHtml(item.principal_id)} -> ${escapeHtml(item.resource_type)}:${escapeHtml(item.resource_id)}</p>
-      <p class="small">${escapeHtml(item.conditions || "no condition")}</p>
+      <p class="small">${escapeHtml(item.reason || item.condition || "no condition")}</p>
     </div>
   `;
 }
@@ -1109,11 +1200,11 @@ function renderPolicySimulator() {
 
   const previousPrincipal = principalEl.value;
   const previousResource = resourceEl.value;
-  const principals = graph.nodes.filter((item) => ["agent", "device", "auth", "website"].includes(item.type));
-  const resources = graph.nodes.filter((item) => ["table", "function", "secret", "website", "deployment"].includes(item.type));
+  const principals = graph.principals || [];
+  const resources = graph.nodes.filter((item) => ["table", "function", "secret", "page", "api", "webhook", "route", "deployment"].includes(item.type));
 
   principalEl.innerHTML = principals
-    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.type)})</option>`)
+    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name || item.id)} (${escapeHtml(item.type)})</option>`)
     .join("");
   resourceEl.innerHTML = resources
     .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.type)})</option>`)
@@ -1148,70 +1239,37 @@ function renderPolicyResult() {
     field: document.getElementById("sim-field")?.value || ""
   };
   if (!request.principal_id || !request.resource_id) return;
-  const result = policyDecision(request);
-  resultEl.className = `sim-result ${result.effect}`;
+  const result = evaluateAccess(graph, request);
+  const tone = result.decision === "ALLOW" ? "allow" : "deny";
+  resultEl.className = `sim-result ${tone}`;
   resultEl.innerHTML = `
-    <strong>${result.effect.toUpperCase()}</strong>
+    <strong>${escapeHtml(result.decision)}</strong>
     <p class="small">${escapeHtml(request.principal_id)} ${escapeHtml(request.action)} ${escapeHtml(request.resource_id)}${request.field ? `.${escapeHtml(request.field)}` : ""}</p>
-    <p class="small">${escapeHtml(result.reason)}</p>
+    <p class="small">${escapeHtml(result.reason.join(" "))}</p>
   `;
-}
-
-function policyDecision(request) {
-  const action = normalizeAction(request.action);
-  const matching = graph.policies.filter((item) =>
-    principalMatches(item, request.principal_id) &&
-    resourceMatches(item, request.resource_id) &&
-    normalizeAction(item.action) === action
-  );
-
-  const fieldGate = matching.find((item) => item.effect === "allow" && request.field && !fieldAllowed(item.conditions, request.field));
-  if (fieldGate) {
-    return { effect: "deny", policy: fieldGate.id, reason: `${request.field} is outside the allowed field set.` };
-  }
-
-  const deny = matching.find((item) => item.effect === "deny");
-  if (deny) return { effect: "deny", policy: deny.id, reason: deny.conditions || "explicit deny" };
-
-  const allow = matching.find((item) => item.effect === "allow");
-  if (allow) return { effect: "allow", policy: allow.id, reason: allow.conditions || "explicit allow" };
-
-  return { effect: "deny", policy: null, reason: "no matching allow policy" };
-}
-
-function principalMatches(item, principalId) {
-  return item.principal_id === principalId || item.principal_id === "*";
-}
-
-function resourceMatches(item, resourceId) {
-  return item.resource_id === resourceId || item.resource_id === "*" || resourceId.startsWith(`${item.resource_id}.`);
-}
-
-function normalizeAction(action) {
-  if (action === "read_rows") return "read";
-  if (action === "inspect_schema") return "inspect";
-  return action || "";
-}
-
-function fieldAllowed(conditions = "", field = "") {
-  const fields = parseAllowedFields(conditions);
-  if (!fields.length) return true;
-  return fields.includes(field);
-}
-
-function parseAllowedFields(conditions = "") {
-  const match = String(conditions).match(/fields:\s*([^.;]+?)(?:\s+only|$)/i);
-  if (!match) return [];
-  return match[1].split(",").map((item) => item.trim()).filter(Boolean);
 }
 
 function addNode(type) {
   const id = uniqueId(type);
   const created = node(id, titleCase(type), type, `New ${type} resource.`, 180 + graph.nodes.length * 18, 160 + graph.nodes.length * 14, defaultFields(type));
+  if (["route", "page", "api", "webhook"].includes(type)) {
+    created.path = type === "api" ? `/api/${id}` : `/${id}`;
+  }
   graph.nodes.push(created);
+  graph.principals = graph.principals || [];
+  graph.routes = graph.routes || [];
+  graph.deployments = graph.deployments || [];
+
   if (type === "agent") {
-    graph.agents.push(agent(id, created.name, [{ action: "inspect_schema", resource: "public.*" }]));
-    graph.policies.push(policy("agent", id, "graph", "*", "inspect", "allow", "schema-only by default"));
+    graph.principals.push(principal(id, "agent", created.name));
+    graph.policies.push(policy("agent", id, "schema", "public", "inspect", "allow", "schema-only by default"));
+  }
+  if (type === "device") {
+    graph.principals.push(principal(id, "device", created.name));
+  }
+  if (["route", "page", "api", "webhook"].includes(type)) {
+    graph.principals.push(principal(id, "service", created.path || created.name));
+    graph.routes.push(route(id, created.path || created.name, type === "route" ? "page" : type, "not configured", [], [], [], [], ["anonymous"], [], ["audit access decisions"]));
   }
   selectedId = id;
   saveGraph();
@@ -1220,9 +1278,12 @@ function addNode(type) {
 
 function defaultFields(type) {
   if (type === "table") return [["id", "uuid primary key"], ["created_at", "timestamptz not null default now()"]];
-  if (type === "function") return [["payload", "jsonb"]];
+  if (["function", "api", "webhook"].includes(type)) return [["payload", "jsonb"]];
   if (type === "secret") return [["name", "text"], ["value_hash", "text"]];
   if (type === "agent") return [["identity", "agent"], ["scope", "schema_only"]];
+  if (type === "device") return [["identity", "device"]];
+  if (["route", "page"].includes(type)) return [["path", "text"], ["auth", "text"]];
+  if (type === "domain") return [["host", "text"]];
   if (type === "deployment") return [["target", "text"], ["status", "text"]];
   return [["name", "text"]];
 }
@@ -1302,92 +1363,22 @@ function sqlIdentifier(value) {
 }
 
 function sqlForNode(item) {
-  if (item.type !== "table") {
-    if (item.type === "function") return `-- Function node: ${item.name}\n-- Implement ${sqlIdentifier(item.name)} as an Edge Function, RPC, or private service.\n-- Inputs:\n${(item.fields || []).map((field) => `--   ${field.name}: ${field.type}`).join("\n")}`;
-    if (item.type === "agent") return `-- Agent node: ${item.name}\n-- Give this agent an identity and compile policies into a gateway.\n${JSON.stringify(agentPolicyFor(item.id), null, 2)}`;
+  if (!["table", "secret"].includes(item.type)) {
+    if (["function", "api", "webhook"].includes(item.type)) return `-- ${item.type} node: ${item.name}\n-- Compile this node into function_stubs.md and route_contracts.md.\n-- Inputs:\n${(item.fields || []).map((field) => `--   ${field.name}: ${field.type}`).join("\n")}`;
+    if (item.type === "agent") {
+      const policies = (graph.policies || []).filter((policy) => policy.principal_id === item.id);
+      return `-- Agent node: ${item.name}\n-- Compile this node into agent_gateway_policy.json.\n${JSON.stringify({ principal_id: item.id, policies }, null, 2)}`;
+    }
     return `-- ${item.type} node: ${item.name}\n-- This resource is represented in baseplane.json.`;
   }
   const table = sqlIdentifier(item.name);
   const fields = (item.fields || []).length ? item.fields : [{ name: "id", type: "uuid primary key" }];
   const fieldSql = fields.map((field) => `  ${sqlIdentifier(field.name)} ${field.type || "text"}`).join(",\n");
-  return `create table if not exists public.${table} (\n${fieldSql}\n);\n\nalter table public.${table} enable row level security;\n\n-- Starter policy generated by Baseplane.\n-- Tighten this before production if needed.\ncreate policy \"members read ${table}\"\non public.${table}\nfor select\nto authenticated\nusing (true);`;
-}
-
-function generateSchemaSql() {
-  return graph.nodes
-    .filter((item) => item.type === "table")
-    .map(sqlForNode)
-    .join("\n\n");
-}
-
-function generateRlsSql() {
-  const lines = [
-    "-- Baseplane generated policy sketch",
-    "-- Review before applying to production.",
-    ""
-  ];
-  for (const item of graph.policies) {
-    lines.push(`-- ${item.effect.toUpperCase()} ${item.principal_type}:${item.principal_id} ${item.action} ${item.resource_type}:${item.resource_id}`);
-    lines.push(`-- condition: ${item.conditions || "none"}`);
-    if (item.resource_type === "table" && item.effect === "allow") {
-      const table = sqlIdentifier(item.resource_id);
-      lines.push(`create policy \"baseplane_${sqlIdentifier(item.principal_id)}_${item.action}_${table}\"`);
-      lines.push(`on public.${table}`);
-      lines.push(item.action === "write" ? "for insert" : "for select");
-      lines.push("to authenticated");
-      lines.push("using (true);");
-    } else {
-      lines.push("-- Represent this policy in the Baseplane agent gateway or service layer.");
-    }
-    lines.push("");
-  }
-  return lines.join("\n");
-}
-
-function agentPolicyFor(agentId) {
-  const existing = graph.agents.find((item) => item.id === agentId);
-  if (existing) return existing;
-  return {
-    id: agentId,
-    name: getNode(agentId)?.name || agentId,
-    can: graph.policies
-      .filter((item) => item.principal_id === agentId)
-      .map((item) => ({
-        action: item.action,
-        resource: item.resource_id,
-        effect: item.effect,
-        conditions: item.conditions
-      }))
-  };
-}
-
-function generateAgentPolicies() {
-  const agentNodes = graph.nodes.filter((item) => item.type === "agent");
-  return {
-    agents: agentNodes.map((item) => agentPolicyFor(item.id))
-  };
-}
-
-function generatePolicyTests() {
-  return graph.policies.map((item) => ({
-    name: `${item.principal_id} ${item.effect === "allow" ? "can" : "cannot"} ${item.action} ${item.resource_id}`,
-    principal_id: item.principal_id,
-    action: item.action,
-    resource_id: item.resource_id,
-    field: parseAllowedFields(item.conditions)[0] || "",
-    expect: item.effect
-  }));
-}
-
-function generateReadme() {
-  return `# ${graph.appName}\n\nGenerated by Baseplane.\n\n${graph.description || ""}\n\n## Files\n\n- baseplane.json: graph source of truth\n- schema.sql: Postgres table sketch\n- rls_policies.sql: policy sketch\n- agent_policies.json: AI-agent permission model\n- policy_tests.json: policy simulator cases\n\n## Important\n\nThis package does not contain production credentials or customer data.\nReview generated SQL and policies before applying to production.\n`;
+  return `${item.type === "secret" ? "-- Secret table. Deny by default unless explicit policy allows a field.\n" : ""}create table if not exists public.${table} (\n${fieldSql}\n);\n\nalter table public.${table} enable row level security;`;
 }
 
 function exportModel() {
-  return {
-    ...graph,
-    exportedAt: new Date().toISOString()
-  };
+  return clone(graph);
 }
 
 function downloadJson() {
@@ -1395,14 +1386,7 @@ function downloadJson() {
 }
 
 async function exportZip() {
-  const files = {
-    "baseplane.json": JSON.stringify(exportModel(), null, 2),
-    "schema.sql": generateSchemaSql(),
-    "rls_policies.sql": generateRlsSql(),
-    "agent_policies.json": JSON.stringify(generateAgentPolicies(), null, 2),
-    "policy_tests.json": JSON.stringify(generatePolicyTests(), null, 2),
-    "README.md": generateReadme()
-  };
+  const files = compileGraph(exportModel());
   downloadBlob("baseplane-backend-package.zip", new Blob([makeZip(files)], { type: "application/zip" }));
 }
 

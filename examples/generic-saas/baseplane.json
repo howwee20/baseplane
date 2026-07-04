@@ -1,0 +1,50 @@
+{
+  "version": "0.1.0",
+  "app": {
+    "name": "Generic SaaS App",
+    "description": "A team SaaS backend with organization membership, project data, routes, and support-agent boundaries."
+  },
+  "nodes": [
+    { "id": "app_domain", "name": "saas.example.com", "type": "domain", "x": 60, "y": 100 },
+    { "id": "dashboard_page", "name": "/dashboard", "type": "page", "path": "/dashboard", "x": 280, "y": 90 },
+    { "id": "api_projects", "name": "/api/projects", "type": "api", "path": "/api/projects", "x": 280, "y": 310 },
+    { "id": "users", "name": "users", "type": "table", "x": 560, "y": 70, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "email", "type": "text not null", "private": true }] },
+    { "id": "organizations", "name": "organizations", "type": "table", "x": 560, "y": 245, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "name", "type": "text not null" }, { "name": "plan", "type": "text" }] },
+    { "id": "members", "name": "members", "type": "table", "x": 830, "y": 165, "fields": [{ "name": "organization_id", "type": "uuid not null" }, { "name": "user_id", "type": "uuid not null" }, { "name": "role", "type": "text not null" }] },
+    { "id": "projects", "name": "projects", "type": "table", "x": 1120, "y": 165, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "organization_id", "type": "uuid not null" }, { "name": "name", "type": "text not null" }, { "name": "private_notes", "type": "text", "private": true }] },
+    { "id": "support_agent", "name": "support_agent", "type": "agent", "x": 830, "y": 440 },
+    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 1380, "y": 210 }
+  ],
+  "edges": [
+    { "id": "e_domain_dashboard", "from": "app_domain", "to": "dashboard_page", "type": "serves" },
+    { "id": "e_dashboard_projects", "from": "dashboard_page", "to": "projects", "type": "reads" },
+    { "id": "e_dashboard_api", "from": "dashboard_page", "to": "api_projects", "type": "calls" },
+    { "id": "e_org_members", "from": "organizations", "to": "members", "type": "owns" },
+    { "id": "e_org_projects", "from": "organizations", "to": "projects", "type": "owns" },
+    { "id": "e_support_projects", "from": "support_agent", "to": "projects", "type": "reads" },
+    { "id": "e_postgres_projects", "from": "postgres", "to": "projects", "type": "deploys_to" }
+  ],
+  "principals": [
+    { "id": "member", "type": "human", "name": "Member" },
+    { "id": "admin", "type": "human", "name": "Admin" },
+    { "id": "support_agent", "type": "agent", "name": "support_agent" },
+    { "id": "dashboard_page", "type": "service", "name": "/dashboard" },
+    { "id": "api_projects", "type": "service", "name": "/api/projects" },
+    { "id": "anonymous", "type": "anonymous", "name": "Anonymous" }
+  ],
+  "policies": [
+    { "id": "p_member_read_projects", "principal_type": "human", "principal_id": "member", "action": "read", "resource_type": "table", "resource_id": "projects", "effect": "allow", "condition": "member belongs to organization" },
+    { "id": "p_support_read_project_names", "principal_type": "agent", "principal_id": "support_agent", "action": "read", "resource_type": "field", "resource_id": "projects", "field": "name", "effect": "allow", "reason": "support can inspect project names" },
+    { "id": "p_support_no_private_notes", "principal_type": "agent", "principal_id": "support_agent", "action": "read", "resource_type": "field", "resource_id": "projects", "field": "private_notes", "effect": "deny", "reason": "support cannot read private customer notes" },
+    { "id": "p_dashboard_read_projects", "principal_type": "service", "principal_id": "dashboard_page", "action": "read", "resource_type": "table", "resource_id": "projects", "effect": "allow", "condition": "signed-in member" },
+    { "id": "p_api_write_projects", "principal_type": "service", "principal_id": "api_projects", "action": "write", "resource_type": "table", "resource_id": "projects", "effect": "allow", "condition": "admin role" },
+    { "id": "p_anonymous_no_dashboard", "principal_type": "anonymous", "principal_id": "anonymous", "action": "read", "resource_type": "page", "resource_id": "dashboard_page", "effect": "deny" }
+  ],
+  "routes": [
+    { "id": "dashboard_page", "node_id": "dashboard_page", "path": "/dashboard", "type": "page", "auth": "member session", "reads": ["projects"], "writes": [], "calls": ["api_projects"], "allowed_principals": ["member", "admin"], "denied_principals": ["anonymous"], "secrets": [], "audit": ["log export requests"] },
+    { "id": "api_projects", "node_id": "api_projects", "path": "/api/projects", "type": "api", "auth": "admin session", "reads": ["members"], "writes": ["projects"], "calls": [], "allowed_principals": ["admin"], "denied_principals": ["anonymous", "support_agent"], "secrets": [], "audit": ["log writes"] }
+  ],
+  "deployments": [
+    { "id": "postgres", "name": "Postgres", "target": "customer-owned postgres", "environment": "production" }
+  ]
+}

@@ -9,9 +9,10 @@
   },
   "scripts": {
     "serve": "python3 -m http.server 8130",
-    "check": "node --check src/baseplane.js && node --check cli/baseplane.js && node --check tests/baseplane.test.js",
+    "check": "node --check packages/compiler/helpers.js && node --check packages/compiler/evaluateAccess.js && node --check packages/compiler/index.js && node --check packages/compiler/validate.js && node --check packages/compiler/generateSql.js && node --check packages/compiler/generateRls.js && node --check packages/compiler/generateRouteContracts.js && node --check packages/compiler/generateFunctionStubs.js && node --check packages/compiler/generateAgentGatewayPolicy.js && node --check packages/compiler/generatePolicyTests.js && node --check packages/compiler/generateDeployPlan.js && node --check cli/baseplane.js && node --check tests/baseplane.test.js",
+    "build": "npm run check && npm test",
     "test": "node tests/baseplane.test.js",
-    "generate:sample": "node cli/baseplane.js generate --file examples/research/baseplane.json --out generated"
+    "generate:sample": "node cli/baseplane.js generate examples/generic-telemetry/baseplane.json --out generated"
   },
   "keywords": [
     "backend",
