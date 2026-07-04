@@ -1,13 +1,12 @@
 #!/usr/bin/env node
+import fs from "node:fs";
 import path from "node:path";
 import {
   compileGraph,
-  readGraphFile,
+  evaluateAccess,
   runPolicyTests,
-  simulatePolicy,
-  validateGraph,
-  writeArtifacts
-} from "../src/baseplane.js";
+  validateGraph
+} from "../packages/compiler/index.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -23,29 +22,45 @@ try {
   } else if (command === "generate") {
     const graph = readRequiredGraph();
     const outDir = path.resolve(readOption("--out", "generated"));
-    const artifacts = writeArtifacts(graph, outDir);
+    const artifacts = compileGraph(graph);
+    fs.mkdirSync(outDir, { recursive: true });
+    for (const [name, content] of Object.entries(artifacts)) {
+      fs.writeFileSync(path.join(outDir, name), content);
+    }
     console.log(`Generated ${Object.keys(artifacts).length} artifacts in ${outDir}`);
   } else if (command === "test-policies") {
     const graph = readRequiredGraph();
-    const request = {
+    const explicit = {
       principal_id: readOption("--principal"),
       action: readOption("--action"),
       resource_id: readOption("--resource"),
-      field: readOption("--field")
+      field: readOption("--field", "")
     };
 
-    if (request.principal_id && request.action && request.resource_id) {
-      const result = simulatePolicy(graph, request);
+    if (explicit.principal_id && explicit.action && explicit.resource_id) {
+      const result = evaluateAccess(graph, explicit);
       console.log(JSON.stringify(result, null, 2));
-      process.exit(result.effect === "allow" ? 0 : 2);
+      process.exit(result.decision === "ALLOW" ? 0 : 2);
     }
 
     const results = runPolicyTests(graph);
     for (const item of results) {
       const marker = item.pass ? "PASS" : "FAIL";
-      console.log(`${marker} ${item.name} -> ${item.actual} (${item.reason})`);
+      console.log(`${marker} ${item.name} -> ${item.actual} (${item.reason.join("; ")})`);
     }
     process.exit(results.every((item) => item.pass) ? 0 : 1);
+  } else if (command === "diff") {
+    readRequiredGraph();
+    console.log("Diff is a safe placeholder in this alpha. It will compare baseplane.json to a target schema in a future release.");
+  } else if (command === "apply") {
+    const dryRun = args.includes("--dry-run");
+    readRequiredGraph();
+    if (!dryRun) {
+      throw new Error("Destructive apply is intentionally disabled. Use: baseplane apply --dry-run <baseplane.json>");
+    }
+    console.log("Dry run only. No credentials read. No database touched. Generated artifacts can be reviewed with `baseplane generate`.");
+  } else if (command === "introspect") {
+    console.log("Introspection is not implemented yet. Future shape: baseplane introspect --database-url $DATABASE_URL > baseplane.json");
   } else if (command === "compile") {
     const graph = readRequiredGraph();
     console.log(JSON.stringify(compileGraph(graph), null, 2));
@@ -60,11 +75,16 @@ try {
 }
 
 function readRequiredGraph() {
-  const file = readOption("--file");
-  if (!file) {
-    throw new Error("Missing --file path/to/baseplane.json");
-  }
-  return readGraphFile(file);
+  const file = readGraphPath();
+  if (!file) throw new Error("Missing baseplane.json path");
+  return JSON.parse(fs.readFileSync(path.resolve(file), "utf8"));
+}
+
+function readGraphPath() {
+  const fileFlag = readOption("--file");
+  if (fileFlag) return fileFlag;
+  const positional = args.slice(1).find((item) => !item.startsWith("--"));
+  return positional;
 }
 
 function readOption(name, fallback = undefined) {
@@ -89,15 +109,21 @@ function printHelp() {
   console.log(`Baseplane CLI
 
 Usage:
-  baseplane validate --file baseplane.json
-  baseplane generate --file baseplane.json --out generated
-  baseplane test-policies --file baseplane.json
-  baseplane test-policies --file baseplane.json --principal analysis_agent --action read --resource telemetry_readings --field measurement_value
+  baseplane validate ./baseplane.json
+  baseplane generate ./baseplane.json --out ./out
+  baseplane test-policies ./baseplane.json
+  baseplane test-policies ./baseplane.json --principal analysis_agent --action read --resource telemetry_readings --field measurement_value
+  baseplane diff ./baseplane.json
+  baseplane apply --dry-run ./baseplane.json
+  baseplane introspect --help
 
-Current commands:
+Commands:
   validate       Check graph shape and references.
-  generate       Compile graph into SQL, policy JSON, tests, and docs.
+  generate       Compile graph into SQL, route contracts, agent policy, tests, and docs.
   test-policies  Run generated policy simulator tests or one explicit request.
+  diff           Safe placeholder.
+  apply          Dry-run placeholder only.
+  introspect     Help placeholder only.
   compile        Print generated artifacts as JSON.
 `);
 }

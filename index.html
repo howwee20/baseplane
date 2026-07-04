@@ -4,8 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Baseplane</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #f4f1eb;
@@ -14,8 +12,8 @@
       --orange: #f26a1b;
       --panel: #fffdf8;
       --line: rgba(14, 26, 20, 0.14);
-      --mono: 'DM Mono', monospace;
-      --sans: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     * { box-sizing: border-box; }
     body {
@@ -189,7 +187,7 @@
     <header>
       <a class="brand" href="/">Baseplane</a>
       <nav class="nav">
-        <a href="examples/research/baseplane.json">Example JSON</a>
+        <a href="examples/generic-telemetry/baseplane.json">Example JSON</a>
         <a class="primary" href="app/">Open Alpha</a>
       </nav>
     </header>
@@ -198,10 +196,10 @@
         <div class="eyebrow">Backend control plane for AI-built apps</div>
         <h1>Your backend on one page.</h1>
         <p class="lead">Design databases, auth, functions, devices, and AI-agent permissions as one permissioned graph.</p>
-        <p class="copy">Baseplane owns the blueprint and policy graph. The customer owns the data plane. Export to Supabase/Postgres today. Run privately tomorrow.</p>
+        <p class="copy">Baseplane owns the blueprint and policy graph. The customer owns the data plane. Export SQL, policies, route contracts, agent rules, tests, and deploy plans.</p>
         <div class="actions">
           <a class="button primary" href="app/">Open Alpha</a>
-          <a class="button" href="examples/research/baseplane.json">View sample blueprint</a>
+          <a class="button" href="examples/generic-telemetry/baseplane.json">View sample blueprint</a>
         </div>
       </section>
       <section class="graph-card" aria-label="Baseplane graph preview">
@@ -210,15 +208,15 @@
         <div class="line" style="left:352px;top:363px;width:210px;transform:rotate(-18deg)"></div>
         <div class="line" style="left:180px;top:390px;width:205px;transform:rotate(-34deg)"></div>
         <article class="node" style="left:42px;top:104px">
-          <strong>Research Portal</strong>
-          <span>authenticated website</span>
+          <strong>Dashboard Page</strong>
+          <span>authenticated route</span>
         </article>
         <article class="node" style="left:300px;top:168px;border-top-color:#7453d8">
-          <strong>Project Members</strong>
+          <strong>Project Access</strong>
           <span>human access rules</span>
         </article>
         <article class="node" style="left:540px;top:292px;border-top-color:#168983">
-          <strong>Sensor Readings</strong>
+          <strong>Telemetry Table</strong>
           <span>private telemetry table</span>
         </article>
         <article class="node" style="left:84px;top:376px;border-top-color:#bd7b29">

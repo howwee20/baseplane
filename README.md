@@ -1,67 +1,102 @@
 # Baseplane
 
-Baseplane is a one-page backend workbench where the graph is the source of truth.
+Baseplane is a full-stack permission graph.
 
-The current app is intentionally client-side:
+It models domains, routes, pages, APIs, tables, functions, secrets, devices, deployments, humans, and AI agents as one machine-readable graph.
 
-- no database credentials
-- no service-role keys
+The graph compiles into backend infrastructure artifacts: SQL, RLS policies, route contracts, agent gateway policies, function contracts, policy tests, and deploy plans.
+
+Baseplane owns the blueprint. The customer owns the data plane.
+
+## Current Boundary
+
+The current app and CLI are intentionally local-first:
+
+- no customer credentials
 - no hosted-backend API calls
 - no customer data collection
+- no destructive apply command
+- no managed infrastructure claim
 
-It models backend systems as:
-
-- nodes: tables, auth, functions, devices, secrets, websites, agents, deployments
-- edges: reads, writes, owns, validates, executes, inserts, publishes, exports
-- policies: human, organization, agent, device, and service permissions
+The product promise right now is: design and export a permissioned backend.
 
 ## Run Locally
 
 ```bash
-cd work/baseplane
-python3 -m http.server 8130
+npm test
+npm run serve
 ```
 
 Open:
 
 ```txt
 http://127.0.0.1:8130/
+http://127.0.0.1:8130/app/
 ```
-
-## Alpha Flow
-
-1. Open `/app`.
-2. Choose the research telemetry, SaaS, or device telemetry template.
-3. Drag nodes around.
-4. Select nodes to edit fields and policies.
-5. Test an actor/resource request in the policy simulator.
-6. Export the backend package.
-
-Exported files:
-
-- `baseplane.json`
-- `schema.sql`
-- `rls_policies.sql`
-- `agent_policies.json`
-- `README.md`
-
-## Product Boundary
-
-Baseplane owns the blueprint and permission graph. The customer owns the data plane.
-
-Deployment targets later:
-
-- Supabase
-- self-hosted Postgres
-- local Docker
-- private server
-- Baseplane managed
 
 ## CLI
 
 ```bash
-npm test
-node cli/baseplane.js validate --file examples/research/baseplane.json
-node cli/baseplane.js generate --file examples/research/baseplane.json --out generated
-node cli/baseplane.js test-policies --file examples/research/baseplane.json
+node cli/baseplane.js validate examples/generic-telemetry/baseplane.json
+node cli/baseplane.js generate examples/generic-telemetry/baseplane.json --out generated
+node cli/baseplane.js test-policies examples/generic-telemetry/baseplane.json
+node cli/baseplane.js diff examples/generic-telemetry/baseplane.json
+node cli/baseplane.js apply --dry-run examples/generic-telemetry/baseplane.json
+node cli/baseplane.js introspect --help
 ```
+
+Generated package:
+
+- `baseplane.json`
+- `schema.sql`
+- `rls_policies.sql`
+- `route_contracts.md`
+- `function_stubs.md`
+- `agent_gateway_policy.json`
+- `policy_tests.json`
+- `deploy_plan.md`
+- `README.md`
+
+## Graph Model
+
+`baseplane.json` is the source of truth.
+
+```json
+{
+  "version": "0.1.0",
+  "app": {
+    "name": "Generic Telemetry App",
+    "description": "A private telemetry backend with scoped human and agent access."
+  },
+  "nodes": [],
+  "edges": [],
+  "principals": [],
+  "policies": [],
+  "routes": [],
+  "deployments": []
+}
+```
+
+The anti-slop rule:
+
+```txt
+If it is on the graph, it must become code, policy, or documentation.
+```
+
+## Trust Rules
+
+- no policy means deny
+- secret nodes are denied unless explicitly allowed
+- private fields are denied unless explicitly allowed
+- agent row access is denied unless explicitly allowed
+- schema inspection is separate from row reading
+- route access is separate from database access
+- write access is separate from read access
+
+## Examples
+
+- `examples/generic-telemetry/baseplane.json`
+- `examples/generic-saas/baseplane.json`
+- `examples/private-agent/baseplane.json`
+
+These are generic examples only. Baseplane is a separate product and does not contain customer-specific schemas, credentials, or production data.

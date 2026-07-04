@@ -1,0 +1,43 @@
+{
+  "version": "0.1.0",
+  "app": {
+    "name": "Private Agent App",
+    "description": "A private app where an AI agent can inspect schema and selected fields but cannot read secrets or production rows by default."
+  },
+  "nodes": [
+    { "id": "app_domain", "name": "agent.example.com", "type": "domain", "x": 60, "y": 100 },
+    { "id": "agent_query_api", "name": "/api/agent-query", "type": "api", "path": "/api/agent-query", "x": 300, "y": 100 },
+    { "id": "customer_records", "name": "customer_records", "type": "table", "x": 620, "y": 90, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "account_name", "type": "text" }, { "name": "private_notes", "type": "text", "private": true }] },
+    { "id": "api_keys", "name": "api_keys", "type": "secret", "x": 620, "y": 315, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "token_hash", "type": "text not null", "secret": true }] },
+    { "id": "analysis_agent", "name": "analysis_agent", "type": "agent", "x": 980, "y": 90 },
+    { "id": "coding_agent", "name": "coding_agent", "type": "agent", "x": 980, "y": 315 },
+    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 1240, "y": 190 }
+  ],
+  "edges": [
+    { "id": "e_domain_api", "from": "app_domain", "to": "agent_query_api", "type": "serves" },
+    { "id": "e_api_records", "from": "agent_query_api", "to": "customer_records", "type": "reads" },
+    { "id": "e_analysis_records", "from": "analysis_agent", "to": "customer_records", "type": "reads" },
+    { "id": "e_coding_schema", "from": "coding_agent", "to": "customer_records", "type": "reads" },
+    { "id": "e_postgres_records", "from": "postgres", "to": "customer_records", "type": "deploys_to" }
+  ],
+  "principals": [
+    { "id": "analysis_agent", "type": "agent", "name": "analysis_agent" },
+    { "id": "coding_agent", "type": "agent", "name": "coding_agent" },
+    { "id": "agent_query_api", "type": "service", "name": "/api/agent-query" },
+    { "id": "anonymous", "type": "anonymous", "name": "Anonymous" }
+  ],
+  "policies": [
+    { "id": "p_analysis_account_name", "principal_type": "agent", "principal_id": "analysis_agent", "action": "read", "resource_type": "field", "resource_id": "customer_records", "field": "account_name", "effect": "allow", "reason": "analysis agent can read account names" },
+    { "id": "p_analysis_no_private_notes", "principal_type": "agent", "principal_id": "analysis_agent", "action": "read", "resource_type": "field", "resource_id": "customer_records", "field": "private_notes", "effect": "deny", "reason": "private notes remain private" },
+    { "id": "p_coding_schema", "principal_type": "agent", "principal_id": "coding_agent", "action": "inspect", "resource_type": "schema", "resource_id": "public", "effect": "allow", "reason": "coding agent can inspect schema" },
+    { "id": "p_coding_no_rows", "principal_type": "agent", "principal_id": "coding_agent", "action": "read", "resource_type": "table", "resource_id": "customer_records", "effect": "deny", "reason": "coding agent cannot read rows" },
+    { "id": "p_no_api_keys", "principal_type": "agent", "principal_id": "analysis_agent", "action": "read", "resource_type": "secret", "resource_id": "api_keys", "effect": "deny", "reason": "secrets are denied by default" },
+    { "id": "p_api_account_name", "principal_type": "service", "principal_id": "agent_query_api", "action": "read", "resource_type": "field", "resource_id": "customer_records", "field": "account_name", "effect": "allow", "condition": "agent identity checked" }
+  ],
+  "routes": [
+    { "id": "agent_query_api", "node_id": "agent_query_api", "path": "/api/agent-query", "type": "api", "auth": "agent identity", "reads": ["customer_records.account_name"], "writes": [], "calls": [], "allowed_principals": ["analysis_agent"], "denied_principals": ["coding_agent row access", "anonymous"], "secrets": [], "audit": ["log every query", "log denied field requests"] }
+  ],
+  "deployments": [
+    { "id": "postgres", "name": "Postgres", "target": "customer-owned postgres", "environment": "production" }
+  ]
+}

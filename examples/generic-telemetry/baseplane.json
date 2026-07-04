@@ -1,0 +1,308 @@
+{
+  "version": "0.1.0",
+  "app": {
+    "name": "Generic Telemetry App",
+    "description": "A private telemetry backend with scoped human, device, route, and AI-agent access."
+  },
+  "nodes": [
+    {
+      "id": "app_domain",
+      "name": "app.example.com",
+      "type": "domain",
+      "description": "Primary production domain.",
+      "x": 56,
+      "y": 96
+    },
+    {
+      "id": "dashboard_page",
+      "name": "/dashboard",
+      "type": "page",
+      "description": "Authenticated telemetry dashboard.",
+      "path": "/dashboard",
+      "x": 260,
+      "y": 92
+    },
+    {
+      "id": "api_device_ingest",
+      "name": "/api/device-ingest",
+      "type": "api",
+      "description": "Device-token telemetry ingest endpoint.",
+      "path": "/api/device-ingest",
+      "x": 260,
+      "y": 300
+    },
+    {
+      "id": "api_agent_query",
+      "name": "/api/agent-query",
+      "type": "api",
+      "description": "Scoped AI-agent query endpoint.",
+      "path": "/api/agent-query",
+      "x": 260,
+      "y": 510
+    },
+    {
+      "id": "users",
+      "name": "users",
+      "type": "table",
+      "description": "Human account records.",
+      "x": 560,
+      "y": 36,
+      "fields": [
+        { "name": "id", "type": "uuid primary key" },
+        { "name": "email", "type": "text not null", "private": true },
+        { "name": "created_at", "type": "timestamptz not null default now()" }
+      ]
+    },
+    {
+      "id": "organizations",
+      "name": "organizations",
+      "type": "table",
+      "description": "Tenant boundary.",
+      "x": 560,
+      "y": 210,
+      "fields": [
+        { "name": "id", "type": "uuid primary key" },
+        { "name": "name", "type": "text not null" },
+        { "name": "plan", "type": "text not null default 'alpha'" }
+      ]
+    },
+    {
+      "id": "projects",
+      "name": "projects",
+      "type": "table",
+      "description": "Project and data boundary.",
+      "x": 560,
+      "y": 384,
+      "fields": [
+        { "name": "id", "type": "uuid primary key" },
+        { "name": "organization_id", "type": "uuid not null" },
+        { "name": "name", "type": "text not null" }
+      ]
+    },
+    {
+      "id": "devices",
+      "name": "devices",
+      "type": "table",
+      "description": "Registered hardware publishers.",
+      "x": 850,
+      "y": 168,
+      "fields": [
+        { "name": "id", "type": "text primary key" },
+        { "name": "project_id", "type": "uuid not null" },
+        { "name": "last_seen_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "id": "device_tokens",
+      "name": "device_tokens",
+      "type": "secret",
+      "description": "Device token hashes. Secret by default.",
+      "x": 850,
+      "y": 350,
+      "fields": [
+        { "name": "device_id", "type": "text primary key" },
+        { "name": "token_hash", "type": "text not null", "secret": true, "private": true },
+        { "name": "revoked_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "id": "telemetry_readings",
+      "name": "telemetry_readings",
+      "type": "table",
+      "description": "Append-only telemetry measurements.",
+      "x": 1120,
+      "y": 175,
+      "fields": [
+        { "name": "id", "type": "bigint generated always as identity primary key" },
+        { "name": "event_id", "type": "text not null unique" },
+        { "name": "project_id", "type": "uuid not null" },
+        { "name": "device_id", "type": "text not null" },
+        { "name": "timestamp", "type": "timestamptz not null" },
+        { "name": "measurement_value", "type": "double precision not null" },
+        { "name": "raw_payload", "type": "jsonb", "private": true }
+      ]
+    },
+    {
+      "id": "latest_device_state",
+      "name": "latest_device_state",
+      "type": "table",
+      "description": "Current device health snapshot.",
+      "x": 1120,
+      "y": 420,
+      "fields": [
+        { "name": "device_id", "type": "text primary key" },
+        { "name": "project_id", "type": "uuid not null" },
+        { "name": "status", "type": "text not null" },
+        { "name": "updated_at", "type": "timestamptz not null" }
+      ]
+    },
+    {
+      "id": "get_project_readings",
+      "name": "get_project_readings",
+      "type": "function",
+      "description": "Returns scoped project readings.",
+      "x": 1410,
+      "y": 150,
+      "fields": [
+        { "name": "project_id", "type": "uuid" },
+        { "name": "range", "type": "tstzrange" }
+      ]
+    },
+    {
+      "id": "get_device_health",
+      "name": "get_device_health",
+      "type": "function",
+      "description": "Returns visible device health rows.",
+      "x": 1410,
+      "y": 350,
+      "fields": [
+        { "name": "project_id", "type": "uuid" }
+      ]
+    },
+    {
+      "id": "analysis_agent",
+      "name": "analysis_agent",
+      "type": "agent",
+      "description": "Agent with field-scoped telemetry reads.",
+      "x": 560,
+      "y": 650
+    },
+    {
+      "id": "coding_agent",
+      "name": "coding_agent",
+      "type": "agent",
+      "description": "Agent that can inspect schema but not production rows.",
+      "x": 820,
+      "y": 650
+    },
+    {
+      "id": "support_agent",
+      "name": "support_agent",
+      "type": "agent",
+      "description": "Agent with operational status access only.",
+      "x": 1080,
+      "y": 650
+    },
+    {
+      "id": "device_publisher",
+      "name": "device_publisher",
+      "type": "device",
+      "description": "Non-human device principal that publishes telemetry.",
+      "x": 56,
+      "y": 300
+    },
+    {
+      "id": "postgres",
+      "name": "postgres",
+      "type": "deployment",
+      "description": "Customer-owned Postgres target.",
+      "x": 1410,
+      "y": 560
+    }
+  ],
+  "edges": [
+    { "id": "edge_domain_dashboard", "from": "app_domain", "to": "dashboard_page", "type": "serves" },
+    { "id": "edge_domain_ingest", "from": "app_domain", "to": "api_device_ingest", "type": "serves" },
+    { "id": "edge_domain_agent", "from": "app_domain", "to": "api_agent_query", "type": "serves" },
+    { "id": "edge_dashboard_readings", "from": "dashboard_page", "to": "telemetry_readings", "type": "reads" },
+    { "id": "edge_dashboard_state", "from": "dashboard_page", "to": "latest_device_state", "type": "reads" },
+    { "id": "edge_dashboard_projects", "from": "dashboard_page", "to": "projects", "type": "reads" },
+    { "id": "edge_dashboard_get_readings", "from": "dashboard_page", "to": "get_project_readings", "type": "calls" },
+    { "id": "edge_dashboard_health", "from": "dashboard_page", "to": "get_device_health", "type": "calls" },
+    { "id": "edge_device_publish", "from": "device_publisher", "to": "api_device_ingest", "type": "publishes_to" },
+    { "id": "edge_ingest_devices", "from": "api_device_ingest", "to": "devices", "type": "reads" },
+    { "id": "edge_ingest_tokens", "from": "api_device_ingest", "to": "device_tokens", "type": "reads" },
+    { "id": "edge_ingest_readings", "from": "api_device_ingest", "to": "telemetry_readings", "type": "writes" },
+    { "id": "edge_ingest_state", "from": "api_device_ingest", "to": "latest_device_state", "type": "writes" },
+    { "id": "edge_agent_query_readings", "from": "api_agent_query", "to": "telemetry_readings", "type": "reads" },
+    { "id": "edge_projects_devices", "from": "projects", "to": "devices", "type": "owns" },
+    { "id": "edge_projects_readings", "from": "projects", "to": "telemetry_readings", "type": "owns" },
+    { "id": "edge_postgres_tables", "from": "postgres", "to": "telemetry_readings", "type": "deploys_to" }
+  ],
+  "principals": [
+    { "id": "researcher", "type": "human", "name": "Researcher" },
+    { "id": "admin", "type": "human", "name": "Admin" },
+    { "id": "anonymous", "type": "anonymous", "name": "Anonymous" },
+    { "id": "analysis_agent", "type": "agent", "name": "analysis_agent" },
+    { "id": "coding_agent", "type": "agent", "name": "coding_agent" },
+    { "id": "support_agent", "type": "agent", "name": "support_agent" },
+    { "id": "device_publisher", "type": "device", "name": "device_publisher" },
+    { "id": "dashboard_page", "type": "service", "name": "/dashboard" },
+    { "id": "api_device_ingest", "type": "service", "name": "/api/device-ingest" },
+    { "id": "api_agent_query", "type": "service", "name": "/api/agent-query" }
+  ],
+  "policies": [
+    { "id": "p_researcher_read_readings", "principal_type": "human", "principal_id": "researcher", "action": "read", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "allow", "condition": "project membership required", "reason": "researcher can read telemetry for their project" },
+    { "id": "p_device_insert_readings", "principal_type": "device", "principal_id": "device_publisher", "action": "write", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "allow", "condition": "valid device token", "reason": "device can insert telemetry" },
+    { "id": "p_device_no_read_readings", "principal_type": "device", "principal_id": "device_publisher", "action": "read", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "deny", "reason": "device write access does not imply read access" },
+    { "id": "p_coding_agent_schema", "principal_type": "agent", "principal_id": "coding_agent", "action": "inspect", "resource_type": "schema", "resource_id": "public", "effect": "allow", "reason": "schema inspection is separate from row access" },
+    { "id": "p_coding_agent_no_rows", "principal_type": "agent", "principal_id": "coding_agent", "action": "read", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "deny", "reason": "coding agent cannot read production rows" },
+    { "id": "p_analysis_agent_timestamp", "principal_type": "agent", "principal_id": "analysis_agent", "action": "read", "resource_type": "field", "resource_id": "telemetry_readings", "field": "timestamp", "effect": "allow", "condition": "project-scoped agent session", "reason": "analysis agent can read timestamp only" },
+    { "id": "p_analysis_agent_value", "principal_type": "agent", "principal_id": "analysis_agent", "action": "read", "resource_type": "field", "resource_id": "telemetry_readings", "field": "measurement_value", "effect": "allow", "condition": "project-scoped agent session", "reason": "analysis agent can read measurement value only" },
+    { "id": "p_support_agent_state", "principal_type": "agent", "principal_id": "support_agent", "action": "read", "resource_type": "table", "resource_id": "latest_device_state", "effect": "allow", "reason": "support agent can read operational device status" },
+    { "id": "p_support_agent_no_tokens", "principal_type": "agent", "principal_id": "support_agent", "action": "read", "resource_type": "secret", "resource_id": "device_tokens", "effect": "deny", "reason": "support agent cannot read device secrets" },
+    { "id": "p_dashboard_read_readings", "principal_type": "service", "principal_id": "dashboard_page", "action": "read", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "allow", "condition": "authenticated researcher session", "reason": "dashboard reads chart data" },
+    { "id": "p_dashboard_read_state", "principal_type": "service", "principal_id": "dashboard_page", "action": "read", "resource_type": "table", "resource_id": "latest_device_state", "effect": "allow", "condition": "authenticated researcher session", "reason": "dashboard reads device state" },
+    { "id": "p_dashboard_read_projects", "principal_type": "service", "principal_id": "dashboard_page", "action": "read", "resource_type": "table", "resource_id": "projects", "effect": "allow", "condition": "authenticated researcher session", "reason": "dashboard reads project metadata" },
+    { "id": "p_dashboard_no_secrets", "principal_type": "service", "principal_id": "dashboard_page", "action": "read", "resource_type": "secret", "resource_id": "device_tokens", "effect": "deny", "reason": "dashboard cannot read secrets" },
+    { "id": "p_ingest_write_readings", "principal_type": "service", "principal_id": "api_device_ingest", "action": "write", "resource_type": "table", "resource_id": "telemetry_readings", "effect": "allow", "condition": "valid device token", "reason": "ingest writes telemetry rows" },
+    { "id": "p_ingest_write_state", "principal_type": "service", "principal_id": "api_device_ingest", "action": "write", "resource_type": "table", "resource_id": "latest_device_state", "effect": "allow", "condition": "valid device token", "reason": "ingest updates latest state" },
+    { "id": "p_ingest_read_devices", "principal_type": "service", "principal_id": "api_device_ingest", "action": "read", "resource_type": "table", "resource_id": "devices", "effect": "allow", "condition": "lookup device by token", "reason": "ingest validates device identity" },
+    { "id": "p_ingest_read_token_hash", "principal_type": "service", "principal_id": "api_device_ingest", "action": "read", "resource_type": "field", "resource_id": "device_tokens", "field": "token_hash", "effect": "allow", "condition": "hash compare only", "reason": "ingest can compare token hash but not expose it" },
+    { "id": "p_agent_query_timestamp", "principal_type": "service", "principal_id": "api_agent_query", "action": "read", "resource_type": "field", "resource_id": "telemetry_readings", "field": "timestamp", "effect": "allow", "condition": "agent identity checked", "reason": "agent query API can return timestamp only" },
+    { "id": "p_agent_query_value", "principal_type": "service", "principal_id": "api_agent_query", "action": "read", "resource_type": "field", "resource_id": "telemetry_readings", "field": "measurement_value", "effect": "allow", "condition": "agent identity checked", "reason": "agent query API can return measurement value only" },
+    { "id": "p_anonymous_no_dashboard", "principal_type": "anonymous", "principal_id": "anonymous", "action": "read", "resource_type": "page", "resource_id": "dashboard_page", "effect": "deny", "reason": "dashboard requires authentication" }
+  ],
+  "routes": [
+    {
+      "id": "dashboard_page",
+      "node_id": "dashboard_page",
+      "path": "/dashboard",
+      "type": "page",
+      "auth": "researcher session",
+      "reads": ["telemetry_readings", "latest_device_state", "projects"],
+      "writes": [],
+      "calls": ["get_project_readings", "get_device_health"],
+      "allowed_principals": ["researcher", "admin", "analysis_agent scoped fields only"],
+      "denied_principals": ["anonymous", "device_publisher", "coding_agent row access"],
+      "secrets": [],
+      "audit": ["log dashboard export requests"]
+    },
+    {
+      "id": "api_device_ingest",
+      "node_id": "api_device_ingest",
+      "path": "/api/device-ingest",
+      "type": "api",
+      "auth": "device token",
+      "reads": ["devices", "device_tokens.token_hash"],
+      "writes": ["telemetry_readings", "latest_device_state"],
+      "calls": [],
+      "allowed_principals": ["device_publisher"],
+      "denied_principals": ["anonymous", "browser users", "coding_agent"],
+      "secrets": ["device_tokens.token_hash"],
+      "audit": ["log every insert", "log token failures"]
+    },
+    {
+      "id": "api_agent_query",
+      "node_id": "api_agent_query",
+      "path": "/api/agent-query",
+      "type": "api",
+      "auth": "agent identity",
+      "reads": ["telemetry_readings.timestamp", "telemetry_readings.measurement_value"],
+      "writes": [],
+      "calls": [],
+      "allowed_principals": ["analysis_agent"],
+      "denied_principals": ["coding_agent row access", "anonymous"],
+      "secrets": [],
+      "audit": ["log every agent query", "log denied field requests"]
+    }
+  ],
+  "deployments": [
+    {
+      "id": "postgres",
+      "name": "Postgres",
+      "target": "customer-owned postgres",
+      "environment": "production"
+    }
+  ]
+}

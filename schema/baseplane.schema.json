@@ -1,98 +1,66 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://baseplane.dev/schema/baseplane.schema.json",
-  "title": "Baseplane Graph",
+  "title": "Baseplane Full-Stack Permission Graph",
   "type": "object",
-  "required": ["version", "appName", "nodes", "edges", "policies"],
-  "additionalProperties": true,
+  "required": ["version", "app", "nodes", "edges", "principals", "policies", "routes", "deployments"],
+  "additionalProperties": false,
   "properties": {
-    "version": {
-      "type": "string",
-      "minLength": 1
-    },
-    "appName": {
-      "type": "string",
-      "minLength": 1
-    },
-    "description": {
-      "type": "string"
-    },
-    "nodes": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "$ref": "#/$defs/node"
+    "version": { "type": "string", "minLength": 1 },
+    "app": {
+      "type": "object",
+      "required": ["name", "description"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
       }
     },
-    "edges": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/edge"
-      }
-    },
-    "policies": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/policy"
-      }
-    },
-    "agents": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/agent"
-      }
-    }
+    "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "principals": { "type": "array", "items": { "$ref": "#/$defs/principal" } },
+    "policies": { "type": "array", "items": { "$ref": "#/$defs/policy" } },
+    "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+    "deployments": { "type": "array", "items": { "$ref": "#/$defs/deployment" } }
   },
   "$defs": {
+    "nodeType": {
+      "enum": ["domain", "route", "page", "api", "webhook", "table", "function", "secret", "agent", "device", "deployment"]
+    },
+    "edgeType": {
+      "enum": ["reads", "writes", "owns", "calls", "serves", "deploys_to", "authenticates", "authorizes", "stores_secret", "publishes_to", "denies", "allows"]
+    },
+    "principalType": {
+      "enum": ["human", "org", "agent", "device", "service", "anonymous"]
+    },
+    "resourceType": {
+      "enum": ["domain", "route", "page", "api", "webhook", "table", "field", "function", "secret", "agent", "device", "deployment", "schema", "graph"]
+    },
     "field": {
       "type": "object",
       "required": ["name", "type"],
       "additionalProperties": true,
       "properties": {
-        "name": {
-          "type": "string",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-        },
-        "type": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": {
-          "type": "string"
-        }
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "type": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "private": { "type": "boolean" },
+        "secret": { "type": "boolean" }
       }
     },
     "node": {
       "type": "object",
-      "required": ["id", "name", "type", "x", "y"],
+      "required": ["id", "name", "type"],
       "additionalProperties": true,
       "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[A-Za-z_][A-Za-z0-9_:-]*$"
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "type": {
-          "enum": ["table", "auth", "function", "device", "secret", "website", "agent", "deployment"]
-        },
-        "description": {
-          "type": "string"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "fields": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/field"
-          }
-        }
+        "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_:-]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/nodeType" },
+        "description": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "path": { "type": "string" },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } }
       }
     },
     "edge": {
@@ -100,81 +68,69 @@
       "required": ["id", "from", "to", "type"],
       "additionalProperties": true,
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "from": {
-          "type": "string",
-          "minLength": 1
-        },
-        "to": {
-          "type": "string",
-          "minLength": 1
-        },
-        "type": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": {
-          "type": "string"
-        }
+        "id": { "type": "string", "minLength": 1 },
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/edgeType" },
+        "description": { "type": "string" }
+      }
+    },
+    "principal": {
+      "type": "object",
+      "required": ["id", "type", "name"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/principalType" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
       }
     },
     "policy": {
       "type": "object",
-      "required": ["id", "principal_type", "principal_id", "resource_type", "resource_id", "action", "effect"],
+      "required": ["id", "principal_type", "principal_id", "action", "resource_type", "resource_id", "effect"],
       "additionalProperties": true,
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "principal_type": {
-          "enum": ["human", "organization", "device", "service", "agent"]
-        },
-        "principal_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "resource_type": {
-          "enum": ["table", "field", "function", "secret", "graph", "deployment", "website"]
-        },
-        "resource_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "action": {
-          "type": "string",
-          "minLength": 1
-        },
-        "effect": {
-          "enum": ["allow", "deny"]
-        },
-        "conditions": {
-          "type": "string"
-        }
+        "id": { "type": "string", "minLength": 1 },
+        "principal_type": { "$ref": "#/$defs/principalType" },
+        "principal_id": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "resource_type": { "$ref": "#/$defs/resourceType" },
+        "resource_id": { "type": "string", "minLength": 1 },
+        "field": { "type": "string" },
+        "effect": { "enum": ["allow", "deny"] },
+        "condition": { "type": "string" },
+        "reason": { "type": "string" }
       }
     },
-    "agent": {
+    "route": {
       "type": "object",
-      "required": ["id", "name", "can"],
+      "required": ["id", "path", "type", "auth"],
       "additionalProperties": true,
       "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "can": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
-        }
+        "id": { "type": "string", "minLength": 1 },
+        "node_id": { "type": "string" },
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["page", "api", "webhook"] },
+        "auth": { "type": "string" },
+        "reads": { "type": "array", "items": { "type": "string" } },
+        "writes": { "type": "array", "items": { "type": "string" } },
+        "calls": { "type": "array", "items": { "type": "string" } },
+        "allowed_principals": { "type": "array", "items": { "type": "string" } },
+        "denied_principals": { "type": "array", "items": { "type": "string" } },
+        "secrets": { "type": "array", "items": { "type": "string" } },
+        "audit": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "required": ["id", "name", "target"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "environment": { "type": "string" }
       }
     }
   }
