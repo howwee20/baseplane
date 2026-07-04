@@ -790,12 +790,11 @@
       </div>
       <div class="top-actions">
         <button class="button primary" id="open-tools">New Backend</button>
-        <button class="button" id="open-simulator">Simulate</button>
-        <button class="button" id="open-deploy-preview">Deploy Preview</button>
+        <button class="button" id="open-rows">Rows</button>
+        <button class="button" id="open-simulator">Access</button>
+        <button class="button" id="open-deploy-preview">Deploy</button>
         <button class="button active" id="level-lock" aria-pressed="true">Level Lock On</button>
         <button class="button" id="reset-layout">Reset</button>
-        <button class="button primary" id="export-zip">Export</button>
-        <button class="button" id="download-json">JSON</button>
         <a class="button" href="../signin/">Sign In</a>
       </div>
     </header>
@@ -879,6 +878,17 @@
           </div>
         </section>
 
+        <section class="section" id="tools-rows">
+          <div class="label">Rows</div>
+          <p class="small">Rows become available after a backend is provisioned. Until then, Baseplane shows the table shape and access rules without touching production data.</p>
+          <div class="package-list">
+            <div class="package-item"><strong>Tables</strong><span>schema graph</span></div>
+            <div class="package-item"><strong>Fields</strong><span>column map</span></div>
+            <div class="package-item"><strong>Access</strong><span>read/write rules</span></div>
+            <div class="package-item"><strong>Audit</strong><span>row access events</span></div>
+          </div>
+        </section>
+
         <section class="section" id="tools-simulator">
           <div class="label">Policy simulator</div>
           <div class="stack">
@@ -927,6 +937,8 @@
             <div class="package-item"><strong>README.md</strong><span>handoff docs</span></div>
           </div>
           <div class="mini-actions">
+            <button class="mini-button" id="export-zip">Export package</button>
+            <button class="mini-button" id="download-json">Download JSON</button>
             <button class="mini-button warn" id="reset-local">Reset local graph</button>
           </div>
         </section>
@@ -2219,6 +2231,7 @@ document.getElementById("add-edge").addEventListener("click", addEdgeFromForm);
 document.getElementById("download-json").addEventListener("click", downloadJson);
 document.getElementById("export-zip").addEventListener("click", exportZip);
 document.getElementById("open-tools").addEventListener("click", () => openToolsPanel());
+document.getElementById("open-rows").addEventListener("click", () => openToolsPanel("tools-rows"));
 document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
 document.getElementById("open-deploy-preview").addEventListener("click", openDeployPreview);
 document.getElementById("level-lock").addEventListener("click", () => setLevelLock(!levelLock));

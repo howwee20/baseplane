@@ -125,16 +125,15 @@
       border-color: var(--orange);
       color: #fff;
     }
-    .graph-card {
+    .schema-visual {
       min-height: 620px;
       border: 1px solid var(--line);
       background: rgba(255, 253, 248, 0.78);
       box-shadow: 0 30px 90px rgba(17, 30, 23, 0.11);
-      padding: 22px;
       position: relative;
       overflow: hidden;
     }
-    .graph-card::before {
+    .schema-visual::before {
       content: "";
       position: absolute;
       inset: 0;
@@ -145,32 +144,83 @@
       background-size: auto, 30px 30px, 30px 30px;
       pointer-events: none;
     }
-    .node {
+    .schema-header {
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      left: 0;
+      padding: 16px 18px;
       position: absolute;
-      width: 158px;
+      right: 0;
+      top: 0;
+      z-index: 2;
+    }
+    .schema-header strong {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .schema-header span {
+      font-size: 15px;
+      font-weight: 850;
+      letter-spacing: -0.03em;
+    }
+    .schema-lines {
+      inset: 0;
+      position: absolute;
+      z-index: 1;
+    }
+    .schema-lines path {
+      fill: none;
+      stroke: rgba(242, 106, 27, 0.42);
+      stroke-dasharray: 8 7;
+      stroke-linecap: round;
+      stroke-width: 1.4;
+    }
+    .schema-table {
+      position: absolute;
+      width: 168px;
       border: 1px solid var(--line);
       border-top: 4px solid var(--orange);
       background: rgba(255, 253, 248, 0.96);
       box-shadow: 0 16px 38px rgba(17, 30, 23, 0.09);
       padding: 12px;
+      z-index: 2;
     }
-    .node strong {
+    .schema-table.control { border-top-color: var(--orange); }
+    .schema-table.identity { border-top-color: #7453d8; }
+    .schema-table.data { border-top-color: #2f69d9; }
+    .schema-table.gate { border-top-color: #c74f3d; }
+    .schema-table.log { border-top-color: #168983; }
+    .schema-table strong {
       display: block;
       font-size: 13px;
       letter-spacing: -0.02em;
       margin-bottom: 7px;
     }
-    .node span {
+    .schema-table span {
       color: var(--muted);
       display: block;
       font-size: 11px;
       line-height: 1.35;
     }
-    .line {
-      position: absolute;
-      height: 1px;
-      background: rgba(242, 106, 27, 0.38);
-      transform-origin: left center;
+    .schema-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .schema-field {
+      background: #eee9df;
+      border-radius: 999px;
+      color: #526058;
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 3px 7px;
     }
     .offers {
       border-top: 1px solid var(--line);
@@ -220,8 +270,11 @@
       .offer-grid {
         grid-template-columns: 1fr;
       }
-      .graph-card {
+      .schema-visual {
         min-height: 460px;
+      }
+      .schema-visual {
+        overflow: auto;
       }
     }
   </style>
@@ -248,30 +301,65 @@
           <a class="button" href="#design-partners">Join Design Partners</a>
         </div>
       </section>
-      <section class="graph-card" aria-label="Baseplane graph preview">
-        <div class="line" style="left:178px;top:154px;width:180px;transform:rotate(17deg)"></div>
-        <div class="line" style="left:360px;top:215px;width:190px;transform:rotate(30deg)"></div>
-        <div class="line" style="left:352px;top:363px;width:210px;transform:rotate(-18deg)"></div>
-        <div class="line" style="left:180px;top:390px;width:205px;transform:rotate(-34deg)"></div>
-        <article class="node" style="left:42px;top:104px">
-          <strong>Dashboard Page</strong>
-          <span>authenticated route</span>
+      <section class="schema-visual" aria-label="Baseplane database schema preview">
+        <div class="schema-header">
+          <span>Baseplane Cloud Schema</span>
+          <strong>Store / Hold / Access</strong>
+        </div>
+        <svg class="schema-lines" viewBox="0 0 620 620" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M126 168 C150 196, 178 214, 218 236"></path>
+          <path d="M316 156 C316 184, 304 204, 286 236"></path>
+          <path d="M478 172 C432 194, 380 212, 320 250"></path>
+          <path d="M286 332 C286 360, 244 378, 206 408"></path>
+          <path d="M286 332 C310 366, 332 392, 360 424"></path>
+          <path d="M286 332 C366 354, 438 390, 478 432"></path>
+          <path d="M206 500 C270 524, 354 526, 468 504"></path>
+          <path d="M478 508 C438 540, 376 552, 310 548"></path>
+          <path d="M118 514 C148 538, 204 552, 310 548"></path>
+        </svg>
+        <article class="schema-table control" style="left:36px;top:94px">
+          <strong>accounts</strong>
+          <span>customer workspace</span>
+          <div class="schema-fields"><em class="schema-field">id</em><em class="schema-field">name</em><em class="schema-field">plan</em></div>
         </article>
-        <article class="node" style="left:300px;top:168px;border-top-color:#7453d8">
-          <strong>Project Access</strong>
-          <span>human access rules</span>
+        <article class="schema-table identity" style="left:234px;top:82px">
+          <strong>users</strong>
+          <span>signed-in humans</span>
+          <div class="schema-fields"><em class="schema-field">id</em><em class="schema-field">email</em><em class="schema-field">role</em></div>
         </article>
-        <article class="node" style="left:540px;top:292px;border-top-color:#168983">
-          <strong>Telemetry Table</strong>
-          <span>private telemetry table</span>
+        <article class="schema-table identity" style="left:414px;top:108px">
+          <strong>sessions</strong>
+          <span>active login state</span>
+          <div class="schema-fields"><em class="schema-field">user_id</em><em class="schema-field">expires</em></div>
         </article>
-        <article class="node" style="left:84px;top:376px;border-top-color:#bd7b29">
-          <strong>Analysis Agent</strong>
-          <span>field-scoped access</span>
+        <article class="schema-table control" style="left:214px;top:242px">
+          <strong>projects</strong>
+          <span>backend boundary</span>
+          <div class="schema-fields"><em class="schema-field">account_id</em><em class="schema-field">graph_id</em></div>
         </article>
-        <article class="node" style="left:332px;top:480px;border-top-color:#c74f3d">
-          <strong>Device Token</strong>
-          <span>write-only ingest gate</span>
+        <article class="schema-table data" style="left:38px;top:414px">
+          <strong>graph_versions</strong>
+          <span>source of truth</span>
+          <div class="schema-fields"><em class="schema-field">baseplane.json</em><em class="schema-field">version</em></div>
+        </article>
+        <article class="schema-table gate" style="left:268px;top:420px">
+          <strong>deploy_requests</strong>
+          <span>safe apply plan</span>
+          <div class="schema-fields"><em class="schema-field">status</em><em class="schema-field">diff</em></div>
+        </article>
+        <article class="schema-table data" style="left:438px;top:432px">
+          <strong>backend_instances</strong>
+          <span>customer data plane</span>
+          <div class="schema-fields"><em class="schema-field">db_url</em><em class="schema-field">region</em></div>
+        </article>
+        <article class="schema-table gate" style="left:44px;top:532px">
+          <strong>secrets</strong>
+          <span>reference only</span>
+        </article>
+        <article class="schema-table log" style="left:292px;top:536px">
+          <strong>audit_events</strong>
+          <span>who touched what</span>
+          <div class="schema-fields"><em class="schema-field">actor</em><em class="schema-field">action</em></div>
         </article>
       </section>
     </main>
