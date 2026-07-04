@@ -32,7 +32,7 @@ agent request
 
 The local Control API is the first managed-backend slice. It uses the compiler and policy engine, stores data in a local JSON file, and exposes the same shape that a hosted Baseplane API will expose later.
 
-Run it:
+Run local file-backed mode:
 
 ```bash
 npm run control-api
@@ -44,6 +44,30 @@ Default API:
 http://127.0.0.1:8790
 ```
 
+Run Postgres-backed mode:
+
+```bash
+CONTROL_DATABASE_URL=postgres://baseplane:baseplane_local_only@127.0.0.1:54329/baseplane_app \
+CONTROL_DATABASE_SSL=false \
+npm run control-api
+```
+
+Or with Docker:
+
+```bash
+docker compose -f runtime/docker-compose.yml up postgres control-api
+```
+
+Hosted environment variables:
+
+```txt
+CONTROL_DATABASE_URL
+BASEPLANE_PUBLIC_API_URL
+SESSION_SECRET
+CORS_ORIGIN
+CONTROL_DATABASE_SSL
+```
+
 What it supports now:
 
 - alpha sign-in sessions
@@ -51,12 +75,35 @@ What it supports now:
 - graph versions
 - deploy requests
 - backend instances
+- Postgres control database persistence
 - table rows
 - field access levels
 - server-side redaction
 - audit events
 
 The Studio can still run without this API. When the API is available, Deploy creates a real local backend instance and Rows switch from browser preview rows to API rows.
+
+## Studio API Target
+
+The Studio defaults to:
+
+```txt
+http://127.0.0.1:8790
+```
+
+For hosted alpha testing, point the public Studio at a hosted Control API with:
+
+```txt
+https://howwee20.github.io/baseplane/app/?api=https://your-control-api.example
+```
+
+or provide:
+
+```js
+window.BASEPLANE_CONFIG = {
+  apiUrl: "https://your-control-api.example"
+};
+```
 
 ## Alpha Status
 

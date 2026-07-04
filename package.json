@@ -10,10 +10,14 @@
   "scripts": {
     "serve": "python3 -m http.server 8130",
     "control-api": "node runtime/control-api/server.js",
-    "check": "node --check packages/compiler/helpers.js && node --check packages/compiler/evaluateAccess.js && node --check packages/compiler/index.js && node --check packages/compiler/validate.js && node --check packages/compiler/generateSql.js && node --check packages/compiler/generateRls.js && node --check packages/compiler/generateRouteContracts.js && node --check packages/compiler/generateFunctionStubs.js && node --check packages/compiler/generateAgentGatewayPolicy.js && node --check packages/compiler/generatePolicyTests.js && node --check packages/compiler/generateDeployPlan.js && node --check packages/compiler/introspect.js && node --check packages/agent-gateway/index.js && node --check runtime/gateway/server.js && node --check runtime/control-api/server.js && node --check cli/baseplane.js && node --check tests/baseplane.test.js && node --check tests/control-api.test.js",
+    "control-api:postgres": "CONTROL_DATABASE_URL=${CONTROL_DATABASE_URL:-postgres://baseplane:baseplane_local_only@127.0.0.1:54329/baseplane_app} CONTROL_DATABASE_SSL=false node runtime/control-api/server.js",
+    "check": "node --check packages/compiler/helpers.js && node --check packages/compiler/evaluateAccess.js && node --check packages/compiler/index.js && node --check packages/compiler/validate.js && node --check packages/compiler/generateSql.js && node --check packages/compiler/generateRls.js && node --check packages/compiler/generateRouteContracts.js && node --check packages/compiler/generateFunctionStubs.js && node --check packages/compiler/generateAgentGatewayPolicy.js && node --check packages/compiler/generatePolicyTests.js && node --check packages/compiler/generateDeployPlan.js && node --check packages/compiler/introspect.js && node --check packages/agent-gateway/index.js && node --check runtime/gateway/server.js && node --check runtime/control-api/server.js && node --check runtime/control-api/stores/file-store.js && node --check runtime/control-api/stores/postgres-store.js && node --check cli/baseplane.js && node --check tests/baseplane.test.js && node --check tests/control-api.test.js",
     "build": "npm run check && npm test",
     "test": "node tests/baseplane.test.js && node tests/control-api.test.js",
     "generate:sample": "node cli/baseplane.js generate examples/generic-telemetry/baseplane.json --out generated"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
   },
   "keywords": [
     "backend",

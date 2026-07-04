@@ -24,5 +24,23 @@ services:
     depends_on:
       - postgres
 
+  control-api:
+    image: node:24-alpine
+    working_dir: /workspace
+    command: ["sh", "-lc", "npm install --omit=dev && npm run control-api"]
+    environment:
+      BASEPLANE_CONTROL_PORT: 8790
+      BASEPLANE_PUBLIC_API_URL: http://127.0.0.1:8790
+      CONTROL_DATABASE_URL: postgres://baseplane:baseplane_local_only@postgres:5432/baseplane_app
+      CONTROL_DATABASE_SSL: "false"
+      SESSION_SECRET: baseplane_local_docker_secret
+      CORS_ORIGIN: http://127.0.0.1:8130
+    ports:
+      - "8790:8790"
+    volumes:
+      - ..:/workspace
+    depends_on:
+      - postgres
+
 volumes:
   baseplane-postgres:

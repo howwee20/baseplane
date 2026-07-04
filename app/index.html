@@ -1143,9 +1143,11 @@ let rowStore = loadRowStore();
 let selectedRowsTableId = "";
 let rowsActor = "owner";
 const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
-let controlApiUrl = savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789"
-  ? savedControlApiUrl
-  : "http://127.0.0.1:8790";
+const urlControlApiUrl = new URLSearchParams(window.location.search).get("api");
+const configuredControlApiUrl = window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
+let controlApiUrl = "http://127.0.0.1:8790";
+if (savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789") controlApiUrl = savedControlApiUrl;
+if (configuredControlApiUrl) controlApiUrl = configuredControlApiUrl;
 let controlSession = loadJsonStorage(controlSessionStorageKey, null);
 let controlProject = loadJsonStorage(controlProjectStorageKey, null);
 let controlDeploy = loadJsonStorage(controlDeployStorageKey, null);

@@ -39,6 +39,7 @@ The managed database direction is documented in `docs/managed-v0-roadmap.md`.
 
 ```bash
 npm test
+npm run control-api
 npm run serve
 ```
 
@@ -47,6 +48,28 @@ Open:
 ```txt
 http://127.0.0.1:8130/
 http://127.0.0.1:8130/app/
+```
+
+The Control API defaults to:
+
+```txt
+http://127.0.0.1:8790
+```
+
+Use Postgres-backed managed-alpha mode with:
+
+```bash
+docker compose -f runtime/docker-compose.yml up postgres control-api
+```
+
+or point the API at any Postgres-compatible database:
+
+```bash
+CONTROL_DATABASE_URL=postgres://user:pass@host:5432/db \
+BASEPLANE_PUBLIC_API_URL=https://your-api.example \
+SESSION_SECRET=replace-with-random-secret \
+CORS_ORIGIN=https://your-studio.example \
+npm run control-api
 ```
 
 ## CLI

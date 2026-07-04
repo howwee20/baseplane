@@ -7,7 +7,24 @@ import { createControlApiServer } from "../runtime/control-api/server.js";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "baseplane-control-api-"));
 const dataFile = path.join(tmpDir, "data.json");
 const graph = JSON.parse(fs.readFileSync(path.resolve("examples/generic-telemetry/baseplane.json"), "utf8"));
+const schemaSql = fs.readFileSync(path.resolve("runtime/control-api/schema.sql"), "utf8");
 const server = createControlApiServer({ dataFile });
+
+for (const tableName of [
+  "accounts",
+  "users",
+  "sessions",
+  "projects",
+  "project_members",
+  "graph_versions",
+  "deploy_requests",
+  "backend_instances",
+  "field_access_levels",
+  "rows",
+  "audit_events"
+]) {
+  assert.match(schemaSql, new RegExp(`create table if not exists ${tableName}`));
+}
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 
@@ -66,6 +83,10 @@ try {
   const audit = await api("GET", `/api/projects/${projectId}/audit_events`, null, token);
   assert.equal(audit.audit_events.some((event) => event.decision === "DENY" && event.field === "raw_payload"), true);
   assert.equal(audit.audit_events.some((event) => event.action === "deploy" && event.decision === "ALLOW"), true);
+
+  const stored = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+  assert.equal(stored.sessions.some((item) => item.token === token), false, "raw session token should not be stored");
+  assert.equal(stored.sessions.every((item) => item.token_hash), true, "session token hash should be stored");
 
   console.log("Baseplane Control API tests passed.");
 } finally {
