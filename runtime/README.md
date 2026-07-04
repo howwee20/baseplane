@@ -28,8 +28,38 @@ agent request
   -> database/API response
 ```
 
+## Local Control API
+
+The local Control API is the first managed-backend slice. It uses the compiler and policy engine, stores data in a local JSON file, and exposes the same shape that a hosted Baseplane API will expose later.
+
+Run it:
+
+```bash
+npm run control-api
+```
+
+Default API:
+
+```txt
+http://127.0.0.1:8790
+```
+
+What it supports now:
+
+- alpha sign-in sessions
+- projects
+- graph versions
+- deploy requests
+- backend instances
+- table rows
+- field access levels
+- server-side redaction
+- audit events
+
+The Studio can still run without this API. When the API is available, Deploy creates a real local backend instance and Rows switch from browser preview rows to API rows.
+
 ## Alpha Status
 
-This runtime is a skeleton. Use it as a deployment target contract, not a production stack.
+This runtime is an alpha control-plane implementation, not production hosting.
 
 No production credentials belong in this repo.

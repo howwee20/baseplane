@@ -629,6 +629,33 @@
       text-transform: uppercase;
     }
 
+    .audit-list {
+      border-top: 1px solid var(--line);
+      margin-top: 14px;
+      padding-top: 14px;
+    }
+
+    .audit-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      gap: 3px;
+      margin-top: 8px;
+      padding: 10px;
+    }
+
+    .audit-row strong {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .audit-row span,
+    .audit-row small {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
     .output-drawer {
       position: fixed;
       left: 14px;
@@ -869,7 +896,7 @@
         <button class="button" id="open-deploy-preview">Deploy</button>
         <button class="button active" id="level-lock" aria-pressed="true">Level Lock On</button>
         <button class="button" id="reset-layout">Reset</button>
-        <a class="button" href="../#cloud-preview">Sign In</a>
+        <button class="button" id="sign-in-button">Sign In</button>
       </div>
     </header>
 
@@ -886,11 +913,11 @@
             <button class="quick-button" id="connect-existing">Connect existing backend</button>
             <button class="quick-button" id="request-hosted">Request hosted backend</button>
           </div>
-          <p class="small">The public Studio exports a backend package. Real customer sign-in and database provisioning require a hosted control API, deploy worker, secrets boundary, and audit log.</p>
+          <p class="small">The Studio runs in preview by default. When the local Control API is running, Deploy creates a real local backend instance with rows, redaction, and audit events.</p>
           <div class="cloud-status">
             <div class="cloud-row"><span class="status-pill ready">Ready</span><strong>Graph, policy simulator, export package</strong></div>
-            <div class="cloud-row"><span class="status-pill">Next</span><strong>Customer auth and project accounts</strong></div>
-            <div class="cloud-row"><span class="status-pill">Next</span><strong>Hosted deploy request and provisioner</strong></div>
+            <div class="cloud-row"><span class="status-pill" id="control-api-pill">Offline</span><strong id="control-api-row">Control API not checked</strong></div>
+            <div class="cloud-row"><span class="status-pill" id="deploy-status-pill">Preview</span><strong id="deploy-status-row">No backend deployed yet</strong></div>
           </div>
         </section>
 
@@ -954,7 +981,7 @@
 
         <section class="section" id="tools-rows">
           <div class="label">Rows</div>
-          <p class="small">Local alpha data plane. Rows are stored in this browser only so access behavior can be tested without touching production data.</p>
+          <p class="small" id="rows-mode-copy">Preview rows are stored in this browser. After Deploy, rows come from the Control API and redaction happens server-side.</p>
           <div class="rows-toolbar">
             <select id="rows-table"></select>
             <select id="rows-actor">
@@ -965,9 +992,9 @@
               <option value="support_agent">Support agent</option>
             </select>
             <div class="mini-actions">
-              <button class="mini-button" id="materialize-rows">Materialize tables</button>
+              <button class="mini-button" id="materialize-rows">Seed rows</button>
               <button class="mini-button" id="add-row">Add row</button>
-              <button class="mini-button danger" id="clear-rows">Clear local rows</button>
+              <button class="mini-button danger" id="clear-rows">Clear preview rows</button>
             </div>
             <div id="rows-view"></div>
           </div>
@@ -1048,7 +1075,7 @@
       <div class="output-head">
         <div>
           <div class="label">Deploy preview</div>
-          <p class="small">Generated from the current graph. Preview only until a hosted control API and deploy worker exist.</p>
+          <p class="small" id="deploy-output-copy">Generated from the current graph. Local deploy uses the Control API when it is running.</p>
         </div>
         <button class="close-button" id="close-output" aria-label="Close artifacts">×</button>
       </div>
@@ -1065,6 +1092,10 @@ import { compileGraph, evaluateAccess, generateRouteContracts } from "../package
 const storageKey = "baseplane-alpha-graph-v3";
 const rowsStorageKey = "baseplane-alpha-rows-v1";
 const levelLockStorageKey = "baseplane-level-lock-v1";
+const controlApiUrlStorageKey = "baseplane-control-api-url-v1";
+const controlSessionStorageKey = "baseplane-control-session-v1";
+const controlProjectStorageKey = "baseplane-control-project-v1";
+const controlDeployStorageKey = "baseplane-control-deploy-v1";
 const hostedRequestEmail = "howeej2255@gmail.com";
 const accessLevels = ["public", "private", "protected", "secret"];
 const typeLabels = {
@@ -1111,6 +1142,20 @@ let levelLock = localStorage.getItem(levelLockStorageKey) !== "off";
 let rowStore = loadRowStore();
 let selectedRowsTableId = "";
 let rowsActor = "owner";
+const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
+let controlApiUrl = savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789"
+  ? savedControlApiUrl
+  : "http://127.0.0.1:8790";
+let controlSession = loadJsonStorage(controlSessionStorageKey, null);
+let controlProject = loadJsonStorage(controlProjectStorageKey, null);
+let controlDeploy = loadJsonStorage(controlDeployStorageKey, null);
+let controlApiOnline = false;
+let controlApiMessage = "Control API not checked";
+let deployNotice = "";
+let liveRowsByView = {};
+let liveRowsLoading = new Set();
+let auditEvents = [];
+let rowPatchTimers = new Map();
 
 const canvas = document.getElementById("canvas");
 const nodesLayer = document.getElementById("nodes");
@@ -1379,8 +1424,241 @@ function loadRowStore() {
   }
 }
 
+function loadJsonStorage(key, fallback) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+    return saved ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function saveRows() {
   localStorage.setItem(rowsStorageKey, JSON.stringify(rowStore));
+}
+
+function saveControlState() {
+  localStorage.setItem(controlApiUrlStorageKey, controlApiUrl);
+  if (controlSession) localStorage.setItem(controlSessionStorageKey, JSON.stringify(controlSession));
+  if (controlProject) localStorage.setItem(controlProjectStorageKey, JSON.stringify(controlProject));
+  if (controlDeploy) localStorage.setItem(controlDeployStorageKey, JSON.stringify(controlDeploy));
+}
+
+function isControlLive() {
+  return Boolean(controlProject?.id && controlDeploy?.backend_instance?.status === "live");
+}
+
+function liveRowsKey(tableId, actor = rowsActor) {
+  return `${tableId}:${actor}`;
+}
+
+async function controlFetch(route, options = {}) {
+  const body = options.body ? JSON.stringify(options.body) : undefined;
+  const response = await fetch(`${controlApiUrl}${route}`, {
+    method: options.method || "GET",
+    headers: {
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(controlSession?.token ? { authorization: `Bearer ${controlSession.token}` } : {})
+    },
+    body
+  });
+  const json = response.status === 204 ? {} : await response.json();
+  if (!response.ok) {
+    const error = new Error(json.message || json.error || `${response.status} ${response.statusText}`);
+    error.payload = json;
+    error.status = response.status;
+    throw error;
+  }
+  return json;
+}
+
+async function checkControlApi() {
+  try {
+    const health = await fetch(`${controlApiUrl}/health`);
+    const json = await health.json();
+    controlApiOnline = Boolean(health.ok && json.ok);
+    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl}` : "Control API unavailable";
+  } catch {
+    controlApiOnline = false;
+    controlApiMessage = `Offline. Run npm run control-api.`;
+  }
+  updateControlUi();
+}
+
+async function ensureControlSession() {
+  if (controlSession?.token) return controlSession;
+  const result = await controlFetch("/api/auth/sign-in", {
+    method: "POST",
+    body: { email: "owner@baseplane.local" }
+  });
+  controlSession = result.session;
+  saveControlState();
+  updateControlUi();
+  return controlSession;
+}
+
+async function ensureControlProject() {
+  await ensureControlSession();
+  if (controlProject?.id) return controlProject;
+  const result = await controlFetch("/api/projects", {
+    method: "POST",
+    body: { name: graph.app?.name || "Untitled Backend" }
+  });
+  controlProject = result.project;
+  saveControlState();
+  updateControlUi();
+  return controlProject;
+}
+
+async function deployToControlApi() {
+  await checkControlApi();
+  if (!controlApiOnline) {
+    throw new Error(`Control API is offline at ${controlApiUrl}. Start it with npm run control-api.`);
+  }
+  const project = await ensureControlProject();
+  const version = await controlFetch(`/api/projects/${project.id}/graph_versions`, {
+    method: "POST",
+    body: { graph: exportModel() }
+  });
+  const deployed = await controlFetch(`/api/projects/${project.id}/deploy`, {
+    method: "POST",
+    body: { graph_version_id: version.graph_version.id }
+  });
+  controlDeploy = deployed;
+  liveRowsByView = {};
+  auditEvents = [];
+  saveControlState();
+  deployNotice = [
+    "Live local backend created.",
+    `Project: ${project.name}`,
+    `Backend: ${deployed.backend_instance.schema}`,
+    `API: ${deployed.backend_instance.api_url}`,
+    "Rows now come from the Control API. Redaction and audit decisions are server-side."
+  ].join("\n");
+  await syncLiveRows(selectedRowsTableId || tableNodes()[0]?.id || "");
+  await syncAuditEvents();
+  updateControlUi();
+  renderRowsPanel();
+  renderArtifacts();
+  return deployed;
+}
+
+async function syncLiveRows(tableId = selectedRowsTableId) {
+  if (!isControlLive() || !tableId) return;
+  const key = liveRowsKey(tableId);
+  if (liveRowsLoading.has(key)) return;
+  liveRowsLoading.add(key);
+  try {
+    const result = await controlFetch(`/api/projects/${controlProject.id}/tables/${encodeURIComponent(tableId)}/rows?actor=${encodeURIComponent(rowsActor)}`);
+    liveRowsByView[key] = result.rows || [];
+  } finally {
+    liveRowsLoading.delete(key);
+  }
+}
+
+async function syncAuditEvents() {
+  if (!controlProject?.id || !controlSession?.token) return;
+  try {
+    const result = await controlFetch(`/api/projects/${controlProject.id}/audit_events`);
+    auditEvents = result.audit_events || [];
+  } catch {
+    auditEvents = [];
+  }
+}
+
+async function addRow() {
+  if (!isControlLive()) {
+    addLocalRow();
+    return;
+  }
+  const table = getNode(selectedRowsTableId) || tableNodes()[0];
+  if (!table) return;
+  const viewKey = liveRowsKey(table.id, "owner");
+  const currentCount = liveRowsByView[viewKey]?.length || 0;
+  await controlFetch(`/api/projects/${controlProject.id}/tables/${encodeURIComponent(table.id)}/rows?actor=owner`, {
+    method: "POST",
+    body: { actor: "owner", row: sampleRow(table, currentCount + 1) }
+  });
+  selectedRowsTableId = table.id;
+  await syncLiveRows(table.id);
+  await syncAuditEvents();
+  renderRowsPanel();
+}
+
+async function seedRows() {
+  if (!isControlLive()) {
+    materializePreviewRows();
+    return;
+  }
+  for (const table of tableNodes()) {
+    for (let index = 1; index <= 2; index += 1) {
+      await controlFetch(`/api/projects/${controlProject.id}/tables/${encodeURIComponent(table.id)}/rows?actor=owner`, {
+        method: "POST",
+        body: { actor: "owner", row: sampleRow(table, index) }
+      });
+    }
+  }
+  liveRowsByView = {};
+  await syncLiveRows(selectedRowsTableId || tableNodes()[0]?.id || "");
+  await syncAuditEvents();
+  renderRowsPanel();
+}
+
+function scheduleLivePatch(rowId, fieldName, value) {
+  if (!isControlLive() || !selectedRowsTableId || !rowId) return;
+  const key = `${selectedRowsTableId}:${rowId}:${fieldName}`;
+  clearTimeout(rowPatchTimers.get(key));
+  rowPatchTimers.set(key, setTimeout(async () => {
+    try {
+      await controlFetch(`/api/projects/${controlProject.id}/tables/${encodeURIComponent(selectedRowsTableId)}/rows/${encodeURIComponent(rowId)}?actor=owner`, {
+        method: "PATCH",
+        body: { actor: "owner", patch: { [fieldName]: value } }
+      });
+      liveRowsByView = {};
+      await syncLiveRows(selectedRowsTableId);
+      await syncAuditEvents();
+      renderRowsPanel();
+    } catch (error) {
+      deployNotice = `Live row update failed: ${error.message}`;
+      renderArtifacts();
+    }
+  }, 450));
+}
+
+function updateControlUi() {
+  const apiPill = document.getElementById("control-api-pill");
+  const apiRow = document.getElementById("control-api-row");
+  const deployPill = document.getElementById("deploy-status-pill");
+  const deployRow = document.getElementById("deploy-status-row");
+  const signIn = document.getElementById("sign-in-button");
+  const rowsCopy = document.getElementById("rows-mode-copy");
+  const deployCopy = document.getElementById("deploy-output-copy");
+
+  if (apiPill) {
+    apiPill.textContent = controlApiOnline ? "Online" : "Offline";
+    apiPill.classList.toggle("ready", controlApiOnline);
+  }
+  if (apiRow) apiRow.textContent = controlApiMessage;
+  if (deployPill) {
+    deployPill.textContent = isControlLive() ? "Live" : "Preview";
+    deployPill.classList.toggle("ready", isControlLive());
+  }
+  if (deployRow) {
+    deployRow.textContent = isControlLive()
+      ? `Local backend live: ${controlDeploy.backend_instance.schema}`
+      : "No backend deployed yet";
+  }
+  if (signIn) signIn.textContent = controlSession?.token ? "Signed In" : "Sign In";
+  if (rowsCopy) {
+    rowsCopy.textContent = isControlLive()
+      ? "Live API mode. Rows are fetched from the Control API, redacted server-side, and logged in audit events."
+      : "Preview rows are stored in this browser. After Deploy, rows come from the Control API and redaction happens server-side.";
+  }
+  if (deployCopy) {
+    deployCopy.textContent = isControlLive()
+      ? "Local backend is live through the Control API. This is not hosted production yet."
+      : "Generated from the current graph. Local deploy uses the Control API when it is running.";
+  }
 }
 
 function setGraph(next) {
@@ -1999,13 +2277,27 @@ function renderRowsPanel() {
   actorSelect.value = rowsActor;
 
   const table = getNode(selectedRowsTableId);
-  ensureTableRows(table);
-  const rows = rowStore[selectedRowsTableId] || [];
+  const live = isControlLive();
+  if (live) {
+    const key = liveRowsKey(selectedRowsTableId);
+    if (!liveRowsByView[key] && !liveRowsLoading.has(key)) {
+      syncLiveRows(selectedRowsTableId).then(() => {
+        syncAuditEvents().then(() => renderRowsPanel());
+      }).catch((error) => {
+        deployNotice = `Live row fetch failed: ${error.message}`;
+        renderArtifacts();
+      });
+    }
+  } else {
+    ensureTableRows(table);
+  }
+  const rows = live ? liveRowsByView[liveRowsKey(selectedRowsTableId)] || [] : rowStore[selectedRowsTableId] || [];
   const fields = normalizedFields(table);
   const canEdit = rowsActor === "owner";
+  const loading = liveRowsLoading.has(liveRowsKey(selectedRowsTableId));
 
   rowsView.innerHTML = `
-    <p class="small">${escapeHtml(rowsActorLabel(rowsActor))} view. ${canEdit ? "Owner can edit local preview rows." : "Protected values are redacted for this actor."}</p>
+    <p class="small">${escapeHtml(rowsActorLabel(rowsActor))} view. ${live ? "Live API rows. Server decides what this actor can see." : canEdit ? "Owner can edit local preview rows." : "Protected values are redacted in the browser preview."}${loading ? " Loading..." : ""}</p>
     <div class="rows-table-wrap">
       <table class="rows-table">
         <thead>
@@ -2016,26 +2308,37 @@ function renderRowsPanel() {
         <tbody>
           ${rows.map((row, rowIndex) => `
             <tr>
-              ${fields.map((field) => rowCell(table, field, row, rowIndex, canEdit)).join("")}
+              ${fields.map((field) => rowCell(table, field, row, rowIndex, canEdit, live)).join("")}
             </tr>
           `).join("")}
         </tbody>
       </table>
     </div>
+    ${live ? auditListView() : ""}
   `;
 
   rowsView.querySelectorAll("[data-row-input]").forEach((input) => {
     input.addEventListener("input", (event) => {
-      const row = rowStore[selectedRowsTableId][Number(input.dataset.rowIndex)];
-      row[input.dataset.fieldName] = event.target.value;
-      saveRows();
+      if (isControlLive()) {
+        const row = liveRowsByView[liveRowsKey(selectedRowsTableId)]?.[Number(input.dataset.rowIndex)];
+        if (!row) return;
+        row[input.dataset.fieldName] = event.target.value;
+        scheduleLivePatch(row.__id, input.dataset.fieldName, event.target.value);
+      } else {
+        const row = rowStore[selectedRowsTableId][Number(input.dataset.rowIndex)];
+        row[input.dataset.fieldName] = event.target.value;
+        saveRows();
+      }
     });
   });
 }
 
-function rowCell(table, field, row, rowIndex, canEdit) {
+function rowCell(table, field, row, rowIndex, canEdit, live = false) {
   const access = fieldAccess(field, table);
   const value = row[field.name] ?? "";
+  if (live && String(value).startsWith("[") && String(value).endsWith("]")) {
+    return `<td><span class="redacted">redacted ${escapeHtml(String(value).slice(1, -1))}</span></td>`;
+  }
   if (!canActorReadField(rowsActor, table, field)) {
     return `<td><span class="redacted">redacted ${access}</span></td>`;
   }
@@ -2049,6 +2352,22 @@ function rowCell(table, field, row, rowIndex, canEdit) {
         data-field-name="${escapeAttr(field.name)}"
         value="${escapeAttr(String(value))}">
     </td>
+  `;
+}
+
+function auditListView() {
+  const events = auditEvents.slice(0, 8);
+  return `
+    <div class="audit-list">
+      <div class="label">Audit</div>
+      ${events.length ? events.map((event) => `
+        <div class="audit-row">
+          <strong>${escapeHtml(event.decision)} ${escapeHtml(event.action)}</strong>
+          <span>${escapeHtml(event.actor_id)} -> ${escapeHtml(event.resource)}${event.field ? `.${escapeHtml(event.field)}` : ""}</span>
+          <small>${escapeHtml(event.reason || "")}</small>
+        </div>
+      `).join("") : `<p class="small">No audit events yet.</p>`}
+    </div>
   `;
 }
 
@@ -2101,7 +2420,7 @@ function ensureTableRows(table) {
   saveRows();
 }
 
-function materializeRows() {
+function materializePreviewRows() {
   for (const table of tableNodes()) {
     if (!rowStore[table.id]?.length) rowStore[table.id] = [sampleRow(table, 1), sampleRow(table, 2)];
   }
@@ -2120,6 +2439,11 @@ function addLocalRow() {
 }
 
 function clearLocalRows() {
+  if (isControlLive()) {
+    deployNotice = "Live API rows are not cleared from the browser. Use preview mode for local resets.";
+    renderArtifacts();
+    return;
+  }
   rowStore = {};
   saveRows();
   renderRowsPanel();
@@ -2438,6 +2762,9 @@ function renderArtifacts() {
       openOutputDrawer();
     });
   });
+  if (activeArtifact === "deploy_plan.md" && deployNotice) {
+    artifactOutput.textContent = `${deployNotice}\n\n${artifactOutput.textContent}`;
+  }
 }
 
 function openToolsPanel(targetId = "") {
@@ -2456,9 +2783,23 @@ function openOutputDrawer() {
   renderArtifacts();
 }
 
-function openDeployPreview() {
+async function openDeployPreview() {
   activeArtifact = "deploy_plan.md";
   openOutputDrawer();
+  deployNotice = "Deploying through local Control API...";
+  renderArtifacts();
+  try {
+    await deployToControlApi();
+  } catch (error) {
+    deployNotice = [
+      "Deploy preview only.",
+      error.message,
+      "Start the local API with: npm run control-api",
+      "Then press Deploy again."
+    ].join("\n");
+    updateControlUi();
+    renderArtifacts();
+  }
 }
 
 function closeOutputDrawer() {
@@ -2526,6 +2867,25 @@ document.getElementById("open-tools").addEventListener("click", () => openToolsP
 document.getElementById("open-rows").addEventListener("click", () => openToolsPanel("tools-rows"));
 document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
 document.getElementById("open-deploy-preview").addEventListener("click", openDeployPreview);
+document.getElementById("sign-in-button").addEventListener("click", async () => {
+  activeArtifact = "deploy_plan.md";
+  openOutputDrawer();
+  deployNotice = "Signing in to local Control API...";
+  renderArtifacts();
+  try {
+    await checkControlApi();
+    if (!controlApiOnline) throw new Error(`Control API is offline at ${controlApiUrl}.`);
+    await ensureControlSession();
+    deployNotice = "Signed in as owner@baseplane.local. Press Deploy to create a local backend instance.";
+  } catch (error) {
+    deployNotice = [
+      "Sign-in preview only.",
+      error.message,
+      "Start the local API with: npm run control-api"
+    ].join("\n");
+  }
+  renderArtifacts();
+});
 document.getElementById("level-lock").addEventListener("click", () => setLevelLock(!levelLock));
 document.getElementById("close-tools").addEventListener("click", closeToolsPanel);
 document.getElementById("close-output").addEventListener("click", closeOutputDrawer);
@@ -2544,14 +2904,30 @@ document.getElementById("sim-resource").addEventListener("change", () => {
 document.getElementById("sim-field").addEventListener("change", renderPolicyResult);
 document.getElementById("rows-table").addEventListener("change", (event) => {
   selectedRowsTableId = event.target.value;
+  if (isControlLive()) {
+    syncLiveRows(selectedRowsTableId).then(() => {
+      syncAuditEvents().then(() => renderRowsPanel());
+    }).catch((error) => {
+      deployNotice = `Live row fetch failed: ${error.message}`;
+      renderArtifacts();
+    });
+  }
   renderRowsPanel();
 });
 document.getElementById("rows-actor").addEventListener("change", (event) => {
   rowsActor = event.target.value;
+  if (isControlLive()) {
+    syncLiveRows(selectedRowsTableId).then(() => {
+      syncAuditEvents().then(() => renderRowsPanel());
+    }).catch((error) => {
+      deployNotice = `Live row fetch failed: ${error.message}`;
+      renderArtifacts();
+    });
+  }
   renderRowsPanel();
 });
-document.getElementById("materialize-rows").addEventListener("click", materializeRows);
-document.getElementById("add-row").addEventListener("click", addLocalRow);
+document.getElementById("materialize-rows").addEventListener("click", seedRows);
+document.getElementById("add-row").addEventListener("click", addRow);
 document.getElementById("clear-rows").addEventListener("click", clearLocalRows);
 document.getElementById("reset-local").addEventListener("click", () => {
   resetGraphLayout();
@@ -2592,8 +2968,10 @@ window.addEventListener("keydown", (event) => {
 });
 window.addEventListener("resize", renderEdges);
 
-render();
 updateLevelLockButton();
+updateControlUi();
+checkControlApi();
+render();
 </script>
 </body>
 </html>
