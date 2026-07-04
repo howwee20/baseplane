@@ -555,6 +555,80 @@
       color: var(--teal);
     }
 
+    .access-badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.05em;
+      padding: 3px 6px;
+      text-transform: uppercase;
+    }
+
+    .access-badge.public { color: var(--teal); }
+    .access-badge.private { color: var(--blue); }
+    .access-badge.protected { color: var(--amber); }
+    .access-badge.secret { color: var(--red); }
+
+    .rows-toolbar {
+      display: grid;
+      gap: 8px;
+    }
+
+    .rows-table-wrap {
+      border: 1px solid var(--line);
+      margin-top: 10px;
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .rows-table {
+      border-collapse: collapse;
+      min-width: 560px;
+      width: 100%;
+    }
+
+    .rows-table th,
+    .rows-table td {
+      border-bottom: 1px solid var(--line);
+      font-size: 11px;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .rows-table th {
+      background: rgba(244, 241, 235, 0.78);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .rows-table input {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11px;
+      height: auto;
+      min-width: 130px;
+      padding: 0;
+    }
+
+    .rows-table input:focus {
+      box-shadow: none;
+    }
+
+    .redacted {
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
     .output-drawer {
       position: fixed;
       left: 14px;
@@ -880,12 +954,22 @@
 
         <section class="section" id="tools-rows">
           <div class="label">Rows</div>
-          <p class="small">Rows become available after a backend is provisioned. Until then, Baseplane shows the table shape and access rules without touching production data.</p>
-          <div class="package-list">
-            <div class="package-item"><strong>Tables</strong><span>schema graph</span></div>
-            <div class="package-item"><strong>Fields</strong><span>column map</span></div>
-            <div class="package-item"><strong>Access</strong><span>read/write rules</span></div>
-            <div class="package-item"><strong>Audit</strong><span>row access events</span></div>
+          <p class="small">Local alpha data plane. Rows are stored in this browser only so access behavior can be tested without touching production data.</p>
+          <div class="rows-toolbar">
+            <select id="rows-table"></select>
+            <select id="rows-actor">
+              <option value="owner">Owner</option>
+              <option value="researcher">Researcher</option>
+              <option value="analysis_agent">Analysis agent</option>
+              <option value="coding_agent">Coding agent</option>
+              <option value="support_agent">Support agent</option>
+            </select>
+            <div class="mini-actions">
+              <button class="mini-button" id="materialize-rows">Materialize tables</button>
+              <button class="mini-button" id="add-row">Add row</button>
+              <button class="mini-button danger" id="clear-rows">Clear local rows</button>
+            </div>
+            <div id="rows-view"></div>
           </div>
         </section>
 
@@ -979,8 +1063,10 @@
 import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
 
 const storageKey = "baseplane-alpha-graph-v3";
+const rowsStorageKey = "baseplane-alpha-rows-v1";
 const levelLockStorageKey = "baseplane-level-lock-v1";
 const hostedRequestEmail = "howeej2255@gmail.com";
+const accessLevels = ["public", "private", "protected", "secret"];
 const typeLabels = {
   domain: "domain",
   route: "route",
@@ -1022,6 +1108,9 @@ let selectedEdgeId = "";
 let activeArtifact = "schema.sql";
 let dragState = null;
 let levelLock = localStorage.getItem(levelLockStorageKey) !== "off";
+let rowStore = loadRowStore();
+let selectedRowsTableId = "";
+let rowsActor = "owner";
 
 const canvas = document.getElementById("canvas");
 const nodesLayer = document.getElementById("nodes");
@@ -1281,6 +1370,19 @@ function saveGraph() {
   localStorage.setItem(storageKey, JSON.stringify(graph));
 }
 
+function loadRowStore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(rowsStorageKey) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRows() {
+  localStorage.setItem(rowsStorageKey, JSON.stringify(rowStore));
+}
+
 function setGraph(next) {
   graph = clone(next);
   selectedId = "";
@@ -1322,6 +1424,10 @@ function getNode(id) {
 
 function getEdge(id) {
   return graph.edges.find((item) => item.id === id);
+}
+
+function tableNodes() {
+  return graph.nodes.filter((item) => ["table", "secret"].includes(item.type));
 }
 
 function connectedIds(id) {
@@ -1656,6 +1762,14 @@ function bindInspector(selected) {
     input.addEventListener("input", (event) => {
       selected.fields[Number(input.dataset.fieldType)].type = event.target.value;
       saveGraph();
+      renderRowsPanel();
+    });
+  });
+  document.querySelectorAll("[data-field-access]").forEach((select) => {
+    select.addEventListener("change", (event) => {
+      selected.fields[Number(select.dataset.fieldAccess)].access = event.target.value;
+      saveGraph();
+      renderRowsPanel();
     });
   });
   document.querySelectorAll("[data-field-description]").forEach((input) => {
@@ -1718,10 +1832,14 @@ function principalForSelectedNode(selected) {
 }
 
 function fieldEditor(field, index) {
+  const access = fieldAccess(field);
   return `
     <div class="field-row">
       <input data-field-name="${index}" value="${escapeAttr(field.name)}" placeholder="field name">
       <input data-field-type="${index}" value="${escapeAttr(field.type)}" placeholder="field type">
+      <select data-field-access="${index}" aria-label="field access level">
+        ${accessLevels.map((level) => `<option value="${level}" ${level === access ? "selected" : ""}>${level}</option>`).join("")}
+      </select>
       <input data-field-description="${index}" value="${escapeAttr(field.description || "")}" placeholder="description">
       <button class="mini-button danger" data-remove-field="${index}">Remove field</button>
     </div>
@@ -1856,6 +1974,179 @@ function renderPolicyResult() {
     <p class="small">${escapeHtml(result.reason.join(" "))}</p>
     <pre>${escapeHtml(JSON.stringify({ request, decision: result.decision, policy: result.policy, reason: result.reason }, null, 2))}</pre>
   `;
+}
+
+function renderRowsPanel() {
+  const tableSelect = document.getElementById("rows-table");
+  const actorSelect = document.getElementById("rows-actor");
+  const rowsView = document.getElementById("rows-view");
+  if (!tableSelect || !actorSelect || !rowsView) return;
+
+  const tables = tableNodes();
+  if (!tables.length) {
+    rowsView.innerHTML = `<p class="small">No table nodes exist yet.</p>`;
+    tableSelect.innerHTML = "";
+    return;
+  }
+
+  if (!selectedRowsTableId || !tables.some((item) => item.id === selectedRowsTableId)) {
+    selectedRowsTableId = tables[0].id;
+  }
+
+  tableSelect.innerHTML = tables
+    .map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === selectedRowsTableId ? "selected" : ""}>${escapeHtml(item.name)}</option>`)
+    .join("");
+  actorSelect.value = rowsActor;
+
+  const table = getNode(selectedRowsTableId);
+  ensureTableRows(table);
+  const rows = rowStore[selectedRowsTableId] || [];
+  const fields = normalizedFields(table);
+  const canEdit = rowsActor === "owner";
+
+  rowsView.innerHTML = `
+    <p class="small">${escapeHtml(rowsActorLabel(rowsActor))} view. ${canEdit ? "Owner can edit local preview rows." : "Protected values are redacted for this actor."}</p>
+    <div class="rows-table-wrap">
+      <table class="rows-table">
+        <thead>
+          <tr>
+            ${fields.map((field) => `<th>${escapeHtml(field.name)} <span class="access-badge ${fieldAccess(field, table)}">${fieldAccess(field, table)}</span></th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row, rowIndex) => `
+            <tr>
+              ${fields.map((field) => rowCell(table, field, row, rowIndex, canEdit)).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  rowsView.querySelectorAll("[data-row-input]").forEach((input) => {
+    input.addEventListener("input", (event) => {
+      const row = rowStore[selectedRowsTableId][Number(input.dataset.rowIndex)];
+      row[input.dataset.fieldName] = event.target.value;
+      saveRows();
+    });
+  });
+}
+
+function rowCell(table, field, row, rowIndex, canEdit) {
+  const access = fieldAccess(field, table);
+  const value = row[field.name] ?? "";
+  if (!canActorReadField(rowsActor, table, field)) {
+    return `<td><span class="redacted">redacted ${access}</span></td>`;
+  }
+  if (!canEdit) {
+    return `<td>${escapeHtml(String(value))}</td>`;
+  }
+  return `
+    <td>
+      <input data-row-input
+        data-row-index="${rowIndex}"
+        data-field-name="${escapeAttr(field.name)}"
+        value="${escapeAttr(String(value))}">
+    </td>
+  `;
+}
+
+function rowsActorLabel(actor) {
+  const labels = {
+    owner: "Owner",
+    researcher: "Researcher",
+    analysis_agent: "Analysis agent",
+    coding_agent: "Coding agent",
+    support_agent: "Support agent"
+  };
+  return labels[actor] || actor;
+}
+
+function normalizedFields(table) {
+  const fields = table?.fields?.length ? table.fields : [{ name: "id", type: "uuid", access: "public" }];
+  return fields.map((field) => ({ ...field, access: fieldAccess(field, table) }));
+}
+
+function fieldAccess(field, table = null) {
+  if (accessLevels.includes(field?.access)) return field.access;
+  const name = String(field?.name || "").toLowerCase();
+  const type = String(field?.type || "").toLowerCase();
+  const tableType = table?.type || "";
+  if (tableType === "secret" || /secret|token|hash|password|key/.test(name) || /secret|token/.test(type)) return "secret";
+  if (/note|raw|payload|billing|private/.test(name)) return "protected";
+  if (/email|project_id|organization_id|account_id|user_id|device_id/.test(name)) return "private";
+  return "public";
+}
+
+function canActorReadField(actor, table, field) {
+  const access = fieldAccess(field, table);
+  if (actor === "owner") return true;
+  if (access === "secret" || access === "protected") return false;
+  if (actor === "coding_agent") return false;
+  if (actor === "researcher") return access === "public" || access === "private";
+  const result = evaluateAccess(graph, {
+    principal_id: actor,
+    action: "read",
+    resource_id: table.id,
+    field: field.name
+  });
+  if (result.decision === "ALLOW" && access !== "secret" && access !== "protected") return true;
+  return access === "public" && actor === "support_agent";
+}
+
+function ensureTableRows(table) {
+  if (!table || rowStore[table.id]?.length) return;
+  rowStore[table.id] = [sampleRow(table, 1), sampleRow(table, 2)];
+  saveRows();
+}
+
+function materializeRows() {
+  for (const table of tableNodes()) {
+    if (!rowStore[table.id]?.length) rowStore[table.id] = [sampleRow(table, 1), sampleRow(table, 2)];
+  }
+  saveRows();
+  renderRowsPanel();
+}
+
+function addLocalRow() {
+  const table = getNode(selectedRowsTableId) || tableNodes()[0];
+  if (!table) return;
+  rowStore[table.id] = rowStore[table.id] || [];
+  rowStore[table.id].push(sampleRow(table, rowStore[table.id].length + 1));
+  selectedRowsTableId = table.id;
+  saveRows();
+  renderRowsPanel();
+}
+
+function clearLocalRows() {
+  rowStore = {};
+  saveRows();
+  renderRowsPanel();
+}
+
+function sampleRow(table, index) {
+  const row = {};
+  for (const field of normalizedFields(table)) {
+    row[field.name] = sampleValue(field, table, index);
+  }
+  return row;
+}
+
+function sampleValue(field, table, index) {
+  const name = String(field.name || "").toLowerCase();
+  const type = String(field.type || "").toLowerCase();
+  if (name === "id" || type.includes("uuid")) return `row-${String(index).padStart(3, "0")}`;
+  if (name.includes("email")) return `user${index}@example.com`;
+  if (name.includes("token") || name.includes("secret") || name.includes("hash") || name.includes("key")) return `protected_${table.id}_${index}`;
+  if (name.includes("time") || name.includes("_at") || type.includes("time")) return new Date(Date.now() - index * 3600000).toISOString();
+  if (name.includes("status")) return index % 2 ? "active" : "pending";
+  if (name.includes("value") || name.includes("measurement")) return String(20 + index * 1.7);
+  if (name.includes("payload") || type.includes("json")) return `{"sample":${index}}`;
+  if (name.includes("name")) return `${table.name} ${index}`;
+  if (name.includes("project")) return "project-alpha";
+  if (name.includes("organization") || name.includes("account")) return "account-alpha";
+  return `${field.name}_${index}`;
 }
 
 function addNode(type) {
@@ -2119,6 +2410,7 @@ function escapeAttr(value) {
 function render() {
   renderEdgeSelectors();
   renderPolicySimulator();
+  renderRowsPanel();
   renderNodes();
   renderEdges();
   renderInspector();
@@ -2250,6 +2542,17 @@ document.getElementById("sim-resource").addEventListener("change", () => {
   renderPolicyResult();
 });
 document.getElementById("sim-field").addEventListener("change", renderPolicyResult);
+document.getElementById("rows-table").addEventListener("change", (event) => {
+  selectedRowsTableId = event.target.value;
+  renderRowsPanel();
+});
+document.getElementById("rows-actor").addEventListener("change", (event) => {
+  rowsActor = event.target.value;
+  renderRowsPanel();
+});
+document.getElementById("materialize-rows").addEventListener("click", materializeRows);
+document.getElementById("add-row").addEventListener("click", addLocalRow);
+document.getElementById("clear-rows").addEventListener("click", clearLocalRows);
 document.getElementById("reset-local").addEventListener("click", () => {
   resetGraphLayout();
 });

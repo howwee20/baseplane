@@ -17,6 +17,7 @@ Baseplane owns the blueprint. The customer owns the data plane.
 - Runtime skeleton: documents the self-hosted target shape.
 - Introspection starter: converts local SQL schema files into a starting graph.
 - Cloud Preview plan: documents the hosted sign-in, project, deploy request, and provisioner path.
+- Managed v0 roadmap: defines visible control plane, protected data plane, field access levels, and agent lockout.
 
 ## Current Boundary
 
@@ -31,6 +32,8 @@ The current app and CLI are intentionally local-first:
 The product promise right now is: design and export a permissioned backend.
 
 Real customer sign-in and database spin-up require Baseplane Cloud: a hosted control API, control-plane database, auth/session service, deploy worker, isolated customer data planes, secrets boundary, and audit logs. See `docs/cloud-preview-plan.md`.
+
+The managed database direction is documented in `docs/managed-v0-roadmap.md`.
 
 ## Run Locally
 
