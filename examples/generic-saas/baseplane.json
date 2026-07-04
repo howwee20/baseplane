@@ -5,15 +5,15 @@
     "description": "A team SaaS backend with organization membership, project data, routes, and support-agent boundaries."
   },
   "nodes": [
-    { "id": "app_domain", "name": "saas.example.com", "type": "domain", "x": 60, "y": 100 },
-    { "id": "dashboard_page", "name": "/dashboard", "type": "page", "path": "/dashboard", "x": 280, "y": 90 },
-    { "id": "api_projects", "name": "/api/projects", "type": "api", "path": "/api/projects", "x": 280, "y": 310 },
-    { "id": "users", "name": "users", "type": "table", "x": 560, "y": 70, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "email", "type": "text not null", "private": true }] },
-    { "id": "organizations", "name": "organizations", "type": "table", "x": 560, "y": 245, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "name", "type": "text not null" }, { "name": "plan", "type": "text" }] },
-    { "id": "members", "name": "members", "type": "table", "x": 830, "y": 165, "fields": [{ "name": "organization_id", "type": "uuid not null" }, { "name": "user_id", "type": "uuid not null" }, { "name": "role", "type": "text not null" }] },
-    { "id": "projects", "name": "projects", "type": "table", "x": 1120, "y": 165, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "organization_id", "type": "uuid not null" }, { "name": "name", "type": "text not null" }, { "name": "private_notes", "type": "text", "private": true }] },
-    { "id": "support_agent", "name": "support_agent", "type": "agent", "x": 830, "y": 440 },
-    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 1380, "y": 210 }
+    { "id": "app_domain", "name": "saas.example.com", "type": "domain", "x": 545, "y": 92 },
+    { "id": "dashboard_page", "name": "/dashboard", "type": "page", "path": "/dashboard", "x": 365, "y": 242 },
+    { "id": "api_projects", "name": "/api/projects", "type": "api", "path": "/api/projects", "x": 725, "y": 242 },
+    { "id": "users", "name": "users", "type": "table", "x": 180, "y": 412, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "email", "type": "text not null", "private": true }] },
+    { "id": "organizations", "name": "organizations", "type": "table", "x": 420, "y": 412, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "name", "type": "text not null" }, { "name": "plan", "type": "text" }] },
+    { "id": "members", "name": "members", "type": "table", "x": 660, "y": 412, "fields": [{ "name": "organization_id", "type": "uuid not null" }, { "name": "user_id", "type": "uuid not null" }, { "name": "role", "type": "text not null" }] },
+    { "id": "projects", "name": "projects", "type": "table", "x": 545, "y": 652, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "organization_id", "type": "uuid not null" }, { "name": "name", "type": "text not null" }, { "name": "private_notes", "type": "text", "private": true }] },
+    { "id": "support_agent", "name": "support_agent", "type": "agent", "x": 545, "y": 842 },
+    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 545, "y": 1032 }
   ],
   "edges": [
     { "id": "e_domain_dashboard", "from": "app_domain", "to": "dashboard_page", "type": "serves" },

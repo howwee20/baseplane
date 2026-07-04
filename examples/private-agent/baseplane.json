@@ -5,13 +5,13 @@
     "description": "A private app where an AI agent can inspect schema and selected fields but cannot read secrets or production rows by default."
   },
   "nodes": [
-    { "id": "app_domain", "name": "agent.example.com", "type": "domain", "x": 60, "y": 100 },
-    { "id": "agent_query_api", "name": "/api/agent-query", "type": "api", "path": "/api/agent-query", "x": 300, "y": 100 },
-    { "id": "customer_records", "name": "customer_records", "type": "table", "x": 620, "y": 90, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "account_name", "type": "text" }, { "name": "private_notes", "type": "text", "private": true }] },
-    { "id": "api_keys", "name": "api_keys", "type": "secret", "x": 620, "y": 315, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "token_hash", "type": "text not null", "secret": true }] },
-    { "id": "analysis_agent", "name": "analysis_agent", "type": "agent", "x": 980, "y": 90 },
-    { "id": "coding_agent", "name": "coding_agent", "type": "agent", "x": 980, "y": 315 },
-    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 1240, "y": 190 }
+    { "id": "app_domain", "name": "agent.example.com", "type": "domain", "x": 545, "y": 92 },
+    { "id": "agent_query_api", "name": "/api/agent-query", "type": "api", "path": "/api/agent-query", "x": 545, "y": 242 },
+    { "id": "customer_records", "name": "customer_records", "type": "table", "x": 420, "y": 512, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "account_name", "type": "text" }, { "name": "private_notes", "type": "text", "private": true }] },
+    { "id": "api_keys", "name": "api_keys", "type": "secret", "x": 660, "y": 512, "fields": [{ "name": "id", "type": "uuid primary key" }, { "name": "token_hash", "type": "text not null", "secret": true }] },
+    { "id": "analysis_agent", "name": "analysis_agent", "type": "agent", "x": 300, "y": 782 },
+    { "id": "coding_agent", "name": "coding_agent", "type": "agent", "x": 540, "y": 782 },
+    { "id": "postgres", "name": "postgres", "type": "deployment", "x": 545, "y": 1032 }
   ],
   "edges": [
     { "id": "e_domain_api", "from": "app_domain", "to": "agent_query_api", "type": "serves" },
