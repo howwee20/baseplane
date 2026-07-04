@@ -272,12 +272,14 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none;
+      pointer-events: auto;
       overflow: visible;
     }
 
     .edge {
       fill: none;
+      cursor: pointer;
+      pointer-events: stroke;
       stroke: rgba(61, 77, 69, 0.31);
       stroke-dasharray: 9 8;
       animation: dash-flow 1.5s linear infinite;
@@ -298,12 +300,18 @@
       animation-duration: 1s;
     }
 
+    .edge.selected {
+      stroke: rgba(242, 106, 27, 0.98);
+      stroke-width: 3;
+    }
+
     .edge-label {
       fill: rgba(14, 26, 20, 0.65);
       font-family: var(--mono);
       font-size: 10px;
       letter-spacing: 0.02em;
       paint-order: stroke;
+      pointer-events: none;
       stroke: rgba(255, 253, 248, 0.92);
       stroke-width: 5px;
     }
@@ -504,6 +512,71 @@
       padding: 8px;
     }
 
+    .output-drawer {
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      height: min(360px, 42vh);
+      background: rgba(255, 253, 248, 0.94);
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 80px rgba(17, 30, 23, 0.18);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding: 14px;
+      transform: translateY(calc(100% + 28px));
+      transition: transform 180ms ease, opacity 180ms ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 35;
+    }
+
+    .output-drawer.open {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .output-head {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .artifact-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .artifact-tab {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(244, 241, 235, 0.62);
+      color: #34443b;
+      flex: 0 0 auto;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 7px 9px;
+    }
+
+    .artifact-tab.active {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: white;
+    }
+
+    .artifact-output {
+      max-height: none;
+      height: 100%;
+      overflow: auto;
+    }
+
     @media (max-width: 1160px) {
       body { overflow: auto; }
       .app { height: auto; min-height: 100vh; }
@@ -658,6 +731,11 @@
       .right.open {
         transform: translateY(0);
       }
+      .output-drawer {
+        left: 10px;
+        right: 10px;
+        height: 48vh;
+      }
     }
   </style>
 </head>
@@ -670,6 +748,7 @@
       <div class="top-actions">
         <button class="button" id="open-tools">Command</button>
         <button class="button" id="open-simulator">Simulate</button>
+        <button class="button" id="open-output">Artifacts</button>
         <button class="button" id="reset-layout">Reset Layout</button>
         <button class="button primary" id="export-zip">Export</button>
         <button class="button" id="download-json">JSON</button>
@@ -793,6 +872,20 @@
 
       <aside class="panel right" id="inspector"></aside>
     </div>
+
+    <section class="output-drawer" id="output-drawer" aria-label="Generated artifacts">
+      <div class="output-head">
+        <div>
+          <div class="label">Compiled artifacts</div>
+          <p class="small">Generated from the current graph. No credentials are read.</p>
+        </div>
+        <button class="close-button" id="close-output" aria-label="Close artifacts">×</button>
+      </div>
+      <div>
+        <div class="artifact-tabs" id="artifact-tabs"></div>
+        <pre class="artifact-output" id="artifact-output"></pre>
+      </div>
+    </section>
   </div>
 
 <script type="module">
@@ -814,9 +907,22 @@ const typeLabels = {
 };
 
 const templates = createFullStackTemplates();
+const artifactOrder = [
+  "schema.sql",
+  "rls_policies.sql",
+  "route_contracts.md",
+  "function_stubs.md",
+  "agent_gateway_policy.json",
+  "policy_tests.json",
+  "deploy_plan.md",
+  "README.md",
+  "baseplane.json"
+];
 
 let graph = loadGraph();
 let selectedId = "";
+let selectedEdgeId = "";
+let activeArtifact = "schema.sql";
 let dragState = null;
 
 const canvas = document.getElementById("canvas");
@@ -824,6 +930,9 @@ const nodesLayer = document.getElementById("nodes");
 const edgesSvg = document.getElementById("edges");
 const inspector = document.getElementById("inspector");
 const toolsPanel = document.getElementById("tools-panel");
+const outputDrawer = document.getElementById("output-drawer");
+const artifactTabs = document.getElementById("artifact-tabs");
+const artifactOutput = document.getElementById("artifact-output");
 
 function node(id, name, type, description, x, y, fields) {
   return {
@@ -1077,6 +1186,7 @@ function saveGraph() {
 function setGraph(next) {
   graph = clone(next);
   selectedId = "";
+  selectedEdgeId = "";
   saveGraph();
   render();
   requestAnimationFrame(frameGraph);
@@ -1084,6 +1194,10 @@ function setGraph(next) {
 
 function getNode(id) {
   return graph.nodes.find((item) => item.id === id);
+}
+
+function getEdge(id) {
+  return graph.edges.find((item) => item.id === id);
 }
 
 function connectedIds(id) {
@@ -1149,7 +1263,8 @@ function edgeLabelPoint(source, target) {
 }
 
 function renderNodes() {
-  const related = connectedIds(selectedId);
+  const selectedEdge = getEdge(selectedEdgeId);
+  const related = selectedEdge ? new Set([selectedEdge.from, selectedEdge.to]) : connectedIds(selectedId);
   nodesLayer.innerHTML = graph.nodes.map((item) => {
     const selected = item.id === selectedId;
     const connected = related.has(item.id);
@@ -1176,6 +1291,7 @@ function renderNodes() {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         selectedId = el.dataset.node;
+        selectedEdgeId = "";
         closeToolsPanel();
         render();
       }
@@ -1184,7 +1300,8 @@ function renderNodes() {
 }
 
 function renderEdges() {
-  const related = connectedIds(selectedId);
+  const selectedEdge = getEdge(selectedEdgeId);
+  const related = selectedEdge ? new Set([selectedEdge.from, selectedEdge.to]) : connectedIds(selectedId);
   edgesSvg.setAttribute("viewBox", `0 0 ${canvas.scrollWidth} ${canvas.scrollHeight}`);
   edgesSvg.innerHTML = `
     <defs>
@@ -1199,20 +1316,40 @@ function renderEdges() {
       const from = getNode(item.from);
       const to = getNode(item.to);
       if (!from || !to) return "";
-      const isRelated = item.from === selectedId || item.to === selectedId;
+      const isSelected = item.id === selectedEdgeId;
+      const isRelated = isSelected || item.from === selectedId || item.to === selectedId || (selectedEdge && related.has(item.from) && related.has(item.to));
       const point = edgeLabelPoint(from, to);
       return `
-        <path class="edge ${escapeHtml(item.type)} ${isRelated ? "related" : ""}"
+        <path class="edge ${escapeHtml(item.type)} ${isRelated ? "related" : ""} ${isSelected ? "selected" : ""}"
+          data-edge="${escapeAttr(item.id)}"
           d="${edgePath(from, to)}"
-          opacity="${selectedId && !related.has(item.from) && !related.has(item.to) ? "0.16" : "1"}"
+          opacity="${(selectedId || selectedEdgeId) && !related.has(item.from) && !related.has(item.to) ? "0.16" : "1"}"
           marker-end="url(#${isRelated ? "arrow-active" : "arrow"})"></path>
         ${isRelated ? `<text class="edge-label" x="${point.x}" y="${point.y}" text-anchor="middle">${escapeHtml(item.type)}</text>` : ""}
       `;
     }).join("")}
   `;
+
+  edgesSvg.querySelectorAll("[data-edge]").forEach((edgeEl) => {
+    const selectEdge = (event) => {
+      event.stopPropagation();
+      selectedEdgeId = edgeEl.dataset.edge;
+      selectedId = "";
+      closeToolsPanel();
+      render();
+    };
+    edgeEl.addEventListener("pointerdown", selectEdge);
+    edgeEl.addEventListener("click", selectEdge);
+  });
 }
 
 function renderInspector() {
+  const selectedEdge = getEdge(selectedEdgeId);
+  if (selectedEdge) {
+    renderEdgeInspector(selectedEdge);
+    return;
+  }
+
   const selected = getNode(selectedId);
   if (!selected) {
     inspector.classList.remove("open");
@@ -1281,6 +1418,70 @@ function renderInspector() {
   bindInspector(selected);
 }
 
+function renderEdgeInspector(selectedEdge) {
+  const from = getNode(selectedEdge.from);
+  const to = getNode(selectedEdge.to);
+  inspector.classList.add("open");
+  inspector.classList.remove("is-empty");
+  inspector.innerHTML = `
+    <section class="section">
+      <div class="drawer-head">
+        <h2 class="drawer-title">Edge</h2>
+        <button class="close-button" id="close-inspector" aria-label="Close inspector">×</button>
+      </div>
+      <h2 class="inspector-title">${escapeHtml(selectedEdge.type)}</h2>
+      <p class="inspector-subtitle">${escapeHtml(from?.name || selectedEdge.from)} -> ${escapeHtml(to?.name || selectedEdge.to)}</p>
+      <div class="form-grid">
+        <select id="edge-inspector-from">${edgeNodeOptions(selectedEdge.from)}</select>
+        <select id="edge-inspector-type">${edgeTypeOptions(selectedEdge.type)}</select>
+        <select id="edge-inspector-to">${edgeNodeOptions(selectedEdge.to)}</select>
+        <textarea id="edge-inspector-description" placeholder="What does this permission or data-flow mean?">${escapeHtml(selectedEdge.description || "")}</textarea>
+      </div>
+      <div class="mini-actions">
+        <button class="mini-button danger" id="delete-edge">Delete edge</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="label">Machine read</div>
+      <pre>${escapeHtml(edgeMachineRead(selectedEdge))}</pre>
+    </section>
+  `;
+  bindEdgeInspector(selectedEdge);
+}
+
+function bindEdgeInspector(selectedEdge) {
+  document.getElementById("close-inspector").addEventListener("click", () => {
+    selectedEdgeId = "";
+    render();
+  });
+  document.getElementById("edge-inspector-from").addEventListener("change", (event) => {
+    selectedEdge.from = event.target.value;
+    saveGraph();
+    render();
+  });
+  document.getElementById("edge-inspector-type").addEventListener("change", (event) => {
+    selectedEdge.type = event.target.value;
+    saveGraph();
+    render();
+  });
+  document.getElementById("edge-inspector-to").addEventListener("change", (event) => {
+    selectedEdge.to = event.target.value;
+    saveGraph();
+    render();
+  });
+  document.getElementById("edge-inspector-description").addEventListener("input", (event) => {
+    selectedEdge.description = event.target.value;
+    saveGraph();
+  });
+  document.getElementById("delete-edge").addEventListener("click", () => {
+    graph.edges = graph.edges.filter((item) => item.id !== selectedEdge.id);
+    selectedEdgeId = "";
+    saveGraph();
+    render();
+  });
+}
+
 function bindInspector(selected) {
   document.getElementById("close-inspector").addEventListener("click", () => {
     selectedId = "";
@@ -1309,7 +1510,8 @@ function bindInspector(selected) {
     graph.principals = (graph.principals || []).filter((item) => item.id !== selected.id);
     graph.routes = (graph.routes || []).filter((item) => item.id !== selected.id && item.node_id !== selected.id);
     graph.deployments = (graph.deployments || []).filter((item) => item.id !== selected.id);
-    selectedId = graph.nodes[0]?.id || "";
+    selectedId = "";
+    selectedEdgeId = "";
     saveGraph();
     render();
   });
@@ -1416,7 +1618,7 @@ function edgeView(item) {
   const from = getNode(item.from)?.name || item.from;
   const to = getNode(item.to)?.name || item.to;
   return `
-    <div class="edge-row">
+    <div class="edge-row" data-edge-row="${escapeAttr(item.id)}">
       <strong>${escapeHtml(from)} -> ${escapeHtml(to)}</strong>
       <p class="small">${escapeHtml(item.type)}</p>
     </div>
@@ -1427,6 +1629,43 @@ function nodeTypeOptions(value) {
   return Object.keys(typeLabels)
     .map((type) => `<option value="${type}" ${type === value ? "selected" : ""}>${type}</option>`)
     .join("");
+}
+
+function edgeTypeOptions(value) {
+  return ["reads", "writes", "owns", "calls", "serves", "deploys_to", "authenticates", "authorizes", "stores_secret", "publishes_to", "denies", "allows"]
+    .map((type) => `<option value="${type}" ${type === value ? "selected" : ""}>${type}</option>`)
+    .join("");
+}
+
+function edgeNodeOptions(value) {
+  return graph.nodes
+    .map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === value ? "selected" : ""}>${escapeHtml(item.name)}</option>`)
+    .join("");
+}
+
+function edgeMachineRead(item) {
+  const from = getNode(item.from);
+  const to = getNode(item.to);
+  const typeNotes = {
+    reads: "source can read data from target",
+    writes: "source can write data into target",
+    owns: "source owns or scopes target",
+    calls: "source invokes target",
+    serves: "source exposes target",
+    deploys_to: "source is deployed onto target",
+    authenticates: "source verifies identity for target",
+    authorizes: "source controls access to target",
+    stores_secret: "source stores protected secret material in target",
+    publishes_to: "source publishes events to target",
+    denies: "source is denied target",
+    allows: "source is allowed target"
+  };
+  return [
+    `${from?.name || item.from} --${item.type}--> ${to?.name || item.to}`,
+    typeNotes[item.type] || "edge declares a backend relationship",
+    item.description || "No human description yet.",
+    "If this relationship matters, it must compile into policy, route docs, SQL, or deploy plan."
+  ].join("\n");
 }
 
 function renderEdgeSelectors() {
@@ -1488,9 +1727,10 @@ function renderPolicyResult() {
   const tone = result.decision === "ALLOW" ? "allow" : "deny";
   resultEl.className = `sim-result ${tone}`;
   resultEl.innerHTML = `
-    <strong>${escapeHtml(result.decision)}</strong>
+    <strong>${escapeHtml(result.decision)}${result.policy ? ` by ${escapeHtml(result.policy)}` : ""}</strong>
     <p class="small">${escapeHtml(request.principal_id)} ${escapeHtml(request.action)} ${escapeHtml(request.resource_id)}${request.field ? `.${escapeHtml(request.field)}` : ""}</p>
     <p class="small">${escapeHtml(result.reason.join(" "))}</p>
+    <pre>${escapeHtml(JSON.stringify({ request, decision: result.decision, policy: result.policy, reason: result.reason }, null, 2))}</pre>
   `;
 }
 
@@ -1558,6 +1798,7 @@ function startDrag(event) {
   const element = event.currentTarget;
   const current = getNode(element.dataset.node);
   selectedId = current.id;
+  selectedEdgeId = "";
   closeToolsPanel();
   element.setPointerCapture(event.pointerId);
   element.classList.add("dragging");
@@ -1631,12 +1872,16 @@ function exportModel() {
   return clone(graph);
 }
 
+function compileArtifacts() {
+  return compileGraph(exportModel());
+}
+
 function downloadJson() {
   downloadBlob("baseplane.json", new Blob([JSON.stringify(exportModel(), null, 2)], { type: "application/json" }));
 }
 
 async function exportZip() {
-  const files = compileGraph(exportModel());
+  const files = compileArtifacts();
   downloadBlob("baseplane-backend-package.zip", new Blob([makeZip(files)], { type: "application/zip" }));
 }
 
@@ -1751,6 +1996,30 @@ function render() {
   renderNodes();
   renderEdges();
   renderInspector();
+  renderArtifacts();
+}
+
+function renderArtifacts() {
+  let files = {};
+  let error = "";
+  try {
+    files = compileArtifacts();
+  } catch (compileError) {
+    error = compileError.message;
+  }
+  const names = artifactOrder.filter((name) => files[name]).concat(Object.keys(files).filter((name) => !artifactOrder.includes(name)));
+  if (!names.includes(activeArtifact)) activeArtifact = names[0] || "error";
+  artifactTabs.innerHTML = names.map((name) => `
+    <button class="artifact-tab ${name === activeArtifact ? "active" : ""}" data-artifact="${escapeAttr(name)}">${escapeHtml(name)}</button>
+  `).join("");
+  artifactOutput.textContent = error || files[activeArtifact] || "No artifact generated.";
+  artifactTabs.querySelectorAll("[data-artifact]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeArtifact = button.dataset.artifact;
+      renderArtifacts();
+      openOutputDrawer();
+    });
+  });
 }
 
 function openToolsPanel(targetId = "") {
@@ -1764,9 +2033,20 @@ function closeToolsPanel() {
   toolsPanel.classList.remove("open");
 }
 
+function openOutputDrawer() {
+  outputDrawer.classList.add("open");
+  renderArtifacts();
+}
+
+function closeOutputDrawer() {
+  outputDrawer.classList.remove("open");
+}
+
 function resetGraphLayout() {
   localStorage.removeItem(storageKey);
   closeToolsPanel();
+  selectedId = "";
+  selectedEdgeId = "";
   setGraph(templates.research);
 }
 
@@ -1781,7 +2061,9 @@ document.getElementById("download-json").addEventListener("click", downloadJson)
 document.getElementById("export-zip").addEventListener("click", exportZip);
 document.getElementById("open-tools").addEventListener("click", () => openToolsPanel());
 document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
+document.getElementById("open-output").addEventListener("click", openOutputDrawer);
 document.getElementById("close-tools").addEventListener("click", closeToolsPanel);
+document.getElementById("close-output").addEventListener("click", closeOutputDrawer);
 document.getElementById("reset-layout").addEventListener("click", resetGraphLayout);
 document.getElementById("sim-principal").addEventListener("change", renderPolicyResult);
 document.getElementById("sim-action").addEventListener("change", renderPolicyResult);
@@ -1795,14 +2077,17 @@ document.getElementById("reset-local").addEventListener("click", () => {
 });
 document.getElementById("workspace").addEventListener("pointerdown", (event) => {
   if (event.target.closest(".node")) return;
+  if (event.target.closest("[data-edge]")) return;
   closeToolsPanel();
   selectedId = "";
+  selectedEdgeId = "";
   render();
 });
 document.querySelectorAll("[data-template]").forEach((button) => {
   button.addEventListener("click", () => {
     setGraph(templates[button.dataset.template]);
     closeToolsPanel();
+    closeOutputDrawer();
   });
 });
 document.querySelectorAll("[data-add-node]").forEach((button) => {
@@ -1818,7 +2103,9 @@ window.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape") {
     closeToolsPanel();
+    closeOutputDrawer();
     selectedId = "";
+    selectedEdgeId = "";
     render();
   }
 });

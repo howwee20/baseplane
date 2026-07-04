@@ -8,6 +8,15 @@ The graph compiles into backend infrastructure artifacts: SQL, RLS policies, rou
 
 Baseplane owns the blueprint. The customer owns the data plane.
 
+## Alpha Surface
+
+- Studio: graph-first browser UI in `/app`.
+- Compiler: turns `baseplane.json` into backend artifacts.
+- Policy simulator: explains allow/deny decisions.
+- Agent Gateway V0: checks agent requests against the graph before data access.
+- Runtime skeleton: documents the self-hosted target shape.
+- Introspection starter: converts local SQL schema files into a starting graph.
+
 ## Current Boundary
 
 The current app and CLI are intentionally local-first:
@@ -42,7 +51,7 @@ node cli/baseplane.js generate examples/generic-telemetry/baseplane.json --out g
 node cli/baseplane.js test-policies examples/generic-telemetry/baseplane.json
 node cli/baseplane.js diff examples/generic-telemetry/baseplane.json
 node cli/baseplane.js apply --dry-run examples/generic-telemetry/baseplane.json
-node cli/baseplane.js introspect --help
+node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json
 ```
 
 Generated package:
@@ -56,6 +65,48 @@ Generated package:
 - `policy_tests.json`
 - `deploy_plan.md`
 - `README.md`
+
+## Agent Gateway V0
+
+Agent Gateway V0 is a local authorization primitive. It does not query production data.
+
+It answers:
+
+```txt
+Can this agent/service/human perform this action on this table or field?
+```
+
+Example:
+
+```js
+import { authorizeAgentRequest, redactRecord } from "./packages/agent-gateway/index.js";
+
+const authorization = authorizeAgentRequest(graph, {
+  agent_id: "analysis_agent",
+  action: "read",
+  resource: "telemetry_readings",
+  fields: ["timestamp", "measurement_value"]
+});
+
+const safeRecord = redactRecord(row, authorization);
+```
+
+Runtime skeleton:
+
+```bash
+docker compose -f runtime/docker-compose.yml up
+curl http://127.0.0.1:8787/health
+```
+
+## Introspection
+
+The public alpha introspects local SQL files, not live databases:
+
+```bash
+node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json
+```
+
+Direct `--database-url` introspection is intentionally disabled until the credential boundary is hardened.
 
 ## Graph Model
 

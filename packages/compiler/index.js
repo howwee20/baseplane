@@ -7,6 +7,7 @@ import { generateAgentGatewayPolicy } from "./generateAgentGatewayPolicy.js";
 import { generatePolicyTests, runPolicyTests } from "./generatePolicyTests.js";
 import { generateDeployPlan } from "./generateDeployPlan.js";
 import { evaluateAccess } from "./evaluateAccess.js";
+import { introspectSql } from "./introspect.js";
 import { REQUIRED_ARTIFACTS } from "./helpers.js";
 
 export { validateGraph } from "./validate.js";
@@ -18,6 +19,7 @@ export { generateAgentGatewayPolicy } from "./generateAgentGatewayPolicy.js";
 export { generatePolicyTests, runPolicyTests } from "./generatePolicyTests.js";
 export { generateDeployPlan } from "./generateDeployPlan.js";
 export { evaluateAccess } from "./evaluateAccess.js";
+export { introspectSql } from "./introspect.js";
 export { REQUIRED_ARTIFACTS } from "./helpers.js";
 
 export function compileGraph(graph) {

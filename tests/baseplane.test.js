@@ -6,9 +6,11 @@ import {
   assertRequiredArtifacts,
   compileGraph,
   evaluateAccess,
+  introspectSql,
   runPolicyTests,
   validateGraph
 } from "../packages/compiler/index.js";
+import { authorizeAgentRequest, redactRecord } from "../packages/agent-gateway/index.js";
 
 const graphPath = path.resolve("examples/generic-telemetry/baseplane.json");
 const graph = JSON.parse(fs.readFileSync(graphPath, "utf8"));
@@ -77,6 +79,50 @@ assertDecision(
   { principal_id: "anonymous", action: "read", resource_id: "telemetry_readings" },
   "DENY"
 );
+
+const agentAuth = authorizeAgentRequest(graph, {
+  agent_id: "analysis_agent",
+  action: "read",
+  resource: "telemetry_readings",
+  fields: ["timestamp", "measurement_value"]
+});
+assert.equal(agentAuth.decision, "ALLOW");
+assert.deepEqual(agentAuth.allowed_fields, ["timestamp", "measurement_value"]);
+assert.deepEqual(redactRecord({
+  timestamp: "2026-07-04T00:00:00Z",
+  measurement_value: 22.1,
+  raw_payload: { secret: true }
+}, agentAuth), {
+  timestamp: "2026-07-04T00:00:00Z",
+  measurement_value: 22.1
+});
+
+const deniedAgentAuth = authorizeAgentRequest(graph, {
+  agent_id: "analysis_agent",
+  action: "read",
+  resource: "telemetry_readings",
+  fields: ["timestamp", "raw_payload"]
+});
+assert.equal(deniedAgentAuth.decision, "DENY");
+assert.deepEqual(deniedAgentAuth.denied_fields, ["raw_payload"]);
+assert.deepEqual(redactRecord({ timestamp: "safe", raw_payload: "private" }, deniedAgentAuth), {});
+
+const introspectedGraph = introspectSql(`
+  create table public.organizations (
+    id uuid primary key,
+    name text not null
+  );
+  create table public.device_tokens (
+    device_id text primary key,
+    token_hash text not null,
+    organization_id uuid references organizations(id)
+  );
+`, { appName: "Test Introspection" });
+assert.equal(introspectedGraph.app.name, "Test Introspection");
+assert.equal(introspectedGraph.nodes.some((item) => item.id === "organizations" && item.type === "table"), true);
+assert.equal(introspectedGraph.nodes.some((item) => item.id === "device_tokens" && item.type === "secret"), true);
+assert.equal(validateGraph(introspectedGraph).valid, true);
+assert.deepEqual(assertRequiredArtifacts(compileGraph(introspectedGraph)), []);
 
 const testResults = runPolicyTests(graph);
 assert.equal(testResults.every((item) => item.pass), true, JSON.stringify(testResults, null, 2));

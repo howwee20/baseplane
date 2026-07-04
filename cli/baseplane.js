@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   compileGraph,
   evaluateAccess,
+  introspectSql,
   runPolicyTests,
   validateGraph
 } from "../packages/compiler/index.js";
@@ -60,7 +61,27 @@ try {
     }
     console.log("Dry run only. No credentials read. No database touched. Generated artifacts can be reviewed with `baseplane generate`.");
   } else if (command === "introspect") {
-    console.log("Introspection is not implemented yet. Future shape: baseplane introspect --database-url $DATABASE_URL > baseplane.json");
+    if (args.includes("--help") || args.includes("-h")) {
+      printIntrospectHelp();
+    } else {
+      const schemaFile = readOption("--schema");
+      const databaseUrl = readOption("--database-url");
+      if (databaseUrl && !schemaFile) {
+        throw new Error("Direct database introspection is not enabled in this alpha. Export schema SQL locally, then run: baseplane introspect --schema ./schema.sql");
+      }
+      if (!schemaFile) throw new Error("Missing --schema ./schema.sql");
+      const graph = introspectSql(fs.readFileSync(path.resolve(schemaFile), "utf8"), {
+        appName: readOption("--app-name", "Introspected Backend")
+      });
+      const output = `${JSON.stringify(graph, null, 2)}\n`;
+      const outFile = readOption("--out");
+      if (outFile) {
+        fs.writeFileSync(path.resolve(outFile), output);
+        console.log(`Wrote ${outFile}`);
+      } else {
+        console.log(output);
+      }
+    }
   } else if (command === "compile") {
     const graph = readRequiredGraph();
     console.log(JSON.stringify(compileGraph(graph), null, 2));
@@ -115,7 +136,7 @@ Usage:
   baseplane test-policies ./baseplane.json --principal analysis_agent --action read --resource telemetry_readings --field measurement_value
   baseplane diff ./baseplane.json
   baseplane apply --dry-run ./baseplane.json
-  baseplane introspect --help
+  baseplane introspect --schema ./schema.sql --out ./baseplane.json
 
 Commands:
   validate       Check graph shape and references.
@@ -123,7 +144,20 @@ Commands:
   test-policies  Run generated policy simulator tests or one explicit request.
   diff           Safe placeholder.
   apply          Dry-run placeholder only.
-  introspect     Help placeholder only.
+  introspect     Convert local SQL schema into a starting graph.
   compile        Print generated artifacts as JSON.
+`);
+}
+
+function printIntrospectHelp() {
+  console.log(`Baseplane introspect
+
+Usage:
+  baseplane introspect --schema ./schema.sql --out ./baseplane.json
+  baseplane introspect --schema ./schema.sql --app-name "My App"
+
+Boundary:
+  Direct --database-url introspection is intentionally disabled in this public alpha.
+  Keep credentials local, export SQL schema, then introspect the file.
 `);
 }
