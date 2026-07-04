@@ -106,12 +106,18 @@
       font-size: 12px;
       font-weight: 800;
       padding: 8px 12px;
+      text-decoration: none;
     }
 
     .button.primary {
       background: var(--orange);
       border-color: var(--orange);
       color: white;
+    }
+
+    .button.active {
+      border-color: rgba(242, 106, 27, 0.52);
+      color: var(--orange);
     }
 
     .button.warn {
@@ -512,6 +518,43 @@
       padding: 8px;
     }
 
+    .cloud-status {
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.5);
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 10px;
+    }
+
+    .cloud-status strong {
+      font-size: 12px;
+    }
+
+    .cloud-row {
+      align-items: center;
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 10px;
+    }
+
+    .status-pill {
+      border: 1px solid rgba(242, 106, 27, 0.34);
+      border-radius: 999px;
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      padding: 4px 6px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .status-pill.ready {
+      border-color: rgba(22, 137, 131, 0.34);
+      color: var(--teal);
+    }
+
     .output-drawer {
       position: fixed;
       left: 14px;
@@ -746,21 +789,38 @@
         <a href="../">Baseplane</a>
       </div>
       <div class="top-actions">
-        <button class="button" id="open-tools">Command</button>
+        <button class="button primary" id="open-tools">New Backend</button>
         <button class="button" id="open-simulator">Simulate</button>
-        <button class="button" id="open-output">Artifacts</button>
-        <button class="button" id="reset-layout">Reset Layout</button>
+        <button class="button" id="open-deploy-preview">Deploy Preview</button>
+        <button class="button active" id="level-lock" aria-pressed="true">Level Lock On</button>
+        <button class="button" id="reset-layout">Reset</button>
         <button class="button primary" id="export-zip">Export</button>
         <button class="button" id="download-json">JSON</button>
+        <a class="button" href="../signin.html">Sign In</a>
       </div>
     </header>
 
     <div class="body">
       <aside class="panel left" id="tools-panel" aria-label="Graph tools">
         <div class="drawer-head">
-          <h2 class="drawer-title">Graph tools</h2>
+          <h2 class="drawer-title">New Backend</h2>
           <button class="close-button" id="close-tools" aria-label="Close tools">×</button>
         </div>
+        <section class="section">
+          <div class="label">Cloud Preview</div>
+          <div class="quick-grid">
+            <button class="quick-button" id="start-template">Start from template</button>
+            <button class="quick-button" id="connect-existing">Connect existing backend</button>
+            <button class="quick-button" id="request-hosted">Request hosted backend</button>
+          </div>
+          <p class="small">The public Studio exports a backend package. Real customer sign-in and database provisioning require a hosted control API, deploy worker, secrets boundary, and audit log.</p>
+          <div class="cloud-status">
+            <div class="cloud-row"><span class="status-pill ready">Ready</span><strong>Graph, policy simulator, export package</strong></div>
+            <div class="cloud-row"><span class="status-pill">Next</span><strong>Customer auth and project accounts</strong></div>
+            <div class="cloud-row"><span class="status-pill">Next</span><strong>Hosted deploy request and provisioner</strong></div>
+          </div>
+        </section>
+
         <section class="section">
           <div class="label">Intent</div>
           <textarea id="intent">Build a research portal with researchers, projects, devices, sensor readings, invites, and quote requests. Add an analysis agent that can read only safe fields.</textarea>
@@ -838,6 +898,21 @@
           </div>
         </section>
 
+        <section class="section" id="connect-existing-section">
+          <div class="label">Connect existing backend</div>
+          <p class="small">Start with a schema export. Baseplane turns tables into graph nodes without reading customer rows.</p>
+          <pre>node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json</pre>
+        </section>
+
+        <section class="section" id="request-hosted-section">
+          <div class="label">Request hosted backend</div>
+          <p class="small">This creates a real request draft from the current graph. It does not fake provisioning or collect secrets in the browser.</p>
+          <div class="mini-actions">
+            <button class="mini-button" id="request-hosted-email">Draft request email</button>
+            <button class="mini-button" id="copy-request">Copy request</button>
+          </div>
+        </section>
+
         <section class="section">
           <div class="label">Package</div>
           <div class="package-list">
@@ -876,8 +951,8 @@
     <section class="output-drawer" id="output-drawer" aria-label="Generated artifacts">
       <div class="output-head">
         <div>
-          <div class="label">Compiled artifacts</div>
-          <p class="small">Generated from the current graph. No credentials are read.</p>
+          <div class="label">Deploy preview</div>
+          <p class="small">Generated from the current graph. Preview only until a hosted control API and deploy worker exist.</p>
         </div>
         <button class="close-button" id="close-output" aria-label="Close artifacts">×</button>
       </div>
@@ -892,6 +967,8 @@
 import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
 
 const storageKey = "baseplane-alpha-graph-v3";
+const levelLockStorageKey = "baseplane-level-lock-v1";
+const hostedRequestEmail = "howeej2255@gmail.com";
 const typeLabels = {
   domain: "domain",
   route: "route",
@@ -918,12 +995,21 @@ const artifactOrder = [
   "README.md",
   "baseplane.json"
 ];
+const levelBands = [
+  { id: "entry", label: "Entry", min: 72, max: 166 },
+  { id: "routes", label: "Routes and APIs", min: 222, max: 326 },
+  { id: "identity", label: "Identity and boundaries", min: 392, max: 552 },
+  { id: "data", label: "Data and functions", min: 632, max: 752 },
+  { id: "agents", label: "Agents", min: 822, max: 944 },
+  { id: "deployment", label: "Deployment target", min: 1012, max: 1124 }
+];
 
 let graph = loadGraph();
 let selectedId = "";
 let selectedEdgeId = "";
 let activeArtifact = "schema.sql";
 let dragState = null;
+let levelLock = localStorage.getItem(levelLockStorageKey) !== "off";
 
 const canvas = document.getElementById("canvas");
 const nodesLayer = document.getElementById("nodes");
@@ -1190,6 +1276,32 @@ function setGraph(next) {
   saveGraph();
   render();
   requestAnimationFrame(frameGraph);
+}
+
+function nearestLevelBand(y) {
+  return levelBands.reduce((best, band) => {
+    const bestDistance = Math.abs(y - ((best.min + best.max) / 2));
+    const distance = Math.abs(y - ((band.min + band.max) / 2));
+    return distance < bestDistance ? band : best;
+  }, levelBands[0]);
+}
+
+function clampYToLevel(y, band) {
+  return Math.max(band.min, Math.min(band.max, y));
+}
+
+function setLevelLock(next) {
+  levelLock = next;
+  localStorage.setItem(levelLockStorageKey, levelLock ? "on" : "off");
+  updateLevelLockButton();
+}
+
+function updateLevelLockButton() {
+  const button = document.getElementById("level-lock");
+  if (!button) return;
+  button.textContent = levelLock ? "Level Lock On" : "Level Lock Off";
+  button.classList.toggle("active", levelLock);
+  button.setAttribute("aria-pressed", levelLock ? "true" : "false");
 }
 
 function getNode(id) {
@@ -1807,6 +1919,7 @@ function startDrag(event) {
     pointerId: event.pointerId,
     startX: current.x,
     startY: current.y,
+    level: nearestLevelBand(current.y),
     pointerX: event.clientX,
     pointerY: event.clientY,
     moved: false
@@ -1824,8 +1937,9 @@ function moveDrag(event) {
   const dx = event.clientX - dragState.pointerX;
   const dy = event.clientY - dragState.pointerY;
   if (Math.abs(dx) + Math.abs(dy) > 4) dragState.moved = true;
+  const proposedY = Math.max(12, Math.min(canvas.scrollHeight - 130, dragState.startY + dy));
   current.x = Math.max(12, Math.min(canvas.scrollWidth - 210, dragState.startX + dx));
-  current.y = Math.max(12, Math.min(canvas.scrollHeight - 130, dragState.startY + dy));
+  current.y = levelLock ? clampYToLevel(proposedY, dragState.level) : proposedY;
   const element = document.querySelector(`[data-node="${current.id}"]`);
   element.style.left = `${current.x}px`;
   element.style.top = `${current.y}px`;
@@ -2038,6 +2152,11 @@ function openOutputDrawer() {
   renderArtifacts();
 }
 
+function openDeployPreview() {
+  activeArtifact = "deploy_plan.md";
+  openOutputDrawer();
+}
+
 function closeOutputDrawer() {
   outputDrawer.classList.remove("open");
 }
@@ -2055,16 +2174,62 @@ function frameGraph() {
   workspace.scrollTo({ left: 0, top: 0, behavior: "auto" });
 }
 
+function hostedRequestText() {
+  const files = compileArtifacts();
+  return [
+    "Baseplane hosted backend request",
+    "",
+    `App: ${graph.app?.name || "Untitled backend"}`,
+    `Nodes: ${graph.nodes.length}`,
+    `Edges: ${graph.edges.length}`,
+    `Policies: ${(graph.policies || []).length}`,
+    `Routes: ${(graph.routes || []).length}`,
+    "",
+    "Requested flow:",
+    "1. Create customer account and project.",
+    "2. Review deploy preview.",
+    "3. Provision isolated backend instance.",
+    "4. Enable sign-in, audit logs, and export package.",
+    "",
+    "Deploy preview:",
+    files["deploy_plan.md"] || "No deploy plan generated."
+  ].join("\n");
+}
+
+function draftHostedRequestEmail() {
+  const subject = `Baseplane hosted backend request: ${graph.app?.name || "Untitled backend"}`;
+  const body = hostedRequestText();
+  window.location.href = `mailto:${hostedRequestEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+async function copyHostedRequest() {
+  const text = hostedRequestText();
+  try {
+    await navigator.clipboard.writeText(text);
+    const button = document.getElementById("copy-request");
+    button.textContent = "Copied";
+    setTimeout(() => { button.textContent = "Copy request"; }, 1200);
+  } catch {
+    downloadBlob("baseplane-hosted-request.txt", new Blob([text], { type: "text/plain" }));
+  }
+}
+
 document.getElementById("apply-intent").addEventListener("click", applyIntent);
 document.getElementById("add-edge").addEventListener("click", addEdgeFromForm);
 document.getElementById("download-json").addEventListener("click", downloadJson);
 document.getElementById("export-zip").addEventListener("click", exportZip);
 document.getElementById("open-tools").addEventListener("click", () => openToolsPanel());
 document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
-document.getElementById("open-output").addEventListener("click", openOutputDrawer);
+document.getElementById("open-deploy-preview").addEventListener("click", openDeployPreview);
+document.getElementById("level-lock").addEventListener("click", () => setLevelLock(!levelLock));
 document.getElementById("close-tools").addEventListener("click", closeToolsPanel);
 document.getElementById("close-output").addEventListener("click", closeOutputDrawer);
 document.getElementById("reset-layout").addEventListener("click", resetGraphLayout);
+document.getElementById("start-template").addEventListener("click", () => openToolsPanel("tools-templates"));
+document.getElementById("connect-existing").addEventListener("click", () => openToolsPanel("connect-existing-section"));
+document.getElementById("request-hosted").addEventListener("click", () => openToolsPanel("request-hosted-section"));
+document.getElementById("request-hosted-email").addEventListener("click", draftHostedRequestEmail);
+document.getElementById("copy-request").addEventListener("click", copyHostedRequest);
 document.getElementById("sim-principal").addEventListener("change", renderPolicyResult);
 document.getElementById("sim-action").addEventListener("change", renderPolicyResult);
 document.getElementById("sim-resource").addEventListener("change", () => {
@@ -2112,6 +2277,7 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("resize", renderEdges);
 
 render();
+updateLevelLockButton();
 </script>
 </body>
 </html>
