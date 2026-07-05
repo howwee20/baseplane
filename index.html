@@ -8,18 +8,14 @@
     :root {
       --bg: #f4f1eb;
       --panel: #fffdf8;
-      --panel-strong: #ffffff;
       --ink: #0e1a14;
-      --muted: #66736b;
-      --soft: #8a958e;
+      --muted: #5f6d66;
       --line: rgba(14, 26, 20, 0.14);
       --line-strong: rgba(14, 26, 20, 0.26);
       --orange: #f26a1b;
-      --orange-soft: rgba(242, 106, 27, 0.12);
       --blue: #2f69d9;
-      --purple: #7453d8;
       --teal: #168983;
-      --amber: #bd7b29;
+      --purple: #7453d8;
       --red: #c74f3d;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -27,10 +23,6 @@
 
     * {
       box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
     }
 
     body {
@@ -45,18 +37,8 @@
     }
 
     button,
-    input,
-    select,
-    textarea {
-      font: inherit;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
     a {
-      color: inherit;
+      font: inherit;
     }
 
     .page {
@@ -66,17 +48,15 @@
 
     .site-header {
       align-items: center;
-      background: rgba(255, 253, 248, 0.86);
+      background: rgba(255, 253, 248, 0.88);
       backdrop-filter: blur(18px);
       border-bottom: 1px solid var(--line);
       display: flex;
-      gap: 24px;
       height: 72px;
       justify-content: space-between;
       padding: 0 40px;
-      position: sticky;
-      top: 0;
-      z-index: 30;
+      position: relative;
+      z-index: 20;
     }
 
     .brand {
@@ -93,15 +73,17 @@
       gap: 10px;
     }
 
-    .nav a {
+    .nav a,
+    .button {
       align-items: center;
       border: 1px solid var(--line);
       border-radius: 999px;
+      color: var(--ink);
       display: inline-flex;
       font-size: 13px;
-      font-weight: 800;
-      min-height: 40px;
-      padding: 0 16px;
+      font-weight: 850;
+      height: 42px;
+      padding: 0 17px;
       text-decoration: none;
     }
 
@@ -109,20 +91,25 @@
     .button.primary {
       background: var(--orange);
       border-color: var(--orange);
-      color: white;
+      color: #fff;
+    }
+
+    .nav a:focus-visible,
+    .button:focus-visible,
+    .graph-node:focus-visible {
+      outline: 3px solid rgba(242, 106, 27, 0.24);
+      outline-offset: 3px;
     }
 
     .hero {
-      border-bottom: 1px solid var(--line);
-      min-height: 620px;
-      overflow: hidden;
-      padding: 56px 40px 32px;
+      min-height: calc(100vh - 72px);
+      padding: 76px 40px 34px;
       position: relative;
     }
 
     .hero::before {
       background:
-        linear-gradient(90deg, rgba(244, 241, 235, 0.98) 0%, rgba(244, 241, 235, 0.94) 28%, rgba(244, 241, 235, 0.64) 45%, rgba(244, 241, 235, 0.18) 100%),
+        linear-gradient(90deg, rgba(244, 241, 235, 1) 0%, rgba(244, 241, 235, 0.96) 28%, rgba(244, 241, 235, 0.72) 45%, rgba(244, 241, 235, 0.2) 100%),
         linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
         linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px);
       background-size: auto, 34px 34px, 34px 34px;
@@ -134,81 +121,81 @@
     }
 
     .hero-copy {
-      max-width: 560px;
+      max-width: 550px;
       position: relative;
-      z-index: 5;
+      z-index: 6;
     }
 
-    .eyebrow,
-    .section-kicker {
+    .eyebrow {
       color: var(--orange);
       font-family: var(--mono);
       font-size: 12px;
-      font-weight: 700;
-      margin: 0 0 18px;
+      font-weight: 750;
+      margin: 0 0 22px;
       text-transform: uppercase;
     }
 
     h1 {
-      font-size: 76px;
-      font-weight: 900;
-      line-height: 0.93;
-      margin: 0 0 22px;
-      max-width: 9.5ch;
+      font-size: 82px;
+      font-weight: 920;
+      line-height: 0.94;
+      margin: 0 0 24px;
+      max-width: 9ch;
     }
 
     .lead {
-      color: #314039;
-      font-size: 22px;
-      font-weight: 650;
-      line-height: 1.22;
-      margin: 0 0 20px;
-      max-width: 26ch;
+      color: #26372f;
+      font-size: 23px;
+      font-weight: 680;
+      line-height: 1.28;
+      margin: 0;
+      max-width: 25ch;
     }
 
     .copy {
       color: var(--muted);
-      font-size: 15px;
-      line-height: 1.65;
-      margin: 0;
-      max-width: 58ch;
+      font-size: 16px;
+      line-height: 1.62;
+      margin: 24px 0 0;
+      max-width: 43ch;
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-top: 28px;
+      margin-top: 32px;
     }
 
-    .button {
+    .status {
       align-items: center;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      display: inline-flex;
-      font-size: 14px;
-      font-weight: 850;
-      min-height: 44px;
-      padding: 0 18px;
-      text-decoration: none;
+      bottom: 30px;
+      color: var(--muted);
+      display: flex;
+      font-size: 13px;
+      font-weight: 750;
+      gap: 10px;
+      left: 40px;
+      position: absolute;
+      z-index: 6;
     }
 
-    .button:focus-visible,
-    .nav a:focus-visible,
-    .mode-button:focus-visible,
-    .map-node:focus-visible {
-      outline: 3px solid rgba(242, 106, 27, 0.25);
-      outline-offset: 3px;
+    .status-dot {
+      background: var(--teal);
+      border-radius: 50%;
+      box-shadow: 0 0 0 7px rgba(22, 137, 131, 0.12);
+      height: 8px;
+      width: 8px;
     }
 
-    .hero-map {
+    .graph {
       inset: 0;
       pointer-events: none;
       position: absolute;
       z-index: 3;
     }
 
-    .map-stage {
+    .graph-stage {
       height: 100%;
       inset: 0;
       min-height: 620px;
@@ -216,7 +203,7 @@
       width: 100%;
     }
 
-    .graph-edges {
+    .graph-lines {
       height: 100%;
       inset: 0;
       overflow: visible;
@@ -225,410 +212,151 @@
       z-index: 1;
     }
 
-    .graph-edges path {
+    .graph-lines path {
       fill: none;
-      opacity: 0.24;
-      stroke: #7f8982;
-      stroke-dasharray: 8 8;
+      opacity: 0.26;
+      stroke: rgba(14, 26, 20, 0.42);
+      stroke-dasharray: 7 9;
       stroke-linecap: round;
-      stroke-width: 1.3;
-      transition: opacity 160ms ease, stroke 160ms ease, stroke-width 160ms ease;
+      stroke-width: 1.5;
+      transition: opacity 220ms ease, stroke 220ms ease, stroke-width 220ms ease;
     }
 
-    .graph-edges path.is-active {
-      animation: edge-flow 1.8s linear infinite;
-      opacity: 0.72;
+    .graph-lines path.active {
+      animation: flow 1.7s linear infinite;
+      opacity: 0.86;
       stroke: var(--orange);
-      stroke-width: 1.8;
+      stroke-width: 2;
     }
 
-    @keyframes edge-flow {
+    @keyframes flow {
       to {
         stroke-dashoffset: -32;
       }
     }
 
-    .map-toolbar {
-      align-items: center;
-      background: rgba(255, 253, 248, 0.92);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      display: flex;
-      gap: 4px;
-      padding: 5px;
-      pointer-events: auto;
-      position: absolute;
-      right: 40px;
-      top: 36px;
-      z-index: 8;
-    }
-
-    .mode-button {
-      background: transparent;
-      border: 0;
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 850;
-      min-height: 32px;
-      padding: 0 12px;
-    }
-
-    .mode-button.is-active {
-      background: var(--orange);
-      color: white;
-    }
-
-    .map-node {
-      background: rgba(255, 253, 248, 0.96);
+    .graph-node {
+      background: rgba(255, 253, 248, 0.94);
       border: 1px solid var(--line);
       border-top: 4px solid var(--orange);
-      box-shadow: 0 18px 44px rgba(17, 30, 23, 0.1);
-      min-height: 106px;
-      padding: 12px;
+      box-shadow: 0 20px 60px rgba(17, 30, 23, 0.1);
+      min-height: 112px;
+      padding: 14px;
       pointer-events: auto;
       position: absolute;
       transform: translate(-50%, -50%);
-      transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
-      width: 186px;
+      transition: box-shadow 220ms ease, opacity 220ms ease, transform 220ms ease;
+      width: 188px;
       z-index: 4;
     }
 
-    .map-node:hover,
-    .map-node.is-selected {
-      border-color: var(--line-strong);
-      box-shadow: 0 24px 62px rgba(17, 30, 23, 0.16);
-      transform: translate(-50%, -52%);
-      z-index: 7;
+    .graph-node.active {
+      box-shadow: 0 28px 74px rgba(17, 30, 23, 0.17);
+      opacity: 1;
+      transform: translate(-50%, -54%);
+      z-index: 8;
     }
 
-    .map-node.is-muted {
-      opacity: 0.24;
+    .graph-node.dim {
+      opacity: 0.32;
     }
 
-    .map-node.control {
-      border-top-color: var(--orange);
-    }
-
-    .map-node.identity {
+    .graph-node.auth {
       border-top-color: var(--purple);
     }
 
-    .map-node.data {
+    .graph-node.rows {
       border-top-color: var(--blue);
     }
 
-    .map-node.access {
+    .graph-node.policy {
       border-top-color: var(--red);
     }
 
-    .map-node.runtime {
-      border-top-color: var(--amber);
-    }
-
-    .map-node.audit {
+    .graph-node.audit {
       border-top-color: var(--teal);
     }
 
-    .node-head {
+    .node-top {
       align-items: center;
       display: flex;
-      gap: 8px;
+      gap: 10px;
       justify-content: space-between;
     }
 
     .node-name {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 900;
       line-height: 1.1;
     }
 
-    .node-type {
+    .node-kind {
       border: 1px solid var(--line);
       border-radius: 999px;
-      color: var(--soft);
+      color: var(--muted);
       flex: none;
       font-family: var(--mono);
       font-size: 9px;
-      padding: 3px 6px;
+      padding: 3px 7px;
       text-transform: uppercase;
     }
 
-    .node-desc {
+    .node-copy {
       color: var(--muted);
+      display: block;
       font-size: 12px;
-      line-height: 1.35;
-      margin: 10px 0 0;
+      line-height: 1.38;
+      margin-top: 10px;
     }
 
     .node-fields {
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
 
     .node-fields span {
-      background: #eee9df;
+      background: #ede9df;
       border-radius: 999px;
-      color: #526058;
+      color: #536159;
       font-family: var(--mono);
       font-size: 9px;
       padding: 3px 7px;
     }
 
-    .map-inspector {
-      background: rgba(255, 253, 248, 0.94);
-      border: 1px solid var(--line);
-      bottom: 38px;
-      box-shadow: 0 20px 54px rgba(17, 30, 23, 0.11);
-      max-width: 370px;
-      padding: 16px;
-      pointer-events: auto;
-      position: absolute;
-      right: 40px;
-      z-index: 8;
-    }
-
-    .inspector-label {
-      color: var(--orange);
-      font-family: var(--mono);
-      font-size: 11px;
-      font-weight: 700;
-      margin: 0 0 10px;
-      text-transform: uppercase;
-    }
-
-    .inspector-title {
-      font-size: 18px;
-      font-weight: 900;
-      margin: 0;
-    }
-
-    .inspector-copy {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin: 10px 0 0;
-    }
-
-    .inspector-meta {
-      border-top: 1px solid var(--line);
-      display: grid;
-      gap: 8px;
-      margin-top: 14px;
-      padding-top: 12px;
-    }
-
-    .meta-row {
-      align-items: center;
-      display: flex;
-      gap: 12px;
-      justify-content: space-between;
-    }
-
-    .meta-row span {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .meta-row strong {
-      font-size: 12px;
-      text-align: right;
-    }
-
-    .status-row {
-      align-items: center;
-      display: flex;
-      gap: 9px;
-      margin-top: 22px;
-    }
-
-    .status-dot {
-      background: var(--teal);
-      border-radius: 50%;
-      box-shadow: 0 0 0 6px rgba(22, 137, 131, 0.1);
-      height: 8px;
-      width: 8px;
-    }
-
-    .status-row span {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .band {
-      border-bottom: 1px solid var(--line);
-      padding: 72px 40px;
-    }
-
-    .band-inner {
-      margin: 0 auto;
-      max-width: 1180px;
-    }
-
-    .section-head {
-      display: grid;
-      gap: 24px;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      margin-bottom: 34px;
-    }
-
-    h2 {
-      font-size: 52px;
-      line-height: 1;
-      margin: 0;
-      max-width: 12ch;
-    }
-
-    .product-grid,
-    .docs-grid {
-      display: grid;
-      gap: 14px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .surface-card,
-    .doc-card {
-      background: rgba(255, 253, 248, 0.78);
-      border: 1px solid var(--line);
-      padding: 18px;
-    }
-
-    .surface-card strong,
-    .doc-card strong {
-      display: block;
-      font-size: 16px;
-      margin-bottom: 10px;
-    }
-
-    .surface-card p,
-    .doc-card p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.55;
-      margin: 0;
-    }
-
-    .doc-list {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .doc-row {
-      align-items: center;
-      background: rgba(255, 253, 248, 0.78);
-      border: 1px solid var(--line);
-      display: flex;
-      gap: 12px;
-      justify-content: space-between;
-      padding: 13px 14px;
-    }
-
-    .doc-row strong {
-      font-size: 13px;
-    }
-
-    .doc-row span {
-      color: var(--muted);
-      font-size: 12px;
-      text-align: right;
-    }
-
-    .service-grid {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .service-item {
-      background: rgba(255, 253, 248, 0.78);
-      border: 1px solid var(--line);
-      min-height: 130px;
-      padding: 16px;
-    }
-
-    .service-item span {
-      color: var(--orange);
-      display: block;
-      font-family: var(--mono);
-      font-size: 11px;
-      font-weight: 700;
-      margin-bottom: 14px;
-      text-transform: uppercase;
-    }
-
-    .service-item strong {
-      display: block;
-      font-size: 15px;
-      line-height: 1.35;
-    }
-
-    .service-item p {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-      margin: 9px 0 0;
-    }
-
-    .final-cta {
-      align-items: center;
-      display: flex;
-      gap: 24px;
-      justify-content: space-between;
-    }
-
-    .final-cta h2 {
-      max-width: 15ch;
-    }
-
     @media (max-width: 1100px) {
       h1 {
-        font-size: 72px;
+        font-size: 68px;
       }
 
       .hero-copy {
         max-width: 500px;
       }
 
-      .map-node {
+      .graph-node {
         width: 168px;
-      }
-
-      .product-grid,
-      .docs-grid,
-      .service-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 820px) {
+    @media (max-width: 760px) {
       .site-header {
-        align-items: flex-start;
-        height: auto;
-        padding: 16px;
+        height: 68px;
+        padding: 0 18px;
       }
 
-      .nav {
-        justify-content: flex-end;
-        flex-wrap: wrap;
-      }
-
-      .nav a {
-        min-height: 36px;
-        padding: 0 12px;
+      .nav a:not(.primary) {
+        display: none;
       }
 
       .hero {
-        min-height: 760px;
-        padding: 38px 18px 32px;
+        min-height: calc(100vh - 68px);
+        padding: 38px 18px 78px;
       }
 
       .hero::before {
         background:
-          linear-gradient(rgba(244, 241, 235, 0.98), rgba(244, 241, 235, 0.72)),
+          linear-gradient(rgba(244, 241, 235, 0.98), rgba(244, 241, 235, 0.7)),
           linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
           linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px);
         background-size: auto, 34px 34px, 34px 34px;
@@ -636,92 +364,65 @@
 
       h1 {
         font-size: 48px;
-        max-width: 10ch;
+        max-width: 9ch;
       }
 
       .lead {
         font-size: 19px;
       }
 
-      .hero-map {
-        height: auto;
-        inset: 0;
-        margin: 0;
-        overflow: hidden;
-        pointer-events: auto;
-        position: absolute;
+      .copy {
+        font-size: 14px;
+        max-width: 30ch;
       }
 
-      .map-stage {
-        height: 680px;
-        left: -90px;
-        min-height: 680px;
-        min-width: 820px;
-        position: absolute;
-        top: 48px;
-        width: 820px;
+      .button {
+        height: 42px;
+        padding: 0 15px;
       }
 
-      .map-toolbar {
-        bottom: 24px;
-        left: 108px;
-        right: auto;
-        top: auto;
+      .status {
+        bottom: 22px;
+        left: 18px;
+        max-width: calc(100vw - 36px);
       }
 
-      .map-inspector {
-        display: none;
+      .graph-stage {
+        height: 640px;
+        left: -126px;
+        min-height: 640px;
+        top: 44px;
+        width: 780px;
       }
 
-      .map-node {
-        min-height: 92px;
+      .graph-node {
+        min-height: 88px;
         padding: 10px;
-        width: 150px;
+        width: 144px;
       }
 
       .node-name {
         font-size: 12px;
       }
 
-      .node-desc {
-        font-size: 11px;
+      .node-kind {
+        font-size: 8px;
+        padding: 2px 5px;
+      }
+
+      .node-copy {
+        font-size: 10px;
+        margin-top: 7px;
+      }
+
+      .node-fields {
+        gap: 4px;
+        margin-top: 8px;
       }
 
       .node-fields span {
         font-size: 8px;
-        padding: 2px 6px;
-      }
-
-      .section-head,
-      .product-grid,
-      .docs-grid,
-      .doc-list,
-      .service-grid,
-      .final-cta {
-        grid-template-columns: 1fr;
-      }
-
-      .final-cta {
-        align-items: flex-start;
-        display: grid;
-      }
-
-      .band {
-        padding: 54px 18px;
-      }
-
-      h2 {
-        font-size: 38px;
-      }
-    }
-
-    @media (max-width: 520px) {
-      .nav a:not(.primary) {
-        display: none;
-      }
-
-      .map-inspector {
-        width: calc(100vw - 36px);
+        padding: 2px 5px;
       }
     }
   </style>
@@ -731,320 +432,104 @@
     <header class="site-header">
       <a class="brand" href="./">Atoll</a>
       <nav class="nav" aria-label="Primary navigation">
-        <a href="#product">Product</a>
-        <a href="#docs">Docs</a>
         <a href="app/">Sign In</a>
         <a class="primary" href="app/">Open Studio</a>
       </nav>
     </header>
 
-    <main>
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow">Atoll control plane</p>
-          <h1 id="hero-title">Build the database as a graph.</h1>
-          <p class="lead">Schema, access, agents, deploys, rows, and audits stay in one visible backend model.</p>
-          <p class="copy">Atoll is a hosted database control surface for teams building with AI and private data. Draw the backend once, inspect every boundary, then ship the Baseplane artifacts that make it real.</p>
-          <div class="actions">
-            <a class="button primary" href="app/">Open Studio</a>
-            <a class="button" href="#product">See the model</a>
-            <a class="button" href="#docs">View docs surface</a>
-          </div>
-          <div class="status-row">
-            <span class="status-dot" aria-hidden="true"></span>
-            <span id="control-status">Studio connects through the hosted Atoll Control API fallback.</span>
-          </div>
-        </div>
-
-        <div class="hero-map" aria-label="Interactive Atoll database graph">
-          <div class="map-stage" id="map-stage">
-            <div class="map-toolbar" aria-label="Graph mode">
-              <button class="mode-button is-active" type="button" data-mode="store" aria-pressed="true">Store</button>
-              <button class="mode-button" type="button" data-mode="access" aria-pressed="false">Access</button>
-              <button class="mode-button" type="button" data-mode="deploy" aria-pressed="false">Deploy</button>
-            </div>
-            <svg class="graph-edges" id="graph-edges" aria-hidden="true"></svg>
-            <div id="graph-nodes"></div>
-            <aside class="map-inspector" id="map-inspector" aria-live="polite"></aside>
-          </div>
+    <main class="hero" aria-labelledby="hero-title">
+      <section class="hero-copy">
+        <p class="eyebrow">Atoll</p>
+        <h1 id="hero-title">Your database, mapped.</h1>
+        <p class="lead">A live graph for schema, access, rows, and agents.</p>
+        <p class="copy">Design the backend in one place. See what exists, who can touch it, and what ships.</p>
+        <div class="actions">
+          <a class="button primary" href="app/">Open Studio</a>
+          <a class="button" href="mailto:howeej2255@gmail.com?subject=Atoll%20managed%20alpha%20request">Request access</a>
         </div>
       </section>
 
-      <section class="band" id="product">
-        <div class="band-inner">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Product surface</p>
-              <h2>The graph is the backend contract.</h2>
-            </div>
-            <p class="copy">The UI is not a diagram pasted over a database. It is the control layer: every table, actor, policy, route, secret reference, deploy request, and audit event has a place in the graph.</p>
-          </div>
-          <div class="product-grid">
-            <article class="surface-card">
-              <strong>Store</strong>
-              <p>Model accounts, projects, graph versions, customer rows, backend instances, and field boundaries in the same place.</p>
-            </article>
-            <article class="surface-card">
-              <strong>Hold</strong>
-              <p>Keep secrets referenced, deploys reviewable, routes explicit, and generated artifacts tied back to the source graph.</p>
-            </article>
-            <article class="surface-card">
-              <strong>Access</strong>
-              <p>Human users, support, analysis agents, coding agents, and devices get scoped permissions instead of broad database access.</p>
-            </article>
-          </div>
+      <div class="graph" aria-label="Live Atoll database graph">
+        <div class="graph-stage" id="graph-stage">
+          <svg class="graph-lines" id="graph-lines" aria-hidden="true"></svg>
+          <div id="graph-nodes"></div>
         </div>
-      </section>
+      </div>
 
-      <section class="band" id="docs">
-        <div class="band-inner">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Documentation surface</p>
-              <h2>Docs come from the model.</h2>
-            </div>
-            <p class="copy">Atoll needs documentation that matches the running backend. The Studio exports the Baseplane graph and the generated files a developer, agent, or reviewer needs to understand what will ship.</p>
-          </div>
-          <div class="doc-list" aria-label="Generated Atoll documentation artifacts">
-            <div class="doc-row"><strong>baseplane.json</strong><span>source graph</span></div>
-            <div class="doc-row"><strong>schema.sql</strong><span>tables and fields</span></div>
-            <div class="doc-row"><strong>rls_policies.sql</strong><span>database access rules</span></div>
-            <div class="doc-row"><strong>route_contracts.md</strong><span>API behavior</span></div>
-            <div class="doc-row"><strong>agent_gateway_policy.json</strong><span>agent permissions</span></div>
-            <div class="doc-row"><strong>deploy_plan.md</strong><span>reviewable apply plan</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="band">
-        <div class="band-inner">
-          <div class="section-head">
-            <div>
-              <p class="section-kicker">Service boundary</p>
-              <h2>Alpha, but real paths.</h2>
-            </div>
-            <p class="copy">The public Studio, hosted control API fallback, project creation, graph version saving, deploy requests, protected row reads, and audit events are wired. The page should say exactly that, and no more.</p>
-          </div>
-          <div class="service-grid">
-            <article class="service-item">
-              <span>Studio</span>
-              <strong>Public graph editor</strong>
-              <p>Build, drag, reset, export, simulate access, and request deployment from the browser.</p>
-            </article>
-            <article class="service-item">
-              <span>Control API</span>
-              <strong>Hosted fallback online</strong>
-              <p>Studio can use the hosted Atoll Control API when the custom API hostname is not reachable.</p>
-            </article>
-            <article class="service-item">
-              <span>Rows</span>
-              <strong>Actor-scoped reads</strong>
-              <p>Owner reads can show real values while coding-agent reads can return protected synthetic values.</p>
-            </article>
-            <article class="service-item">
-              <span>Audit</span>
-              <strong>Behavior is recorded</strong>
-              <p>Access, deploy, and query events are tracked by the control surface.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="band">
-        <div class="band-inner final-cta">
-          <div>
-            <p class="section-kicker">Atoll Studio</p>
-            <h2>Open the graph and make the backend concrete.</h2>
-          </div>
-          <div class="actions">
-            <a class="button primary" href="app/">Open Studio</a>
-            <a class="button" href="mailto:howeej2255@gmail.com?subject=Atoll%20managed%20alpha%20request">Request access</a>
-          </div>
-        </div>
-      </section>
+      <div class="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>Atoll Studio is live.</span>
+      </div>
     </main>
   </div>
 
   <script>
-    const modes = {
-      store: {
-        label: "Store",
-        selected: "projects",
-        description: "The store view shows how customer workspace, graph source, rows, and backend instances hang together."
-      },
-      access: {
-        label: "Access",
-        selected: "agent_policy",
-        description: "The access view shows humans, devices, and agents as scoped principals instead of root database users."
-      },
-      deploy: {
-        label: "Deploy",
-        selected: "deploy_requests",
-        description: "The deploy view shows how the graph becomes reviewable artifacts, a backend instance, and audit events."
-      }
-    };
-
     const graphNodes = [
       {
-        id: "accounts",
-        name: "accounts",
-        type: "control",
-        label: "control",
-        x: 58,
-        y: 23,
-        fields: ["id", "name", "plan"],
-        modes: ["store"],
-        description: "Customer workspace and billing boundary.",
-        detail: "Atoll starts with an account boundary so projects, graph versions, deploys, and audit events stay scoped."
+        id: "app",
+        name: "app",
+        kind: "edge",
+        type: "app",
+        x: 55,
+        y: 30,
+        fields: ["routes", "api"],
+        copy: "The entry point."
       },
       {
-        id: "users",
-        name: "users",
-        type: "identity",
-        label: "identity",
+        id: "auth",
+        name: "auth",
+        kind: "actor",
+        type: "auth",
         x: 70,
-        y: 19,
-        fields: ["id", "email", "role"],
-        modes: ["access"],
-        description: "Signed-in humans.",
-        detail: "Human users are principals. Their access is evaluated through the graph, not hidden in application glue."
+        y: 22,
+        fields: ["users", "sessions"],
+        copy: "Humans and agents."
       },
       {
-        id: "sessions",
-        name: "sessions",
-        type: "identity",
-        label: "identity",
-        x: 84,
-        y: 27,
-        fields: ["user_id", "expires"],
-        modes: ["access"],
-        description: "Active login state.",
-        detail: "Sessions connect a signed-in actor to the project and policy context used by the control API."
+        id: "rows",
+        name: "rows",
+        kind: "data",
+        type: "rows",
+        x: 75,
+        y: 48,
+        fields: ["tables", "fields"],
+        copy: "The protected data."
       },
       {
-        id: "projects",
-        name: "projects",
-        type: "control",
-        label: "boundary",
-        x: 66,
-        y: 43,
-        fields: ["account_id", "graph_id"],
-        modes: ["store", "deploy"],
-        description: "Backend boundary.",
-        detail: "A project is the live boundary for graph versions, deploy requests, backend instances, rows, and audit history."
-      },
-      {
-        id: "graph_versions",
-        name: "graph_versions",
-        type: "data",
-        label: "source",
-        x: 58,
+        id: "policy",
+        name: "policy",
+        kind: "rule",
+        type: "policy",
+        x: 62,
         y: 62,
-        fields: ["baseplane.json", "version"],
-        modes: ["store", "deploy"],
-        description: "Versioned backend source.",
-        detail: "Every generated artifact should be traceable to a saved graph version."
+        fields: ["read", "write"],
+        copy: "Access decisions."
       },
       {
-        id: "customer_rows",
-        name: "customer_rows",
-        type: "data",
-        label: "data",
-        x: 77,
-        y: 50,
-        fields: ["table", "row_id", "payload"],
-        modes: ["store", "access"],
-        description: "Rows behind the model.",
-        detail: "Rows are read through actor-aware paths, so a principal can see real, redacted, synthetic, or no values."
-      },
-      {
-        id: "agent_policy",
-        name: "agent_policy",
-        type: "access",
-        label: "policy",
-        x: 91,
-        y: 43,
-        fields: ["actor", "field", "decision"],
-        modes: ["access"],
-        description: "Field-scoped decisions.",
-        detail: "Agent access is explicit. A coding agent can inspect schema while protected production values stay out of reach."
-      },
-      {
-        id: "device_tokens",
-        name: "device_tokens",
-        type: "access",
-        label: "secret",
-        x: 58,
-        y: 79,
-        fields: ["token_hash", "revoked_at"],
-        modes: ["access", "deploy"],
-        description: "Secret references.",
-        detail: "Secrets belong in server-side references and generated policy docs, not pasted into a browser config."
-      },
-      {
-        id: "deploy_requests",
-        name: "deploy_requests",
-        type: "runtime",
-        label: "deploy",
-        x: 68,
-        y: 74,
-        fields: ["status", "diff"],
-        modes: ["deploy"],
-        description: "Reviewable apply plan.",
-        detail: "Deploy requests turn graph versions into explicit review records before backend state changes."
-      },
-      {
-        id: "backend_instances",
-        name: "backend_instances",
-        type: "runtime",
-        label: "runtime",
-        x: 80,
-        y: 76,
-        fields: ["api_url", "storage"],
-        modes: ["store", "deploy"],
-        description: "Customer data plane.",
-        detail: "The backend instance records the API and storage target that the Studio uses after deploy."
-      },
-      {
-        id: "audit_events",
-        name: "audit_events",
+        id: "audit",
+        name: "audit",
+        kind: "log",
         type: "audit",
-        label: "audit",
-        x: 91,
-        y: 72,
+        x: 84,
+        y: 70,
         fields: ["actor", "action"],
-        modes: ["access", "deploy"],
-        description: "Who touched what.",
-        detail: "Queries, deploys, row reads, and access decisions are observable events in the control surface."
+        copy: "Every touch recorded."
       }
     ];
 
     const graphEdges = [
-      ["accounts", "projects", ["store"]],
-      ["users", "sessions", ["access"]],
-      ["sessions", "projects", ["access"]],
-      ["projects", "graph_versions", ["store", "deploy"]],
-      ["projects", "customer_rows", ["store"]],
-      ["graph_versions", "deploy_requests", ["deploy"]],
-      ["deploy_requests", "backend_instances", ["deploy"]],
-      ["backend_instances", "customer_rows", ["store", "access"]],
-      ["users", "agent_policy", ["access"]],
-      ["agent_policy", "customer_rows", ["access"]],
-      ["device_tokens", "backend_instances", ["access", "deploy"]],
-      ["customer_rows", "audit_events", ["access"]],
-      ["deploy_requests", "audit_events", ["deploy"]],
-      ["backend_instances", "audit_events", ["deploy"]]
+      ["app", "auth"],
+      ["auth", "rows"],
+      ["rows", "policy"],
+      ["policy", "audit"],
+      ["app", "rows"],
+      ["auth", "policy"]
     ];
 
-    let activeMode = "store";
-    let selectedNodeId = modes.store.selected;
-    let userPinned = false;
-
-    const stage = document.getElementById("map-stage");
+    let activeIndex = 0;
+    const stage = document.getElementById("graph-stage");
     const nodesLayer = document.getElementById("graph-nodes");
-    const edgesSvg = document.getElementById("graph-edges");
-    const inspector = document.getElementById("map-inspector");
-    const modeButtons = [...document.querySelectorAll(".mode-button")];
+    const lines = document.getElementById("graph-lines");
 
     function escapeHtml(value) {
       return String(value)
@@ -1055,114 +540,73 @@
         .replaceAll("'", "&#039;");
     }
 
-    function nodeById(id) {
+    function getNode(id) {
       return graphNodes.find((node) => node.id === id);
     }
 
-    function isModeNode(node) {
-      return node.modes.includes(activeMode);
+    function activePair() {
+      return graphEdges[activeIndex % graphEdges.length];
     }
 
     function renderNodes() {
+      const [from, to] = activePair();
       nodesLayer.innerHTML = graphNodes.map((node) => {
-        const muted = isModeNode(node) ? "" : " is-muted";
-        const selected = node.id === selectedNodeId ? " is-selected" : "";
+        const active = node.id === from || node.id === to;
         return `
-          <button class="map-node ${node.type}${muted}${selected}" type="button"
+          <button class="graph-node ${node.type} ${active ? "active" : "dim"}" type="button"
             data-node="${escapeHtml(node.id)}"
             style="left:${node.x}%;top:${node.y}%">
-            <span class="node-head">
+            <span class="node-top">
               <span class="node-name">${escapeHtml(node.name)}</span>
-              <span class="node-type">${escapeHtml(node.label)}</span>
+              <span class="node-kind">${escapeHtml(node.kind)}</span>
             </span>
-            <span class="node-desc">${escapeHtml(node.description)}</span>
+            <span class="node-copy">${escapeHtml(node.copy)}</span>
             <span class="node-fields">${node.fields.map((field) => `<span>${escapeHtml(field)}</span>`).join("")}</span>
           </button>
         `;
       }).join("");
 
-      nodesLayer.querySelectorAll(".map-node").forEach((button) => {
+      nodesLayer.querySelectorAll(".graph-node").forEach((button) => {
         button.addEventListener("click", () => {
-          userPinned = true;
-          selectedNodeId = button.dataset.node;
-          render();
-        });
-        button.addEventListener("mouseenter", () => {
-          if (!userPinned) {
-            selectedNodeId = button.dataset.node;
+          const index = graphEdges.findIndex((edge) => edge.includes(button.dataset.node));
+          if (index >= 0) {
+            activeIndex = index;
             render();
           }
         });
       });
     }
 
-    function drawEdges() {
+    function drawLines() {
       const width = stage.clientWidth;
       const height = stage.clientHeight;
-      edgesSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      edgesSvg.innerHTML = graphEdges.map(([fromId, toId, edgeModes]) => {
-        const from = nodeById(fromId);
-        const to = nodeById(toId);
+      const [activeFrom, activeTo] = activePair();
+      lines.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      lines.innerHTML = graphEdges.map(([fromId, toId]) => {
+        const from = getNode(fromId);
+        const to = getNode(toId);
         const x1 = width * from.x / 100;
         const y1 = height * from.y / 100;
         const x2 = width * to.x / 100;
         const y2 = height * to.y / 100;
-        const bend = Math.max(80, Math.abs(x2 - x1) * 0.34);
-        const c1x = x1 + bend;
-        const c2x = x2 - bend;
-        const active = edgeModes.includes(activeMode) ? "is-active" : "";
-        return `<path class="${active}" d="M${x1} ${y1} C${c1x} ${y1}, ${c2x} ${y2}, ${x2} ${y2}"></path>`;
+        const lift = Math.max(64, Math.abs(x2 - x1) * 0.42);
+        const isActive = fromId === activeFrom && toId === activeTo;
+        return `<path class="${isActive ? "active" : ""}" d="M${x1} ${y1} C${x1 + lift} ${y1}, ${x2 - lift} ${y2}, ${x2} ${y2}"></path>`;
       }).join("");
-    }
-
-    function renderInspector() {
-      const selected = nodeById(selectedNodeId) || nodeById(modes[activeMode].selected);
-      const mode = modes[activeMode];
-      const activeNodes = graphNodes.filter(isModeNode).length;
-      const activeEdges = graphEdges.filter((edge) => edge[2].includes(activeMode)).length;
-      inspector.innerHTML = `
-        <p class="inspector-label">${escapeHtml(mode.label)} view</p>
-        <h2 class="inspector-title">${escapeHtml(selected.name)}</h2>
-        <p class="inspector-copy">${escapeHtml(selected.detail)}</p>
-        <div class="inspector-meta">
-          <div class="meta-row"><span>Mode</span><strong>${escapeHtml(mode.description)}</strong></div>
-          <div class="meta-row"><span>Visible nodes</span><strong>${activeNodes} highlighted</strong></div>
-          <div class="meta-row"><span>Relationships</span><strong>${activeEdges} active edges</strong></div>
-        </div>
-      `;
-    }
-
-    function setMode(mode, pinned) {
-      activeMode = mode;
-      selectedNodeId = modes[mode].selected;
-      if (pinned) userPinned = true;
-      modeButtons.forEach((button) => {
-        const isActive = button.dataset.mode === mode;
-        button.classList.toggle("is-active", isActive);
-        button.setAttribute("aria-pressed", String(isActive));
-      });
-      render();
     }
 
     function render() {
       renderNodes();
-      drawEdges();
-      renderInspector();
+      drawLines();
     }
 
-    modeButtons.forEach((button) => {
-      button.addEventListener("click", () => setMode(button.dataset.mode, true));
-    });
-
-    window.addEventListener("resize", drawEdges);
+    window.addEventListener("resize", drawLines);
     render();
 
     window.setInterval(() => {
-      if (userPinned) return;
-      const keys = Object.keys(modes);
-      const next = keys[(keys.indexOf(activeMode) + 1) % keys.length];
-      setMode(next, false);
-    }, 5200);
+      activeIndex = (activeIndex + 1) % graphEdges.length;
+      render();
+    }, 2400);
   </script>
 </body>
 </html>
