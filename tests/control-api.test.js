@@ -18,6 +18,7 @@ withClearedDatabaseEnv(() => {
 
 const server = createControlApiServer({
   dataFile,
+  databaseUrl: "",
   nodeEnv: "production",
   corsOrigin: "https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io",
   version: "test-version"

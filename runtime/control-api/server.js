@@ -288,10 +288,13 @@ function controlConfig(options = {}) {
   const nodeEnv = options.nodeEnv || process.env.NODE_ENV || "development";
   const corsOrigin = options.corsOrigin || process.env.CORS_ORIGIN || (nodeEnv === "production" ? DEFAULT_PRODUCTION_ORIGINS.join(",") : "*");
   const explicitDataFile = options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || "";
+  const databaseUrl = Object.hasOwn(options, "databaseUrl")
+    ? options.databaseUrl
+    : process.env.CONTROL_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
   return {
     port,
     publicApiUrl,
-    databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL || "",
+    databaseUrl,
     dataFile: explicitDataFile || path.join(os.homedir(), ".atoll", "control-api.json"),
     explicitDataFile,
     sessionSecret: options.sessionSecret || process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,
