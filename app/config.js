@@ -4,6 +4,7 @@
 
   window.ATOLL_CONFIG = {
     apiUrl: isLocal ? "" : "https://api.atolldb.com",
+    fallbackApiUrls: isLocal ? [] : ["https://atoll-control-api.vercel.app"],
     mode: isLocal ? "local" : "hosted"
   };
 })();

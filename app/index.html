@@ -1146,7 +1146,12 @@ let rowsActor = "owner";
 const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
 const urlControlApiUrl = new URLSearchParams(window.location.search).get("api");
 const runtimeControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || "";
+const runtimeFallbackApiUrls = [
+  ...(window.ATOLL_CONFIG?.fallbackApiUrls || []),
+  ...(window.BASEPLANE_CONFIG?.fallbackApiUrls || [])
+];
 const configuredControlApiUrl = urlControlApiUrl || runtimeControlApiUrl;
+const configuredControlApiUrls = [...new Set([configuredControlApiUrl, ...runtimeFallbackApiUrls].filter(Boolean))];
 const configuredControlMode = window.ATOLL_CONFIG?.mode || (runtimeControlApiUrl ? "hosted" : "local");
 let controlApiUrl = "http://127.0.0.1:8790";
 if (savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789") controlApiUrl = savedControlApiUrl;
@@ -1478,18 +1483,26 @@ async function controlFetch(route, options = {}) {
 }
 
 async function checkControlApi() {
-  try {
-    const health = await fetch(`${controlApiUrl}/health`);
-    const json = await health.json();
-    controlApiOnline = Boolean(health.ok && json.ok);
-    const mode = json.storage || json.mode || configuredControlMode;
-    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl} (${mode})` : "Atoll Control API unavailable";
-  } catch {
-    controlApiOnline = false;
-    controlApiMessage = configuredControlApiUrl
-      ? `Offline at ${controlApiUrl}. Hosted API is not reachable yet.`
-      : "Offline. Run npm run control-api.";
+  const candidates = configuredControlApiUrls.length ? configuredControlApiUrls : [controlApiUrl];
+  for (const candidate of candidates) {
+    try {
+      const health = await fetch(`${candidate}/health`);
+      const json = await health.json();
+      if (health.ok && json.ok) {
+        controlApiUrl = candidate;
+        controlApiOnline = true;
+        const mode = json.storage || json.mode || configuredControlMode;
+        controlApiMessage = `Online at ${controlApiUrl} (${mode})`;
+        updateControlUi();
+        return;
+      }
+    } catch {}
   }
+
+  controlApiOnline = false;
+  controlApiMessage = configuredControlApiUrl
+    ? `Offline at ${controlApiUrl}. Hosted API is not reachable yet.`
+    : "Offline. Run npm run control-api.";
   updateControlUi();
 }
 
