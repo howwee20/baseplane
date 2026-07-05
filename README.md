@@ -40,6 +40,8 @@ Public domain and hosted API setup is documented in `docs/public-launch.md`.
 
 The managed database direction is documented in `docs/managed-v0-roadmap.md`.
 
+The v0.2 data-access thesis is documented in `docs/data-access-system-v0.2.md`.
+
 ## Run Locally
 
 ```bash

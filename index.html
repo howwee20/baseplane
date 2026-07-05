@@ -6,18 +6,23 @@
   <title>Atoll</title>
   <style>
     :root {
-      --bg: #f4f1eb;
+      --bg: #f6f3ed;
       --panel: #fffdf8;
+      --panel-soft: rgba(255, 253, 248, 0.72);
       --ink: #0e1a14;
-      --muted: #5f6d66;
-      --line: rgba(14, 26, 20, 0.14);
-      --line-strong: rgba(14, 26, 20, 0.28);
+      --muted: #66746d;
+      --muted-strong: #394941;
+      --line: rgba(14, 26, 20, 0.12);
+      --line-strong: rgba(14, 26, 20, 0.24);
       --orange: #f26a1b;
+      --orange-soft: rgba(242, 106, 27, 0.12);
+      --red: #bd4f3e;
+      --red-soft: rgba(189, 79, 62, 0.11);
       --blue: #2f69d9;
-      --teal: #168983;
       --purple: #7453d8;
-      --amber: #bd7b29;
-      --red: #c74f3d;
+      --teal: #168983;
+      --amber: #b97923;
+      --shadow: 0 26px 80px rgba(17, 30, 23, 0.13);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -29,10 +34,10 @@
     body {
       margin: 0;
       background:
-        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(rgba(14, 26, 20, 0.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.022) 1px, transparent 1px),
         var(--bg);
-      background-size: 34px 34px;
+      background-size: 40px 40px;
       color: var(--ink);
       font-family: var(--sans);
     }
@@ -48,7 +53,6 @@
 
     .page {
       min-height: 100vh;
-      overflow: hidden;
     }
 
     .site-header {
@@ -60,7 +64,8 @@
       height: 72px;
       justify-content: space-between;
       padding: 0 40px;
-      position: relative;
+      position: sticky;
+      top: 0;
       z-index: 30;
     }
 
@@ -88,6 +93,7 @@
       font-size: 13px;
       font-weight: 850;
       height: 42px;
+      justify-content: center;
       padding: 0 17px;
       text-decoration: none;
     }
@@ -99,6 +105,16 @@
       color: #fff;
     }
 
+    .nav a:hover,
+    .button:hover {
+      border-color: var(--line-strong);
+    }
+
+    .button.primary:hover {
+      border-color: var(--orange);
+      filter: saturate(1.05);
+    }
+
     .nav a:focus-visible,
     .button:focus-visible,
     .actor-button:focus-visible {
@@ -107,18 +123,19 @@
     }
 
     .hero {
-      min-height: max(calc(100vh - 72px), 820px);
-      overflow: hidden;
-      padding: 58px 40px 28px;
+      align-items: center;
+      display: grid;
+      gap: 54px;
+      grid-template-columns: minmax(360px, 0.8fr) minmax(620px, 1.2fr);
+      min-height: calc(100vh - 72px);
+      padding: 48px 40px 44px;
       position: relative;
     }
 
     .hero::before {
       background:
-        linear-gradient(90deg, rgba(244, 241, 235, 1) 0%, rgba(244, 241, 235, 0.98) 22%, rgba(244, 241, 235, 0.82) 34%, rgba(244, 241, 235, 0.28) 60%, rgba(244, 241, 235, 0.04) 100%),
-        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px);
-      background-size: auto, 34px 34px, 34px 34px;
+        radial-gradient(circle at 30% 20%, rgba(255, 253, 248, 0.9), rgba(255, 253, 248, 0) 34%),
+        linear-gradient(90deg, rgba(246, 243, 237, 1) 0%, rgba(246, 243, 237, 0.82) 38%, rgba(246, 243, 237, 0.52) 100%);
       content: "";
       inset: 0;
       pointer-events: none;
@@ -126,122 +143,123 @@
       z-index: 1;
     }
 
-    .hero-copy {
-      max-width: 500px;
+    .hero-copy,
+    .demo-card {
       position: relative;
-      z-index: 8;
+      z-index: 2;
+    }
+
+    .hero-copy {
+      max-width: 535px;
     }
 
     .eyebrow {
       color: var(--orange);
       font-family: var(--mono);
       font-size: 12px;
-      font-weight: 750;
-      margin: 0 0 20px;
+      font-weight: 800;
+      margin: 0 0 22px;
       text-transform: uppercase;
     }
 
     h1 {
       font-size: 70px;
-      font-weight: 920;
-      line-height: 0.94;
-      margin: 0 0 20px;
-      max-width: 9ch;
+      font-weight: 890;
+      line-height: 0.96;
+      margin: 0 0 22px;
+      max-width: 10ch;
     }
 
     .lead {
-      color: #26372f;
+      color: #25372f;
       font-size: 21px;
-      font-weight: 700;
-      line-height: 1.28;
+      font-weight: 760;
+      line-height: 1.34;
       margin: 0;
-      max-width: 25ch;
+      max-width: 31ch;
     }
 
     .copy {
       color: var(--muted);
-      font-size: 15px;
-      line-height: 1.62;
+      font-size: 16px;
+      line-height: 1.68;
       margin: 18px 0 0;
-      max-width: 42ch;
+      max-width: 45ch;
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
+      margin-top: 26px;
+    }
+
+    .proof-line {
+      align-items: center;
+      color: var(--muted-strong);
+      display: flex;
+      font-size: 13px;
+      font-weight: 760;
+      gap: 10px;
       margin-top: 24px;
     }
 
-    .terminal {
-      background: rgba(14, 26, 20, 0.96);
-      border: 1px solid rgba(14, 26, 20, 0.92);
-      box-shadow: 0 24px 70px rgba(17, 30, 23, 0.16);
-      color: #e9f4ef;
-      font-family: var(--mono);
-      font-size: 10.5px;
-      line-height: 1.6;
-      margin-top: 20px;
-      max-width: 500px;
+    .proof-dot {
+      background: var(--teal);
+      border-radius: 999px;
+      box-shadow: 0 0 0 7px rgba(22, 137, 131, 0.1);
+      display: inline-flex;
+      flex: 0 0 auto;
+      height: 8px;
+      width: 8px;
+    }
+
+    .demo-card {
+      background: rgba(255, 253, 248, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
       overflow: hidden;
-      padding: 15px 16px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
     }
 
-    .terminal span {
-      color: #84d8c7;
-    }
-
-    .terminal strong {
-      color: #ff9b5c;
-      font-weight: 700;
-    }
-
-    .diagram {
-      inset: 0;
-      pointer-events: none;
-      position: absolute;
-      z-index: 4;
-    }
-
-    .diagram-head {
+    .demo-header {
       align-items: center;
+      border-bottom: 1px solid var(--line);
       display: flex;
-      gap: 16px;
+      gap: 18px;
       justify-content: space-between;
-      left: max(560px, 38vw);
-      position: absolute;
-      right: 38px;
-      top: 34px;
-      z-index: 9;
+      padding: 18px 20px;
     }
 
-    .diagram-title {
+    .demo-title {
       display: grid;
       gap: 3px;
+      min-width: 0;
     }
 
-    .diagram-title strong {
-      font-size: 15px;
+    .demo-title strong {
+      font-size: 16px;
       font-weight: 900;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .diagram-title span {
+    .demo-title span {
       color: var(--muted);
       font-family: var(--mono);
       font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
     }
 
     .actor-toggle {
-      background: rgba(255, 253, 248, 0.86);
+      background: rgba(246, 243, 237, 0.72);
       border: 1px solid var(--line);
       border-radius: 999px;
       display: flex;
+      flex: 0 0 auto;
       gap: 4px;
       padding: 5px;
-      pointer-events: auto;
     }
 
     .actor-button {
@@ -249,50 +267,38 @@
       border: 0;
       border-radius: 999px;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 850;
-      height: 32px;
-      padding: 0 12px;
+      height: 34px;
+      padding: 0 13px;
     }
 
     .actor-button.active {
       background: var(--orange);
-      color: white;
+      color: #fff;
     }
 
-    .graph-panel {
-      bottom: 250px;
-      left: max(560px, 36vw);
-      overflow: visible;
-      position: absolute;
-      right: 18px;
-      top: 80px;
-      z-index: 4;
+    .demo-body {
+      display: grid;
+      gap: 18px;
+      padding: 18px;
     }
 
-    .lane-label {
-      color: rgba(14, 26, 20, 0.36);
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 700;
-      left: 0;
-      position: absolute;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .lane-rule {
-      background: rgba(14, 26, 20, 0.08);
-      height: 1px;
-      left: 128px;
-      position: absolute;
-      right: 0;
+    .graph-stage {
+      background:
+        linear-gradient(rgba(14, 26, 20, 0.026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.026) 1px, transparent 1px),
+        rgba(246, 243, 237, 0.46);
+      background-size: 32px 32px;
+      border: 1px solid rgba(14, 26, 20, 0.08);
+      min-height: 350px;
+      overflow: hidden;
+      position: relative;
     }
 
     .graph-lines {
       height: 100%;
       inset: 0;
-      overflow: visible;
       position: absolute;
       width: 100%;
       z-index: 1;
@@ -300,89 +306,85 @@
 
     .graph-lines path {
       fill: none;
-      opacity: 0.58;
-      stroke: rgba(14, 26, 20, 0.4);
-      stroke-dasharray: 7 8;
+      opacity: 0.72;
+      stroke: rgba(14, 26, 20, 0.28);
       stroke-linecap: round;
       stroke-width: 1.4;
     }
 
-    .graph-lines path.active {
-      animation: flow 1.45s linear infinite;
-      opacity: 1;
-      stroke: var(--orange);
-      stroke-width: 2.3;
+    .graph-lines path.protected {
+      stroke: rgba(242, 106, 27, 0.8);
+      stroke-dasharray: 6 7;
+      stroke-width: 2.1;
     }
 
-    @keyframes flow {
-      to {
-        stroke-dashoffset: -30;
-      }
+    .graph-lines path.denied {
+      stroke: rgba(189, 79, 62, 0.78);
+      stroke-dasharray: 4 7;
+      stroke-width: 2.1;
     }
 
     .graph-node {
-      background: rgba(255, 253, 248, 0.97);
+      background: rgba(255, 253, 248, 0.96);
       border: 1px solid var(--line);
       border-top: 4px solid var(--orange);
-      box-shadow: 0 15px 42px rgba(17, 30, 23, 0.1);
-      min-height: 62px;
-      padding: 7px;
+      box-shadow: 0 14px 35px rgba(17, 30, 23, 0.08);
+      min-height: 70px;
+      padding: 9px;
       position: absolute;
       transform: translate(-50%, -50%);
-      transition: box-shadow 160ms ease, transform 160ms ease;
-      width: 104px;
-      z-index: 3;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      width: 138px;
+      z-index: 2;
     }
 
-    .graph-node.active {
+    .graph-node.active,
+    .graph-node:hover {
       border-color: var(--line-strong);
-      box-shadow: 0 22px 58px rgba(17, 30, 23, 0.2);
-      transform: translate(-50%, -54%);
-      z-index: 6;
+      box-shadow: 0 20px 52px rgba(17, 30, 23, 0.16);
+      transform: translate(-50%, -53%);
+      z-index: 4;
     }
 
-    .graph-node.auth,
-    .graph-node.session,
-    .graph-node.owner,
-    .graph-node.agent,
-    .graph-node.support {
-      border-top-color: var(--purple);
-    }
-
-    .graph-node.data,
-    .graph-node.table,
-    .graph-node.secret,
-    .graph-node.backup {
-      border-top-color: var(--blue);
-    }
-
-    .graph-node.policy,
-    .graph-node.rls {
-      border-top-color: var(--red);
-    }
-
-    .graph-node.audit,
-    .graph-node.monitor {
-      border-top-color: var(--teal);
-    }
-
-    .graph-node.deploy,
-    .graph-node.route,
-    .graph-node.job {
+    .graph-node.api,
+    .graph-node.app {
       border-top-color: var(--amber);
     }
 
+    .graph-node.table,
+    .graph-node.rows {
+      border-top-color: var(--blue);
+    }
+
+    .graph-node.locked,
+    .graph-node.secret {
+      border-top-color: var(--red);
+    }
+
+    .graph-node.actor {
+      border-top-color: var(--purple);
+    }
+
+    .graph-node.log {
+      border-top-color: var(--teal);
+    }
+
+    .graph-node.rule {
+      border-top-color: var(--orange);
+    }
+
     .node-top {
-      align-items: center;
-      display: flex;
-      gap: 6px;
+      align-items: flex-start;
+      display: grid;
+      gap: 8px;
       justify-content: space-between;
     }
 
     .node-name {
-      font-size: 9.5px;
+      font-size: 14px;
       font-weight: 900;
       line-height: 1.08;
+      min-width: 0;
       overflow-wrap: normal;
     }
 
@@ -390,122 +392,140 @@
       border: 1px solid var(--line);
       border-radius: 999px;
       color: var(--muted);
-      flex: none;
       font-family: var(--mono);
-      font-size: 7px;
-      padding: 2px 5px;
+      font-size: 9px;
+      padding: 3px 6px;
       text-transform: uppercase;
+      width: max-content;
     }
 
     .node-copy {
       color: var(--muted);
       display: block;
-      font-size: 8px;
-      line-height: 1.3;
-      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.32;
+      margin-top: 7px;
     }
 
-    .demo-readout {
-      bottom: 22px;
-      display: grid;
-      gap: 16px;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-      left: max(560px, 42vw);
-      pointer-events: auto;
-      position: absolute;
-      right: 38px;
-      z-index: 10;
-    }
-
-    .panel-label {
-      color: var(--orange);
+    .node-status {
+      color: var(--red);
+      display: block;
       font-family: var(--mono);
       font-size: 10px;
       font-weight: 800;
-      margin-bottom: 8px;
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    .proof-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .proof-panel {
+      background: rgba(255, 253, 248, 0.78);
+      border: 1px solid var(--line);
+      padding: 12px;
+    }
+
+    .proof-panel.receipt {
+      border-color: rgba(242, 106, 27, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(242, 106, 27, 0.08);
+    }
+
+    .panel-title {
+      color: var(--orange);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 850;
+      margin: 0 0 10px;
       text-transform: uppercase;
     }
 
     .row-list,
     .audit-list {
       display: grid;
-      gap: 6px;
+      gap: 7px;
     }
 
     .row-line {
       align-items: center;
-      background: rgba(255, 253, 248, 0.72);
+      background: var(--panel-soft);
       border: 1px solid var(--line);
       display: grid;
-      gap: 10px;
-      grid-template-columns: 112px 1fr;
-      min-height: 26px;
-      padding: 5px 8px;
+      gap: 12px;
+      grid-template-columns: 118px 1fr;
+      min-height: 32px;
+      padding: 6px 9px;
     }
 
     .row-line span {
       color: var(--muted);
       font-family: var(--mono);
-      font-size: 10px;
-    }
-
-    .row-line strong {
       font-size: 12px;
+      min-width: 0;
       overflow-wrap: anywhere;
     }
 
-    .row-line.protected strong {
+    .row-line strong {
+      color: var(--ink);
+      font-size: 13px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .row-line.protected strong,
+    .row-line.secret strong {
       color: var(--red);
       font-family: var(--mono);
+      font-weight: 850;
     }
 
     .audit-line {
-      background: rgba(255, 253, 248, 0.72);
+      background: var(--panel-soft);
       border: 1px solid var(--line);
-      color: var(--muted);
+      color: var(--muted-strong);
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       line-height: 1.35;
-      min-height: 26px;
-      padding: 5px 8px;
+      min-height: 32px;
+      padding: 7px 9px;
     }
 
-    .audit-line.latest {
-      animation: audit-pop 520ms ease;
-      border-color: rgba(242, 106, 27, 0.45);
+    .audit-line.important {
+      background: var(--orange-soft);
+      border-color: rgba(242, 106, 27, 0.34);
       color: var(--ink);
+      font-weight: 850;
     }
 
-    @keyframes audit-pop {
-      0% {
-        background: rgba(242, 106, 27, 0.14);
-      }
-
-      100% {
-        background: rgba(255, 253, 248, 0.72);
-      }
+    .audit-line.denied {
+      background: var(--red-soft);
+      border-color: rgba(189, 79, 62, 0.32);
+      color: #56251d;
     }
 
-    @media (max-width: 1160px) {
+    @media (max-width: 1180px) {
+      .hero {
+        gap: 32px;
+        grid-template-columns: minmax(320px, 0.72fr) minmax(560px, 1.28fr);
+      }
+
       h1 {
-        font-size: 60px;
+        font-size: 58px;
+      }
+
+      .lead {
+        font-size: 19px;
       }
 
       .graph-node {
-        width: 98px;
-      }
-
-      .graph-panel {
-        left: 548px;
-      }
-
-      .diagram-head,
-      .demo-readout {
-        left: 548px;
+        width: 126px;
       }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 940px) {
       .site-header {
         height: 68px;
         padding: 0 18px;
@@ -516,80 +536,120 @@
       }
 
       .hero {
+        align-items: start;
+        display: grid;
+        gap: 34px;
+        grid-template-columns: 1fr;
         min-height: calc(100vh - 68px);
-        overflow: visible;
-        padding: 38px 18px 32px;
+        padding: 42px 18px 36px;
       }
 
-      .hero::before {
-        background:
-          linear-gradient(rgba(244, 241, 235, 0.98), rgba(244, 241, 235, 0.72)),
-          linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px);
-        background-size: auto, 34px 34px, 34px 34px;
+      .hero-copy {
+        max-width: 620px;
       }
 
       h1 {
         font-size: 48px;
-      }
-
-      .lead {
-        font-size: 19px;
+        max-width: 11ch;
       }
 
       .copy {
-        font-size: 14px;
-        max-width: 31ch;
+        max-width: 48ch;
       }
 
-      .terminal {
-        font-size: 10px;
+      .demo-header {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
-      .diagram {
-        height: 760px;
-        margin: 34px -18px 0;
-        overflow-x: auto;
-        overflow-y: hidden;
-        position: relative;
-      }
-
-      .diagram-head {
-        left: 18px;
-        min-width: 820px;
-        right: auto;
-        top: 0;
-        width: 820px;
-      }
-
-      .graph-panel {
-        bottom: auto;
-        height: 468px;
-        left: 96px;
-        right: auto;
-        top: 74px;
-        width: 820px;
-      }
-
-      .demo-readout {
-        bottom: auto;
-        left: 18px;
-        min-width: 820px;
-        right: auto;
-        top: 560px;
-        width: 820px;
-      }
-
-      .lane-label {
-        left: -12px;
+      .graph-stage {
+        min-height: 520px;
       }
 
       .graph-node {
-        width: 112px;
+        width: 128px;
+      }
+
+      .proof-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .brand {
+        font-size: 21px;
+      }
+
+      .nav a.primary {
+        height: 40px;
+        padding: 0 14px;
+      }
+
+      .eyebrow {
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        font-size: 42px;
+      }
+
+      .lead {
+        font-size: 18px;
+      }
+
+      .copy {
+        font-size: 15px;
+      }
+
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .demo-body {
+        padding: 14px;
+      }
+
+      .demo-title strong {
+        font-size: 14px;
+      }
+
+      .demo-title span {
+        font-size: 9px;
+        line-height: 1.5;
+      }
+
+      .actor-toggle {
+        width: 100%;
+      }
+
+      .actor-button {
+        flex: 1;
+      }
+
+      .graph-stage {
+        min-height: 620px;
+      }
+
+      .graph-node {
+        min-height: 70px;
+        width: 124px;
+      }
+
+      .node-name {
+        font-size: 13px;
+      }
+
+      .node-copy {
+        font-size: 12px;
       }
 
       .row-line {
-        grid-template-columns: 96px 1fr;
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -607,52 +667,43 @@
     <main class="hero" aria-labelledby="hero-title">
       <section class="hero-copy">
         <p class="eyebrow">Atoll</p>
-        <h1 id="hero-title">Your database, mapped.</h1>
-        <p class="lead">One graph for state, access, agents, and audit.</p>
-        <p class="copy">The important loop is simple: deploy the backend, read as owner, read as coding_agent, watch protected fields stay protected.</p>
+        <h1 id="hero-title">Agents build. Data stays sealed.</h1>
+        <p class="lead">The backend agents can build against, but not read.</p>
+        <p class="copy">One live graph for state, access, agents, and audit. Give coding agents the shape of your backend without exposing protected values.</p>
         <div class="actions">
           <a class="button primary" href="app/">Open Studio</a>
           <a class="button" href="mailto:howeej2255@gmail.com?subject=Atoll%20managed%20alpha%20request">Request access</a>
         </div>
-        <pre class="terminal"><span>$</span> curl -X POST https://api.atolldb.com/backends -d @baseplane.json
-<strong>-></strong> backend reef_x8k2 ready
-<strong>-></strong> rows locked: alpha_signal, private_notes, api_token
-<strong>-></strong> graph open in Atoll Studio</pre>
+        <p class="proof-line"><span class="proof-dot" aria-hidden="true"></span>Schema visible. Values withheld. Every decision logged.</p>
       </section>
 
-      <section class="diagram" aria-label="Live Atoll enterprise graph">
-        <div class="diagram-head">
-          <div class="diagram-title">
+      <section class="demo-card" aria-label="Atoll protected access demo">
+        <div class="demo-header">
+          <div class="demo-title">
             <strong>enterprise_portfolio_backend</strong>
-            <span>live graph / protected rows / audit trail</span>
+            <span>live graph / protected fields / audit receipts</span>
           </div>
           <div class="actor-toggle" aria-label="View rows as actor">
-            <button class="actor-button active" type="button" data-actor="owner" aria-pressed="true">owner</button>
-            <button class="actor-button" type="button" data-actor="coding_agent" aria-pressed="false">coding_agent</button>
+            <button class="actor-button" type="button" data-actor="owner" aria-pressed="false">owner</button>
+            <button class="actor-button active" type="button" data-actor="coding_agent" aria-pressed="true">coding_agent</button>
           </div>
         </div>
-        <div class="graph-panel" id="graph-panel">
-          <div class="lane-label" style="top:4%">entry</div>
-          <div class="lane-rule" style="top:8%"></div>
-          <div class="lane-label" style="top:23%">interfaces</div>
-          <div class="lane-rule" style="top:27%"></div>
-          <div class="lane-label" style="top:42%">identity and orgs</div>
-          <div class="lane-rule" style="top:46%"></div>
-          <div class="lane-label" style="top:61%">data and locks</div>
-          <div class="lane-rule" style="top:65%"></div>
-          <div class="lane-label" style="top:81%">agents and deploy</div>
-          <div class="lane-rule" style="top:85%"></div>
-          <svg class="graph-lines" id="graph-lines" aria-hidden="true"></svg>
-          <div id="graph-nodes"></div>
-        </div>
-        <div class="demo-readout">
-          <div class="read-panel">
-            <div class="panel-label" id="read-label">viewing as owner</div>
-            <div class="row-list" id="row-list"></div>
+
+        <div class="demo-body">
+          <div class="graph-stage" id="graph-stage">
+            <svg class="graph-lines" id="graph-lines" aria-hidden="true"></svg>
+            <div id="graph-nodes"></div>
           </div>
-          <div class="audit-panel">
-            <div class="panel-label">audit_events</div>
-            <div class="audit-list" id="audit-list"></div>
+
+          <div class="proof-grid">
+            <article class="proof-panel">
+              <p class="panel-title" id="access-title">Viewing as coding_agent</p>
+              <div class="row-list" id="row-list"></div>
+            </article>
+            <article class="proof-panel receipt">
+              <p class="panel-title">Audit receipt</p>
+              <div class="audit-list" id="audit-list"></div>
+            </article>
           </div>
         </div>
       </section>
@@ -661,128 +712,75 @@
 
   <script>
     const graphNodes = [
-      { id: "app", name: "capital_app", kind: "domain", type: "route", x: 20, y: 10, copy: "production entry" },
-      { id: "mobile", name: "mobile_app", kind: "app", type: "route", x: 36, y: 9, copy: "field access" },
-      { id: "studio", name: "atoll_studio", kind: "app", type: "route", x: 53, y: 9, copy: "control surface" },
-      { id: "apiGateway", name: "api_gateway", kind: "api", type: "route", x: 70, y: 10, copy: "generated routes" },
-      { id: "mcp", name: "mcp_server", kind: "tool", type: "route", x: 87, y: 11, copy: "agent tools" },
-      { id: "dashboard", name: "/dashboard", kind: "page", type: "route", x: 14, y: 26, copy: "operator view" },
-      { id: "tradeApi", name: "/api/trades", kind: "api", type: "route", x: 30, y: 26, copy: "row writes" },
-      { id: "agentApi", name: "/api/agent", kind: "api", type: "route", x: 46, y: 26, copy: "agent reads" },
-      { id: "webhook", name: "/webhook", kind: "hook", type: "route", x: 63, y: 26, copy: "event ingest" },
-      { id: "admin", name: "/admin", kind: "page", type: "route", x: 81, y: 27, copy: "human override" },
-      { id: "accounts", name: "accounts", kind: "table", type: "table", x: 10, y: 44, copy: "workspace" },
-      { id: "orgs", name: "orgs", kind: "table", type: "table", x: 25, y: 44, copy: "tenant boundary" },
-      { id: "users", name: "users", kind: "actor", type: "auth", x: 40, y: 44, copy: "human access" },
-      { id: "sessions", name: "sessions", kind: "auth", type: "session", x: 55, y: 44, copy: "login state" },
-      { id: "memberships", name: "members", kind: "table", type: "table", x: 70, y: 45, copy: "roles" },
-      { id: "apiClients", name: "api_clients", kind: "actor", type: "auth", x: 86, y: 46, copy: "service keys" },
-      { id: "portfolios", name: "portfolios", kind: "table", type: "data", x: 17, y: 62, copy: "managed books" },
-      { id: "positions", name: "positions", kind: "rows", type: "data", x: 34, y: 62, copy: "live holdings" },
-      { id: "orders", name: "orders", kind: "table", type: "data", x: 51, y: 62, copy: "trade flow" },
-      { id: "market", name: "market_feed", kind: "feed", type: "data", x: 68, y: 63, copy: "external facts" },
-      { id: "documents", name: "documents", kind: "blob", type: "data", x: 85, y: 63, copy: "contracts" },
-      { id: "alpha", name: "alpha_signal", kind: "locked", type: "secret", x: 9, y: 78, copy: "protected field" },
-      { id: "notes", name: "private_notes", kind: "locked", type: "secret", x: 25, y: 79, copy: "strategy notes" },
-      { id: "pii", name: "pii_fields", kind: "locked", type: "secret", x: 41, y: 79, copy: "identity data" },
-      { id: "keys", name: "api_keys", kind: "secret", type: "secret", x: 57, y: 79, copy: "reference only" },
-      { id: "audit", name: "audit_events", kind: "log", type: "audit", x: 73, y: 79, copy: "read receipts" },
-      { id: "policy", name: "policy_graph", kind: "rule", type: "policy", x: 89, y: 78, copy: "field locks" },
-      { id: "owner", name: "owner", kind: "actor", type: "owner", x: 12, y: 94, copy: "real values" },
-      { id: "analyst", name: "analyst", kind: "actor", type: "auth", x: 28, y: 94, copy: "scoped reads" },
-      { id: "coding_agent", name: "coding_agent", kind: "agent", type: "agent", x: 44, y: 94, copy: "redacted reads" },
-      { id: "support", name: "support", kind: "agent", type: "support", x: 60, y: 94, copy: "status only" },
-      { id: "deploy", name: "deploy_plan", kind: "plan", type: "deploy", x: 76, y: 94, copy: "review diff" },
-      { id: "docs", name: "docs_bundle", kind: "docs", type: "deploy", x: 92, y: 94, copy: "contracts" },
-      { id: "postgres", name: "postgres", kind: "db", type: "data", x: 52, y: 108, copy: "storage target" },
-      { id: "warehouse", name: "warehouse", kind: "sink", type: "data", x: 69, y: 108, copy: "analytics copy" },
-      { id: "backup", name: "backups", kind: "job", type: "backup", x: 86, y: 108, copy: "retention" }
+      { id: "app", name: "capital_app", kind: "app", type: "app", x: 14, y: 16, mx: 28, my: 10, copy: "production entry" },
+      { id: "api", name: "/api/agent", kind: "api", type: "api", x: 33, y: 16, mx: 70, my: 10, copy: "schema access" },
+      { id: "users", name: "users", kind: "actor", type: "actor", x: 53, y: 16, mx: 28, my: 24, copy: "human accounts" },
+      { id: "owner", name: "owner", kind: "actor", type: "actor", x: 74, y: 16, mx: 70, my: 24, copy: "full read scope" },
+      { id: "portfolios", name: "portfolios", kind: "table", type: "table", x: 22, y: 42, mx: 28, my: 41, copy: "workspace books" },
+      { id: "positions", name: "positions", kind: "rows", type: "rows", x: 45, y: 42, mx: 70, my: 41, copy: "row surface" },
+      { id: "agent", name: "coding_agent", kind: "actor", type: "actor", x: 69, y: 42, mx: 28, my: 58, copy: "untrusted helper" },
+      { id: "policy", name: "policy_graph", kind: "rule", type: "rule", x: 87, y: 43, mx: 70, my: 58, copy: "server decision" },
+      { id: "alpha", name: "alpha_signal", kind: "locked", type: "locked", x: 18, y: 72, mx: 28, my: 76, copy: "protected value", status: "withheld" },
+      { id: "notes", name: "private_notes", kind: "locked", type: "locked", x: 39, y: 73, mx: 70, my: 76, copy: "protected value", status: "withheld" },
+      { id: "keys", name: "api_keys", kind: "secret", type: "secret", x: 61, y: 73, mx: 28, my: 91, copy: "secret reference", status: "denied" },
+      { id: "audit", name: "audit_events", kind: "log", type: "log", x: 82, y: 72, mx: 70, my: 91, copy: "exposure record" }
     ];
 
     const graphEdges = [
-      ["app", "dashboard"],
-      ["app", "apiGateway"],
-      ["mobile", "apiGateway"],
-      ["studio", "apiGateway"],
-      ["studio", "mcp"],
-      ["apiGateway", "agentApi"],
-      ["apiGateway", "tradeApi"],
-      ["apiGateway", "webhook"],
-      ["admin", "users"],
-      ["mcp", "coding_agent"],
-      ["accounts", "orgs"],
-      ["orgs", "users"],
-      ["users", "sessions"],
-      ["users", "memberships"],
-      ["memberships", "apiClients"],
-      ["memberships", "portfolios"],
-      ["orgs", "portfolios"],
-      ["dashboard", "portfolios"],
-      ["portfolios", "positions"],
-      ["positions", "orders"],
-      ["orders", "webhook"],
-      ["orders", "market"],
-      ["documents", "portfolios"],
-      ["positions", "alpha"],
-      ["portfolios", "notes"],
-      ["users", "pii"],
-      ["apiClients", "keys"],
-      ["apiGateway", "keys"],
-      ["owner", "positions"],
-      ["analyst", "positions"],
-      ["coding_agent", "policy"],
-      ["support", "policy"],
-      ["policy", "alpha"],
-      ["policy", "notes"],
-      ["policy", "pii"],
-      ["policy", "keys"],
-      ["policy", "positions"],
-      ["positions", "audit"],
-      ["owner", "audit"],
-      ["coding_agent", "audit"],
-      ["support", "audit"],
-      ["portfolios", "deploy"],
-      ["policy", "deploy"],
-      ["deploy", "docs"],
-      ["deploy", "postgres"],
-      ["postgres", "warehouse"],
-      ["postgres", "backup"],
-      ["postgres", "audit"],
-      ["agentApi", "coding_agent"]
+      { from: "app", to: "api" },
+      { from: "api", to: "positions" },
+      { from: "users", to: "owner" },
+      { from: "owner", to: "positions" },
+      { from: "portfolios", to: "positions" },
+      { from: "positions", to: "alpha", state: "protected" },
+      { from: "positions", to: "notes", state: "protected" },
+      { from: "api", to: "agent" },
+      { from: "agent", to: "policy", state: "protected" },
+      { from: "policy", to: "alpha", state: "protected" },
+      { from: "policy", to: "notes", state: "protected" },
+      { from: "policy", to: "keys", state: "denied" },
+      { from: "policy", to: "positions" },
+      { from: "positions", to: "audit", state: "protected" },
+      { from: "agent", to: "audit", state: "protected" },
+      { from: "owner", to: "audit" }
     ];
 
-    const actorRows = {
+    const rows = {
       owner: [
-        ["portfolio_value", "$482,901,114"],
-        ["alpha_signal", "rebalance_score: 0.84"],
-        ["private_notes", "trim semiconductor exposure"],
-        ["api_token", "sk_live_...9fa2"]
+        ["portfolio_value", "$482,901,114", "clear"],
+        ["alpha_signal", "rebalance_score: 0.84", "clear"],
+        ["private_notes", "trim semiconductor exposure", "clear"],
+        ["api_token", "sk_live_...9fa2", "clear"]
       ],
       coding_agent: [
-        ["portfolio_value", "$482,901,114"],
-        ["alpha_signal", "[protected]"],
-        ["private_notes", "[protected]"],
-        ["api_token", "[protected]"]
+        ["portfolio_value", "$482,901,114", "clear"],
+        ["alpha_signal", "[protected]", "protected"],
+        ["private_notes", "[protected]", "protected"],
+        ["api_token", "[secret]", "secret"]
       ]
     };
 
-    const actorPaths = {
-      owner: [["owner", "positions"], ["positions", "audit"], ["positions", "alpha"]],
-      coding_agent: [["coding_agent", "policy"], ["policy", "alpha"], ["policy", "notes"], ["policy", "keys"], ["policy", "positions"], ["coding_agent", "audit"]]
+    const audits = {
+      owner: [
+        ["owner read positions -> allowed", "important"],
+        ["owner read alpha_signal -> real value returned", ""],
+        ["coding_agent read positions -> 3 fields protected", ""]
+      ],
+      coding_agent: [
+        ["coding_agent read positions -> 3 fields protected", "important"],
+        ["coding_agent attempted api_keys -> denied", "denied"],
+        ["owner read positions -> allowed", ""]
+      ]
     };
 
-    const stage = document.getElementById("graph-panel");
+    const stage = document.getElementById("graph-stage");
     const nodesLayer = document.getElementById("graph-nodes");
-    const lines = document.getElementById("graph-lines");
+    const linesLayer = document.getElementById("graph-lines");
     const rowList = document.getElementById("row-list");
     const auditList = document.getElementById("audit-list");
-    const readLabel = document.getElementById("read-label");
+    const accessTitle = document.getElementById("access-title");
     const actorButtons = [...document.querySelectorAll(".actor-button")];
-    let activeActor = "owner";
-    let auditEvents = [
-      "owner read positions -> allowed",
-      "deploy reef_x8k2 -> policy attached"
-    ];
+    let activeActor = "coding_agent";
 
     function escapeHtml(value) {
       return String(value)
@@ -793,71 +791,71 @@
         .replaceAll("'", "&#039;");
     }
 
+    function nodePosition(node) {
+      const compact = window.matchMedia("(max-width: 940px)").matches;
+      return {
+        x: compact ? node.mx : node.x,
+        y: compact ? node.my : node.y
+      };
+    }
+
     function getNode(id) {
       return graphNodes.find((node) => node.id === id);
     }
 
-    function activePairs() {
-      return actorPaths[activeActor];
-    }
-
     function activeNodeIds() {
-      return new Set(activePairs().flat());
-    }
-
-    function setActor(actor) {
-      activeActor = actor;
-      const event = actor === "owner"
-        ? "owner read positions -> real values"
-        : "coding_agent read positions -> 3 fields protected";
-      auditEvents = [event, ...auditEvents.filter((item) => item !== event)].slice(0, 5);
-      render();
+      return activeActor === "coding_agent"
+        ? new Set(["agent", "policy", "positions", "alpha", "notes", "keys", "audit"])
+        : new Set(["owner", "positions", "alpha", "notes", "audit"]);
     }
 
     function renderNodes() {
       const active = activeNodeIds();
-      nodesLayer.innerHTML = graphNodes.map((node) => `
-        <article class="graph-node ${node.type} ${active.has(node.id) ? "active" : ""}"
-          style="left:${node.x}%;top:${node.y}%">
-          <span class="node-top">
-            <span class="node-name">${escapeHtml(node.name)}</span>
-            <span class="node-kind">${escapeHtml(node.kind)}</span>
-          </span>
-          <span class="node-copy">${escapeHtml(node.copy)}</span>
-        </article>
-      `).join("");
+      nodesLayer.innerHTML = graphNodes.map((node) => {
+        const position = nodePosition(node);
+        return `
+          <article class="graph-node ${node.type} ${active.has(node.id) ? "active" : ""}"
+            style="left:${position.x}%;top:${position.y}%">
+            <span class="node-top">
+              <span class="node-name">${escapeHtml(node.name)}</span>
+              <span class="node-kind">${escapeHtml(node.kind)}</span>
+            </span>
+            <span class="node-copy">${escapeHtml(node.copy)}</span>
+            ${node.status ? `<span class="node-status">${escapeHtml(node.status)}</span>` : ""}
+          </article>
+        `;
+      }).join("");
     }
 
     function drawLines() {
       const width = stage.clientWidth;
       const height = stage.clientHeight;
-      const active = new Set(activePairs().map((edge) => edge.join(":")));
-      lines.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      lines.innerHTML = graphEdges.map(([fromId, toId]) => {
-        const from = getNode(fromId);
-        const to = getNode(toId);
+      linesLayer.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      linesLayer.innerHTML = graphEdges.map((edge) => {
+        const from = nodePosition(getNode(edge.from));
+        const to = nodePosition(getNode(edge.to));
         const x1 = width * from.x / 100;
         const y1 = height * from.y / 100;
         const x2 = width * to.x / 100;
         const y2 = height * to.y / 100;
-        const bend = Math.max(38, Math.abs(x2 - x1) * 0.34);
-        return `<path class="${active.has(`${fromId}:${toId}`) ? "active" : ""}" d="M${x1} ${y1} C${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}"></path>`;
+        const bend = Math.max(34, Math.abs(x2 - x1) * 0.34);
+        return `<path class="${edge.state || ""}" d="M${x1} ${y1} C${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}"></path>`;
       }).join("");
     }
 
     function renderRows() {
-      readLabel.textContent = `viewing as ${activeActor}`;
-      rowList.innerHTML = actorRows[activeActor].map(([field, value]) => `
-        <div class="row-line ${value === "[protected]" ? "protected" : ""}">
+      accessTitle.textContent = `Viewing as ${activeActor}`;
+      rowList.innerHTML = rows[activeActor].map(([field, value, state]) => `
+        <div class="row-line ${state}">
           <span>${escapeHtml(field)}</span>
           <strong>${escapeHtml(value)}</strong>
         </div>
       `).join("");
     }
 
-    function renderAudit() {
-      auditList.innerHTML = auditEvents.map((event, index) => `
-        <div class="audit-line ${index === 0 ? "latest" : ""}">${escapeHtml(event)}</div>
+    function renderAudits() {
+      auditList.innerHTML = audits[activeActor].map(([event, state]) => `
+        <div class="audit-line ${state}">${escapeHtml(event)}</div>
       `).join("");
     }
 
@@ -869,24 +867,29 @@
       });
     }
 
+    function setActor(actor) {
+      activeActor = actor;
+      render();
+    }
+
     function render() {
       renderButtons();
       renderNodes();
       drawLines();
       renderRows();
-      renderAudit();
+      renderAudits();
     }
 
     actorButtons.forEach((button) => {
       button.addEventListener("click", () => setActor(button.dataset.actor));
     });
 
-    window.addEventListener("resize", drawLines);
-    render();
+    window.addEventListener("resize", () => {
+      renderNodes();
+      drawLines();
+    });
 
-    window.setInterval(() => {
-      setActor(activeActor === "owner" ? "coding_agent" : "owner");
-    }, 3600);
+    render();
   </script>
 </body>
 </html>
