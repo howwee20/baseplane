@@ -1,5 +1,7 @@
 node_modules/
 generated/
+public/
+.vercel/
 .DS_Store
 .env
 .env.*

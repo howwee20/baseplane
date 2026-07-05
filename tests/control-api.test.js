@@ -8,6 +8,12 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "atoll-control-api-"));
 const dataFile = path.join(tmpDir, "data.json");
 const graph = JSON.parse(fs.readFileSync(path.resolve("examples/generic-telemetry/baseplane.json"), "utf8"));
 const schemaSql = fs.readFileSync(path.resolve("runtime/control-api/schema.sql"), "utf8");
+
+assert.throws(
+  () => createControlApiServer({ nodeEnv: "production" }),
+  /CONTROL_DATABASE_URL is required in production/
+);
+
 const server = createControlApiServer({
   dataFile,
   nodeEnv: "production",

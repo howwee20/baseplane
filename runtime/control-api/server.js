@@ -16,11 +16,11 @@ const DEFAULT_PRODUCTION_ORIGINS = [
   "https://howwee20.github.io"
 ];
 
-export function createControlApiServer(options = {}) {
+export function createControlApiHandler(options = {}) {
   const config = controlConfig(options);
   const store = options.store || createControlStore(config);
 
-  return http.createServer(async (request, response) => {
+  return async function atollControlApiHandler(request, response) {
     const cors = setCors(request, response, config);
     if (!cors.allowed) return sendJson(response, 403, { error: "cors_origin_denied", origin: cors.origin });
     if (request.method === "OPTIONS") return sendJson(response, 204, {});
@@ -275,7 +275,11 @@ export function createControlApiServer(options = {}) {
       const status = error.status || 500;
       return sendJson(response, status, { error: error.code || "server_error", message: error.message });
     }
-  });
+  };
+}
+
+export function createControlApiServer(options = {}) {
+  return http.createServer(createControlApiHandler(options));
 }
 
 function controlConfig(options = {}) {
@@ -283,15 +287,17 @@ function controlConfig(options = {}) {
   const publicApiUrl = options.publicApiUrl || process.env.ATOLL_PUBLIC_API_URL || process.env.ATOLL_API_URL || process.env.BASEPLANE_PUBLIC_API_URL || `http://127.0.0.1:${port}`;
   const nodeEnv = options.nodeEnv || process.env.NODE_ENV || "development";
   const corsOrigin = options.corsOrigin || process.env.CORS_ORIGIN || (nodeEnv === "production" ? DEFAULT_PRODUCTION_ORIGINS.join(",") : "*");
+  const explicitDataFile = options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || "";
   return {
     port,
     publicApiUrl,
     databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || "",
-    dataFile: options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || path.join(os.homedir(), ".atoll", "control-api.json"),
+    dataFile: explicitDataFile || path.join(os.homedir(), ".atoll", "control-api.json"),
+    explicitDataFile,
     sessionSecret: options.sessionSecret || process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,
     corsOrigins: normalizeCorsOrigins(corsOrigin),
     nodeEnv,
-    version: options.version || process.env.ATOLL_VERSION || process.env.GITHUB_SHA || process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "local",
+    version: options.version || process.env.ATOLL_VERSION || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RENDER_GIT_COMMIT || "local",
     postgresSsl: options.postgresSsl ?? postgresSslFromEnv()
   };
 }
@@ -303,6 +309,9 @@ function createControlStore(config) {
       ssl: config.postgresSsl,
       id
     });
+  }
+  if (config.nodeEnv === "production" && !config.explicitDataFile) {
+    throw new Error("CONTROL_DATABASE_URL is required in production");
   }
   return createFileControlStore({
     dataFile: config.dataFile,

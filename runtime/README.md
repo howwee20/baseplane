@@ -70,6 +70,8 @@ CONTROL_DATABASE_SSL
 ATOLL_VERSION
 ```
 
+Production requires `CONTROL_DATABASE_URL`. The file-backed store is only for local development and explicit test runs.
+
 What it supports now:
 
 - alpha sign-in sessions

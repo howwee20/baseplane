@@ -81,7 +81,7 @@ Do not put `/baseplane` in DNS values. DNS points to the GitHub Pages host, and 
 
 ## 3. Hosted Control API
 
-Host the API on Railway, Render, Fly, or another Node host with a managed Postgres database.
+Host the API on Railway, Render, Fly, Vercel, or another Node host with a managed Postgres database.
 
 Start command:
 
@@ -119,6 +119,38 @@ backend_instances
 field_access_levels
 rows
 audit_events
+```
+
+Production intentionally refuses to start in implicit file-backed mode. If `NODE_ENV=production` is set, `CONTROL_DATABASE_URL` must point at a real Postgres database.
+
+### Vercel API Project
+
+The repo includes:
+
+```txt
+api/index.js
+vercel.json
+```
+
+`vercel.json` rewrites every API-domain request into the Control API function, so these routes work from the same Vercel deployment:
+
+```txt
+/health
+/version
+/api/auth/sign-in
+/api/projects
+/api/projects/:id/...
+```
+
+Set these Vercel production env vars before deploying:
+
+```txt
+NODE_ENV=production
+ATOLL_PUBLIC_API_URL=https://api.atolldb.com
+CONTROL_DATABASE_URL=postgres://...
+CONTROL_DATABASE_SSL=true
+SESSION_SECRET=<long random value>
+CORS_ORIGIN=https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io
 ```
 
 ## 4. API Custom Domain
