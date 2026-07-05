@@ -1,3 +1,4 @@
 window.ATOLL_CONFIG = {
-  apiUrl: "https://api.atoll.example"
+  apiUrl: "https://api.atolldb.com",
+  mode: "hosted"
 };

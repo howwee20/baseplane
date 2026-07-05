@@ -63,9 +63,11 @@ Hosted environment variables:
 ```txt
 CONTROL_DATABASE_URL
 ATOLL_PUBLIC_API_URL
+NODE_ENV
 SESSION_SECRET
 CORS_ORIGIN
 CONTROL_DATABASE_SSL
+ATOLL_VERSION
 ```
 
 What it supports now:
@@ -81,7 +83,7 @@ What it supports now:
 - server-side redaction
 - audit events
 
-The Studio can still run without this API. When the API is available, Deploy creates a real local backend instance and Rows switch from browser preview rows to API rows.
+The Studio can still run without this API. When the API is available, Deploy creates a real backend instance and Rows switch from browser preview rows to API rows.
 
 ## Studio API Target
 
@@ -94,14 +96,15 @@ http://127.0.0.1:8790
 For hosted alpha testing, point the public Studio at a hosted Control API with:
 
 ```txt
-https://howwee20.github.io/baseplane/app/?api=https://your-control-api.example
+https://atolldb.com/app/?api=https://your-control-api.example
 ```
 
 or provide:
 
 ```js
 window.ATOLL_CONFIG = {
-  apiUrl: "https://your-control-api.example"
+  apiUrl: "https://api.atolldb.com",
+  mode: "hosted"
 };
 ```
 

@@ -8,7 +8,12 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "atoll-control-api-"));
 const dataFile = path.join(tmpDir, "data.json");
 const graph = JSON.parse(fs.readFileSync(path.resolve("examples/generic-telemetry/baseplane.json"), "utf8"));
 const schemaSql = fs.readFileSync(path.resolve("runtime/control-api/schema.sql"), "utf8");
-const server = createControlApiServer({ dataFile });
+const server = createControlApiServer({
+  dataFile,
+  nodeEnv: "production",
+  corsOrigin: "https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io",
+  version: "test-version"
+});
 
 for (const tableName of [
   "accounts",
@@ -33,6 +38,21 @@ const baseUrl = `http://127.0.0.1:${server.address().port}`;
 try {
   const health = await api("GET", "/health");
   assert.equal(health.ok, true);
+  assert.equal(health.status, "ok");
+  assert.equal(health.service, "atoll-control-api");
+  assert.equal(health.version, "test-version");
+  assert.equal(health.storage, "local-file");
+
+  const version = await api("GET", "/version");
+  assert.equal(version.service, "atoll-control-api");
+  assert.equal(version.version, "test-version");
+
+  const allowedCors = await fetch(`${baseUrl}/health`, { headers: { origin: "https://atolldb.com" } });
+  assert.equal(allowedCors.headers.get("access-control-allow-origin"), "https://atolldb.com");
+
+  const deniedCors = await fetch(`${baseUrl}/health`, { headers: { origin: "https://evil.example" } });
+  assert.equal(deniedCors.status, 403);
+  assert.equal((await deniedCors.json()).error, "cors_origin_denied");
 
   const signIn = await api("POST", "/api/auth/sign-in", { email: "owner@atoll.local" });
   assert.ok(signIn.session.token);
@@ -46,6 +66,13 @@ try {
 
   const deployed = await api("POST", `/api/projects/${projectId}/deploy`, {}, token);
   assert.equal(deployed.deploy_request.status, "live");
+  assert.deepEqual(deployed.deploy_request.logs.map((log) => log.status), [
+    "validating",
+    "saving_graph",
+    "creating_backend",
+    "applying_tables",
+    "live"
+  ]);
   assert.equal(deployed.backend_instance.status, "live");
 
   const ownerRow = {

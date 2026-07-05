@@ -1086,6 +1086,7 @@
     </section>
   </div>
 
+<script src="./config.js"></script>
 <script type="module">
 import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
 
@@ -1144,7 +1145,9 @@ let selectedRowsTableId = "";
 let rowsActor = "owner";
 const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
 const urlControlApiUrl = new URLSearchParams(window.location.search).get("api");
-const configuredControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
+const runtimeControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || "";
+const configuredControlApiUrl = urlControlApiUrl || runtimeControlApiUrl;
+const configuredControlMode = window.ATOLL_CONFIG?.mode || (runtimeControlApiUrl ? "hosted" : "local");
 let controlApiUrl = "http://127.0.0.1:8790";
 if (savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789") controlApiUrl = savedControlApiUrl;
 if (configuredControlApiUrl) controlApiUrl = configuredControlApiUrl;
@@ -1479,10 +1482,13 @@ async function checkControlApi() {
     const health = await fetch(`${controlApiUrl}/health`);
     const json = await health.json();
     controlApiOnline = Boolean(health.ok && json.ok);
-    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl}` : "Atoll Control API unavailable";
+    const mode = json.storage || json.mode || configuredControlMode;
+    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl} (${mode})` : "Atoll Control API unavailable";
   } catch {
     controlApiOnline = false;
-    controlApiMessage = `Offline. Run npm run control-api.`;
+    controlApiMessage = configuredControlApiUrl
+      ? `Offline at ${controlApiUrl}. Hosted API is not reachable yet.`
+      : "Offline. Run npm run control-api.";
   }
   updateControlUi();
 }
@@ -1531,7 +1537,7 @@ async function deployToControlApi() {
   auditEvents = [];
   saveControlState();
   deployNotice = [
-    "Live local backend created.",
+    configuredControlApiUrl ? "Live hosted backend created." : "Live local backend created.",
     `Project: ${project.name}`,
     `Backend: ${deployed.backend_instance.schema}`,
     `API: ${deployed.backend_instance.api_url}`,
@@ -1658,8 +1664,10 @@ function updateControlUi() {
   }
   if (deployCopy) {
     deployCopy.textContent = isControlLive()
-      ? "Local backend is live through the Atoll Control API. This is not hosted production yet."
-      : "Generated from the current graph. Local deploy uses the Atoll Control API when it is running.";
+      ? `${configuredControlApiUrl ? "Hosted" : "Local"} backend is live through the Atoll Control API.`
+      : configuredControlApiUrl
+        ? "Generated from the current graph. Deploy uses the configured hosted Atoll Control API."
+        : "Generated from the current graph. Local deploy uses the Atoll Control API when it is running.";
   }
 }
 
@@ -2788,7 +2796,7 @@ function openOutputDrawer() {
 async function openDeployPreview() {
   activeArtifact = "deploy_plan.md";
   openOutputDrawer();
-  deployNotice = "Deploying through local Atoll Control API...";
+  deployNotice = `Deploying through ${configuredControlApiUrl ? "hosted" : "local"} Atoll Control API...`;
   renderArtifacts();
   try {
     await deployToControlApi();
@@ -2796,7 +2804,7 @@ async function openDeployPreview() {
     deployNotice = [
       "Deploy preview only.",
       error.message,
-      "Start the local API with: npm run control-api",
+      configuredControlApiUrl ? "Confirm the hosted API is deployed and reachable." : "Start the local API with: npm run control-api",
       "Then press Deploy again."
     ].join("\n");
     updateControlUi();
@@ -2883,7 +2891,7 @@ document.getElementById("sign-in-button").addEventListener("click", async () => 
     deployNotice = [
       "Sign-in preview only.",
       error.message,
-      "Start the local Atoll API with: npm run control-api"
+      configuredControlApiUrl ? "Confirm the hosted API is deployed and reachable." : "Start the local Atoll API with: npm run control-api"
     ].join("\n");
   }
   renderArtifacts();

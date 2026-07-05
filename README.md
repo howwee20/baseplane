@@ -19,6 +19,7 @@ Atoll owns the visible control plane. The customer owns the data plane.
 - Runtime skeleton: documents the self-hosted target shape.
 - Introspection starter: converts local SQL schema files into a starting graph.
 - Managed alpha plan: documents the hosted sign-in, project, deploy request, and provisioner path.
+- Public launch runbook: documents `atolldb.com`, `api.atolldb.com`, GitHub Pages DNS, hosted API env vars, and smoke tests.
 - Managed v0 roadmap: defines visible control plane, protected data plane, field access levels, and agent lockout.
 
 ## Current Boundary
@@ -34,6 +35,8 @@ The current app and CLI are intentionally local-first:
 The product promise right now is: design and export a permissioned backend, then prove access decisions before an agent touches rows.
 
 Real customer sign-in and database spin-up require Atoll managed infrastructure: a hosted control API, control-plane database, auth/session service, deploy worker, isolated customer data planes, secrets boundary, and audit logs. See `docs/cloud-preview-plan.md`.
+
+Public domain and hosted API setup is documented in `docs/public-launch.md`.
 
 The managed database direction is documented in `docs/managed-v0-roadmap.md`.
 
@@ -68,9 +71,10 @@ or point the API at any Postgres-compatible database:
 
 ```bash
 CONTROL_DATABASE_URL=postgres://user:pass@host:5432/db \
-ATOLL_PUBLIC_API_URL=https://your-api.example \
+ATOLL_PUBLIC_API_URL=https://api.atolldb.com \
+NODE_ENV=production \
 SESSION_SECRET=replace-with-random-secret \
-CORS_ORIGIN=https://your-studio.example \
+CORS_ORIGIN=https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io \
 npm run control-api
 ```
 

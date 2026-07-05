@@ -14,6 +14,14 @@ import { authorizeAgentRequest, redactRecord } from "../packages/agent-gateway/i
 
 const graphPath = path.resolve("examples/generic-telemetry/baseplane.json");
 const graph = JSON.parse(fs.readFileSync(graphPath, "utf8"));
+const appHtml = fs.readFileSync(path.resolve("app/index.html"), "utf8");
+const appConfig = fs.readFileSync(path.resolve("app/config.js"), "utf8");
+
+assert.ok(appHtml.includes('<script src="./config.js"></script>'));
+assert.ok(appHtml.includes("urlControlApiUrl || runtimeControlApiUrl"));
+assert.equal(/["']\/baseplane\//.test(appHtml), false, "Studio must not require a /baseplane/ path");
+assert.ok(appConfig.includes("https://api.atolldb.com"));
+assert.ok(appConfig.includes("isLocal ? \"\""));
 
 const validation = validateGraph(graph);
 assert.equal(validation.valid, true, validation.errors.join("\n"));
