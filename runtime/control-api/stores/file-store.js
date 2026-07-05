@@ -4,7 +4,7 @@ import path from "node:path";
 export function createFileControlStore(options = {}) {
   const dataFile = options.dataFile;
   const empty = {
-    accounts: [{ id: "account_local", name: "Local Baseplane Alpha", created_at: now() }],
+    accounts: [{ id: "account_local", name: "Local Atoll Alpha", created_at: now() }],
     users: [],
     sessions: [],
     projects: [],

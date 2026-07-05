@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Baseplane App</title>
+  <title>Atoll Studio</title>
   <style>
     :root {
       --bg: #f4f1eb;
@@ -887,7 +887,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <a href="../">Baseplane</a>
+        <a href="../">Atoll</a>
       </div>
       <div class="top-actions">
         <button class="button primary" id="open-tools">New Backend</button>
@@ -907,16 +907,16 @@
           <button class="close-button" id="close-tools" aria-label="Close tools">×</button>
         </div>
         <section class="section">
-          <div class="label">Cloud Preview</div>
+          <div class="label">Managed Alpha</div>
           <div class="quick-grid">
             <button class="quick-button" id="start-template">Start from template</button>
             <button class="quick-button" id="connect-existing">Connect existing backend</button>
-            <button class="quick-button" id="request-hosted">Request hosted backend</button>
+            <button class="quick-button" id="request-hosted">Request managed backend</button>
           </div>
-          <p class="small">The Studio runs in preview by default. When the local Control API is running, Deploy creates a real local backend instance with rows, redaction, and audit events.</p>
+          <p class="small">The Studio runs in preview by default. When the Atoll Control API is running, Deploy creates a real backend instance with rows, server-side protection, and audit events.</p>
           <div class="cloud-status">
             <div class="cloud-row"><span class="status-pill ready">Ready</span><strong>Graph, policy simulator, export package</strong></div>
-            <div class="cloud-row"><span class="status-pill" id="control-api-pill">Offline</span><strong id="control-api-row">Control API not checked</strong></div>
+            <div class="cloud-row"><span class="status-pill" id="control-api-pill">Offline</span><strong id="control-api-row">Atoll Control API not checked</strong></div>
             <div class="cloud-row"><span class="status-pill" id="deploy-status-pill">Preview</span><strong id="deploy-status-row">No backend deployed yet</strong></div>
           </div>
         </section>
@@ -981,7 +981,7 @@
 
         <section class="section" id="tools-rows">
           <div class="label">Rows</div>
-          <p class="small" id="rows-mode-copy">Preview rows are stored in this browser. After Deploy, rows come from the Control API and redaction happens server-side.</p>
+          <p class="small" id="rows-mode-copy">Preview rows are stored in this browser. After Deploy, rows come from the Atoll Control API and protection happens server-side.</p>
           <div class="rows-toolbar">
             <select id="rows-table"></select>
             <select id="rows-actor">
@@ -1021,12 +1021,12 @@
 
         <section class="section" id="connect-existing-section">
           <div class="label">Connect existing backend</div>
-          <p class="small">Start with a schema export. Baseplane turns tables into graph nodes without reading customer rows.</p>
+          <p class="small">Start with a schema export. The Baseplane engine turns tables into graph nodes without reading customer rows.</p>
           <pre>node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json</pre>
         </section>
 
         <section class="section" id="request-hosted-section">
-          <div class="label">Request hosted backend</div>
+          <div class="label">Request managed backend</div>
           <p class="small">This creates a real request draft from the current graph. It does not fake provisioning or collect secrets in the browser.</p>
           <div class="mini-actions">
             <button class="mini-button" id="request-hosted-email">Draft request email</button>
@@ -1075,7 +1075,7 @@
       <div class="output-head">
         <div>
           <div class="label">Deploy preview</div>
-          <p class="small" id="deploy-output-copy">Generated from the current graph. Local deploy uses the Control API when it is running.</p>
+          <p class="small" id="deploy-output-copy">Generated from the current graph. Local deploy uses the Atoll Control API when it is running.</p>
         </div>
         <button class="close-button" id="close-output" aria-label="Close artifacts">×</button>
       </div>
@@ -1144,7 +1144,7 @@ let selectedRowsTableId = "";
 let rowsActor = "owner";
 const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
 const urlControlApiUrl = new URLSearchParams(window.location.search).get("api");
-const configuredControlApiUrl = window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
+const configuredControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.ATOLLDB_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
 let controlApiUrl = "http://127.0.0.1:8790";
 if (savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789") controlApiUrl = savedControlApiUrl;
 if (configuredControlApiUrl) controlApiUrl = configuredControlApiUrl;
@@ -1152,7 +1152,7 @@ let controlSession = loadJsonStorage(controlSessionStorageKey, null);
 let controlProject = loadJsonStorage(controlProjectStorageKey, null);
 let controlDeploy = loadJsonStorage(controlDeployStorageKey, null);
 let controlApiOnline = false;
-let controlApiMessage = "Control API not checked";
+let controlApiMessage = "Atoll Control API not checked";
 let deployNotice = "";
 let liveRowsByView = {};
 let liveRowsLoading = new Set();
@@ -1479,7 +1479,7 @@ async function checkControlApi() {
     const health = await fetch(`${controlApiUrl}/health`);
     const json = await health.json();
     controlApiOnline = Boolean(health.ok && json.ok);
-    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl}` : "Control API unavailable";
+    controlApiMessage = controlApiOnline ? `Online at ${controlApiUrl}` : "Atoll Control API unavailable";
   } catch {
     controlApiOnline = false;
     controlApiMessage = `Offline. Run npm run control-api.`;
@@ -1491,7 +1491,7 @@ async function ensureControlSession() {
   if (controlSession?.token) return controlSession;
   const result = await controlFetch("/api/auth/sign-in", {
     method: "POST",
-    body: { email: "owner@baseplane.local" }
+    body: { email: "owner@atoll.local" }
   });
   controlSession = result.session;
   saveControlState();
@@ -1515,7 +1515,7 @@ async function ensureControlProject() {
 async function deployToControlApi() {
   await checkControlApi();
   if (!controlApiOnline) {
-    throw new Error(`Control API is offline at ${controlApiUrl}. Start it with npm run control-api.`);
+    throw new Error(`Atoll Control API is offline at ${controlApiUrl}. Start it with npm run control-api.`);
   }
   const project = await ensureControlProject();
   const version = await controlFetch(`/api/projects/${project.id}/graph_versions`, {
@@ -1535,7 +1535,7 @@ async function deployToControlApi() {
     `Project: ${project.name}`,
     `Backend: ${deployed.backend_instance.schema}`,
     `API: ${deployed.backend_instance.api_url}`,
-    "Rows now come from the Control API. Redaction and audit decisions are server-side."
+    "Rows now come from the Atoll Control API. Protection and audit decisions are server-side."
   ].join("\n");
   await syncLiveRows(selectedRowsTableId || tableNodes()[0]?.id || "");
   await syncAuditEvents();
@@ -1653,13 +1653,13 @@ function updateControlUi() {
   if (signIn) signIn.textContent = controlSession?.token ? "Signed In" : "Sign In";
   if (rowsCopy) {
     rowsCopy.textContent = isControlLive()
-      ? "Live API mode. Rows are fetched from the Control API, redacted server-side, and logged in audit events."
-      : "Preview rows are stored in this browser. After Deploy, rows come from the Control API and redaction happens server-side.";
+      ? "Live API mode. Rows are fetched from the Atoll Control API, protected server-side, and logged in audit events."
+      : "Preview rows are stored in this browser. After Deploy, rows come from the Atoll Control API and protection happens server-side.";
   }
   if (deployCopy) {
     deployCopy.textContent = isControlLive()
-      ? "Local backend is live through the Control API. This is not hosted production yet."
-      : "Generated from the current graph. Local deploy uses the Control API when it is running.";
+      ? "Local backend is live through the Atoll Control API. This is not hosted production yet."
+      : "Generated from the current graph. Local deploy uses the Atoll Control API when it is running.";
   }
 }
 
@@ -2074,7 +2074,7 @@ function bindInspector(selected) {
       selected.id,
       selected.type === "function" ? "execute" : "read",
       "allow",
-      principalInfo.type === "agent" ? "scoped by Baseplane policy graph" : "project membership required"
+      principalInfo.type === "agent" ? "scoped by Atoll policy graph" : "project membership required"
     ));
     graph.principals = graph.principals || [];
     if (!graph.principals.some((item) => item.id === principalInfo.id)) {
@@ -2788,7 +2788,7 @@ function openOutputDrawer() {
 async function openDeployPreview() {
   activeArtifact = "deploy_plan.md";
   openOutputDrawer();
-  deployNotice = "Deploying through local Control API...";
+  deployNotice = "Deploying through local Atoll Control API...";
   renderArtifacts();
   try {
     await deployToControlApi();
@@ -2824,7 +2824,7 @@ function frameGraph() {
 function hostedRequestText() {
   const files = compileArtifacts();
   return [
-    "Baseplane hosted backend request",
+    "Atoll managed alpha request",
     "",
     `App: ${graph.app?.name || "Untitled backend"}`,
     `Nodes: ${graph.nodes.length}`,
@@ -2844,7 +2844,7 @@ function hostedRequestText() {
 }
 
 function draftHostedRequestEmail() {
-  const subject = `Baseplane hosted backend request: ${graph.app?.name || "Untitled backend"}`;
+  const subject = `Atoll managed alpha request: ${graph.app?.name || "Untitled backend"}`;
   const body = hostedRequestText();
   window.location.href = `mailto:${hostedRequestEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
@@ -2857,7 +2857,7 @@ async function copyHostedRequest() {
     button.textContent = "Copied";
     setTimeout(() => { button.textContent = "Copy request"; }, 1200);
   } catch {
-    downloadBlob("baseplane-hosted-request.txt", new Blob([text], { type: "text/plain" }));
+    downloadBlob("atoll-managed-alpha-request.txt", new Blob([text], { type: "text/plain" }));
   }
 }
 
@@ -2872,18 +2872,18 @@ document.getElementById("open-deploy-preview").addEventListener("click", openDep
 document.getElementById("sign-in-button").addEventListener("click", async () => {
   activeArtifact = "deploy_plan.md";
   openOutputDrawer();
-  deployNotice = "Signing in to local Control API...";
+  deployNotice = "Signing in to local Atoll Control API...";
   renderArtifacts();
   try {
     await checkControlApi();
-    if (!controlApiOnline) throw new Error(`Control API is offline at ${controlApiUrl}.`);
+    if (!controlApiOnline) throw new Error(`Atoll Control API is offline at ${controlApiUrl}.`);
     await ensureControlSession();
-    deployNotice = "Signed in as owner@baseplane.local. Press Deploy to create a local backend instance.";
+    deployNotice = "Signed in as owner@atoll.local. Press Deploy to create a local backend instance.";
   } catch (error) {
     deployNotice = [
       "Sign-in preview only.",
       error.message,
-      "Start the local API with: npm run control-api"
+      "Start the local Atoll API with: npm run control-api"
     ].join("\n");
   }
   renderArtifacts();

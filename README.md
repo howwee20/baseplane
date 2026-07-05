@@ -1,12 +1,14 @@
-# Baseplane
+# Atoll
 
-Baseplane is a full-stack permission graph.
+Atoll is the database you can see.
 
-It models domains, routes, pages, APIs, tables, functions, secrets, devices, deployments, humans, and AI agents as one machine-readable graph.
+It gives teams one visible surface for rows, access levels, AI-agent permissions, audit logs, deploy requests, and exportable backend artifacts.
+
+Baseplane is the engine underneath Atoll. It models domains, routes, pages, APIs, tables, functions, secrets, devices, deployments, humans, and AI agents as one machine-readable graph.
 
 The graph compiles into backend infrastructure artifacts: SQL, RLS policies, route contracts, agent gateway policies, function contracts, policy tests, and deploy plans.
 
-Baseplane owns the blueprint. The customer owns the data plane.
+Atoll owns the visible control plane. The customer owns the data plane.
 
 ## Alpha Surface
 
@@ -16,7 +18,7 @@ Baseplane owns the blueprint. The customer owns the data plane.
 - Agent Gateway V0: checks agent requests against the graph before data access.
 - Runtime skeleton: documents the self-hosted target shape.
 - Introspection starter: converts local SQL schema files into a starting graph.
-- Cloud Preview plan: documents the hosted sign-in, project, deploy request, and provisioner path.
+- Managed alpha plan: documents the hosted sign-in, project, deploy request, and provisioner path.
 - Managed v0 roadmap: defines visible control plane, protected data plane, field access levels, and agent lockout.
 
 ## Current Boundary
@@ -29,9 +31,9 @@ The current app and CLI are intentionally local-first:
 - no destructive apply command
 - no managed infrastructure claim
 
-The product promise right now is: design and export a permissioned backend.
+The product promise right now is: design and export a permissioned backend, then prove access decisions before an agent touches rows.
 
-Real customer sign-in and database spin-up require Baseplane Cloud: a hosted control API, control-plane database, auth/session service, deploy worker, isolated customer data planes, secrets boundary, and audit logs. See `docs/cloud-preview-plan.md`.
+Real customer sign-in and database spin-up require Atoll managed infrastructure: a hosted control API, control-plane database, auth/session service, deploy worker, isolated customer data planes, secrets boundary, and audit logs. See `docs/cloud-preview-plan.md`.
 
 The managed database direction is documented in `docs/managed-v0-roadmap.md`.
 
@@ -66,7 +68,7 @@ or point the API at any Postgres-compatible database:
 
 ```bash
 CONTROL_DATABASE_URL=postgres://user:pass@host:5432/db \
-BASEPLANE_PUBLIC_API_URL=https://your-api.example \
+ATOLL_PUBLIC_API_URL=https://your-api.example \
 SESSION_SECRET=replace-with-random-secret \
 CORS_ORIGIN=https://your-studio.example \
 npm run control-api
@@ -179,4 +181,4 @@ If it is on the graph, it must become code, policy, or documentation.
 - `examples/generic-saas/baseplane.json`
 - `examples/private-agent/baseplane.json`
 
-These are generic examples only. Baseplane is a separate product and does not contain customer-specific schemas, credentials, or production data.
+These are generic examples only. Atoll is a separate product and does not contain customer-specific schemas, credentials, or production data.

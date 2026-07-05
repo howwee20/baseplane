@@ -32,13 +32,13 @@ export function createPostgresControlStore(options = {}) {
     await db.query(fs.readFileSync(schemaPath, "utf8"));
     await db.query(
       "insert into accounts (id, name, created_at) values ($1, $2, $3) on conflict (id) do nothing",
-      ["account_managed_alpha", "Baseplane Managed Alpha", now()]
+      ["account_managed_alpha", "Atoll Managed Alpha", now()]
     );
     migrated = true;
   }
 
   function accountRecord() {
-    return { id: "account_managed_alpha", name: "Baseplane Managed Alpha", created_at: now() };
+    return { id: "account_managed_alpha", name: "Atoll Managed Alpha", created_at: now() };
   }
 
   return {

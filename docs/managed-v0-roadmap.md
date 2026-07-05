@@ -1,6 +1,6 @@
-# Baseplane Managed v0 Roadmap
+# Atoll Managed v0 Roadmap
 
-Baseplane is a managed database where the control plane is visible and the data plane is protected.
+Atoll is a managed database where the control plane is visible and the data plane is protected.
 
 The product model:
 
@@ -30,7 +30,7 @@ Data plane
   customer-owned values
 ```
 
-Baseplane lets people and agents operate on the control plane. The data plane is locked behind access rules.
+Atoll lets people and agents operate on the control plane. The data plane is locked behind access rules.
 
 ## Access Levels
 
@@ -70,7 +70,7 @@ The public Studio now includes:
 - actor-based redaction
 - browser-local row storage only
 
-The local rows preview is not a hosted database. It is a safe way to prove the access model before Baseplane Cloud exists.
+The local rows preview is not a hosted database. It is a safe way to prove the access model before the Atoll Control API is hosted.
 
 ## Managed v0 Build
 
@@ -79,7 +79,7 @@ The first real hosted version should do only this:
 1. User signs in.
 2. User creates a project.
 3. User selects a template.
-4. Baseplane creates the graph.
+4. Atoll creates the graph.
 5. User clicks `Deploy`.
 6. Provisioner creates an isolated Postgres database.
 7. Compiler applies SQL and RLS.
@@ -92,13 +92,13 @@ That is the product proof.
 ## Required Services
 
 ```txt
-Baseplane Web
+Atoll Web
   graph UI
   rows UI
   access UI
   deploy UI
 
-Baseplane Control API
+Atoll Control API
   sessions
   projects
   graph versions

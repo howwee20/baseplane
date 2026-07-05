@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: baseplane_app
-      POSTGRES_USER: baseplane
-      POSTGRES_PASSWORD: baseplane_local_only
+      POSTGRES_DB: atoll_app
+      POSTGRES_USER: atoll
+      POSTGRES_PASSWORD: atoll_local_only
     ports:
       - "54329:5432"
     volumes:
-      - baseplane-postgres:/var/lib/postgresql/data
+      - atoll-postgres:/var/lib/postgresql/data
 
   gateway:
     image: node:24-alpine
@@ -16,7 +16,7 @@ services:
     command: ["node", "runtime/gateway/server.js"]
     environment:
       BASEPLANE_GRAPH: /workspace/examples/generic-telemetry/baseplane.json
-      DATABASE_URL: postgres://baseplane:baseplane_local_only@postgres:5432/baseplane_app
+      DATABASE_URL: postgres://atoll:atoll_local_only@postgres:5432/atoll_app
     ports:
       - "8787:8787"
     volumes:
@@ -29,11 +29,11 @@ services:
     working_dir: /workspace
     command: ["sh", "-lc", "npm install --omit=dev && npm run control-api"]
     environment:
-      BASEPLANE_CONTROL_PORT: 8790
-      BASEPLANE_PUBLIC_API_URL: http://127.0.0.1:8790
-      CONTROL_DATABASE_URL: postgres://baseplane:baseplane_local_only@postgres:5432/baseplane_app
+      ATOLL_CONTROL_PORT: 8790
+      ATOLL_PUBLIC_API_URL: http://127.0.0.1:8790
+      CONTROL_DATABASE_URL: postgres://atoll:atoll_local_only@postgres:5432/atoll_app
       CONTROL_DATABASE_SSL: "false"
-      SESSION_SECRET: baseplane_local_docker_secret
+      SESSION_SECRET: atoll_local_docker_secret
       CORS_ORIGIN: http://127.0.0.1:8130
     ports:
       - "8790:8790"
@@ -43,4 +43,4 @@ services:
       - postgres
 
 volumes:
-  baseplane-postgres:
+  atoll-postgres:

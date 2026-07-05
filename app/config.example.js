@@ -1,3 +1,3 @@
-window.BASEPLANE_CONFIG = {
-  apiUrl: "https://api.baseplane.example"
+window.ATOLL_CONFIG = {
+  apiUrl: "https://api.atoll.example"
 };

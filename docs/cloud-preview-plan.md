@@ -1,6 +1,6 @@
-# Baseplane Cloud Preview Plan
+# Atoll Managed Alpha Plan
 
-Baseplane Studio is the graph interface. Baseplane Cloud is the hosted control plane that turns the graph into real customer backends.
+Atoll Studio is the graph interface. The Atoll Control API is the hosted control plane that turns the graph into real customer backends.
 
 The public GitHub Pages app is not enough for real customer sign-in or database provisioning. It can safely run the graph UI, policy simulator, compiler, and export flow. It cannot safely own customer sessions, secrets, deploy credentials, billing, or database creation by itself.
 
@@ -14,7 +14,7 @@ Current public product:
 - policy simulator for allow/deny decisions
 - local runtime skeleton
 
-Cloud Preview must add:
+Managed alpha must add:
 
 - customer accounts
 - projects and project membership
@@ -29,7 +29,7 @@ Cloud Preview must add:
 
 ## Required Control Plane
 
-Baseplane needs its own control-plane database. This stores product metadata, not customer production rows.
+Atoll needs its own control-plane database. This stores product metadata, not customer production rows.
 
 Core tables:
 
@@ -75,7 +75,7 @@ Logs
 Agent gateway policy
 ```
 
-Baseplane should not mix customer production rows into the control-plane database unless the customer explicitly chooses a shared managed mode.
+Atoll should not mix customer production rows into the control-plane database unless the customer explicitly chooses a shared managed mode.
 
 ## Customer Flow
 
@@ -90,7 +90,7 @@ Baseplane should not mix customer production rows into the control-plane databas
 6. Customer runs policy simulation.
 7. Customer exports package or requests hosted setup.
 8. Provisioner creates an isolated backend instance.
-9. Baseplane stores deployment metadata and audit events.
+9. Atoll stores deployment metadata and audit events.
 10. Customer sees database, auth, routes, policies, and agent access as one graph.
 
 ## Sign-In Implementation
@@ -109,8 +109,8 @@ Real sign-in needs:
 Fastest credible V0:
 
 ```txt
-Baseplane frontend on GitHub Pages or Vercel
-Baseplane Control API on Fly.io, Railway, Render, or Supabase Edge Functions
+Atoll frontend on GitHub Pages or Vercel
+Atoll Control API on Fly.io, Railway, Render, or Supabase Edge Functions
 Control-plane Postgres
 Auth provider: Auth.js, Clerk, Supabase Auth, or self-hosted GoTrue
 Provision worker: queue-backed Node service
@@ -119,8 +119,8 @@ Provision worker: queue-backed Node service
 Most ownership-heavy V1:
 
 ```txt
-Baseplane frontend
-Baseplane API
+Atoll frontend
+Atoll API
 self-hosted Postgres control plane
 self-hosted auth
 Docker-based provisioner

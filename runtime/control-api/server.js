@@ -9,7 +9,7 @@ import { createPostgresControlStore } from "./stores/postgres-store.js";
 
 const DEFAULT_PORT = 8790;
 const ACCESS_LEVELS = ["public", "private", "protected", "secret"];
-const DEFAULT_SESSION_SECRET = "baseplane-local-session-secret";
+const DEFAULT_SESSION_SECRET = "atoll-local-session-secret";
 
 export function createControlApiServer(options = {}) {
   const config = controlConfig(options);
@@ -25,12 +25,12 @@ export function createControlApiServer(options = {}) {
 
       if (request.method === "GET" && url.pathname === "/health") {
         const health = await store.health();
-        return sendJson(response, 200, { ok: true, service: "baseplane-control-api", ...health });
+        return sendJson(response, 200, { ok: true, service: "atoll-control-api", engine: "baseplane", ...health });
       }
 
       if (request.method === "POST" && url.pathname === "/api/auth/sign-in") {
         const body = await readJson(request);
-        const email = normalizeEmail(body.email || "owner@baseplane.local");
+        const email = normalizeEmail(body.email || "owner@atoll.local");
         const user = await store.upsertUser(email);
         const token = crypto.randomBytes(24).toString("hex");
         const session = await store.createSession(user.id, sessionHash(token, config.sessionSecret));
@@ -158,6 +158,24 @@ export function createControlApiServer(options = {}) {
           return sendJson(response, 200, { audit_events: await store.listAuditEvents(projectId, 200) });
         }
 
+        if (request.method === "GET" && segments[3] === "export") {
+          await requireSession(store, request, config);
+          const graphVersion = await store.latestGraphVersion(projectId);
+          const tables = graphVersion ? tableNodes(graphVersion.baseplane_json) : [];
+          const rows = {};
+          for (const table of tables) {
+            rows[table.id] = await store.getRows(projectId, table.id);
+          }
+          return sendJson(response, 200, {
+            project,
+            latest_graph_version: graphVersion,
+            backend_instance: await store.latestBackendInstance(projectId),
+            rows,
+            audit_events: await store.listAuditEvents(projectId, 1000),
+            exported_at: now()
+          });
+        }
+
         if (request.method === "POST" && segments[3] === "evaluate_access") {
           await requireSession(store, request, config);
           const body = await readJson(request);
@@ -188,12 +206,19 @@ export function createControlApiServer(options = {}) {
           await ensureBackendLive(store, projectId);
 
           if (request.method === "GET" && segments.length === 6) {
-            const rows = await store.getRows(projectId, table.id);
+            const query = await applyRowsQuery(store, projectId, graph, table, await store.getRows(projectId, table.id), actor, url.searchParams);
+            if (!query.allowed) {
+              return sendJson(response, 403, {
+                error: "query_field_denied",
+                field: query.field,
+                reason: query.reason
+              });
+            }
             const redacted = [];
-            for (const row of rows) {
+            for (const row of query.rows) {
               redacted.push(await redactRowForActor(store, projectId, graph, table, row, actor));
             }
-            return sendJson(response, 200, { mode: "live", actor, table: table.id, rows: redacted });
+            return sendJson(response, 200, { mode: "live", actor, table: table.id, rows: redacted, query: query.applied });
           }
 
           if (request.method === "POST" && segments.length === 6) {
@@ -251,13 +276,13 @@ export function createControlApiServer(options = {}) {
 }
 
 function controlConfig(options = {}) {
-  const port = Number(options.port || process.env.BASEPLANE_CONTROL_PORT || DEFAULT_PORT);
-  const publicApiUrl = options.publicApiUrl || process.env.BASEPLANE_PUBLIC_API_URL || `http://127.0.0.1:${port}`;
+  const port = Number(options.port || process.env.ATOLL_CONTROL_PORT || process.env.ATOLLDB_CONTROL_PORT || process.env.BASEPLANE_CONTROL_PORT || DEFAULT_PORT);
+  const publicApiUrl = options.publicApiUrl || process.env.ATOLL_PUBLIC_API_URL || process.env.ATOLL_API_URL || process.env.ATOLLDB_PUBLIC_API_URL || process.env.ATOLLDB_API_URL || process.env.BASEPLANE_PUBLIC_API_URL || `http://127.0.0.1:${port}`;
   return {
     port,
     publicApiUrl,
     databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || "",
-    dataFile: options.dataFile || process.env.BASEPLANE_CONTROL_DATA || path.join(os.homedir(), ".baseplane", "control-api.json"),
+    dataFile: options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.ATOLLDB_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || path.join(os.homedir(), ".atoll", "control-api.json"),
     sessionSecret: options.sessionSecret || process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,
     corsOrigin: options.corsOrigin || process.env.CORS_ORIGIN || "*",
     postgresSsl: options.postgresSsl ?? postgresSslFromEnv()
@@ -323,7 +348,7 @@ async function materializeBackend(store, projectId, graphVersion, config) {
     id: id("backend"),
     project_id: projectId,
     graph_version_id: graphVersion.id,
-    provider: store.kind === "postgres" ? "baseplane-postgres" : "baseplane-local-file",
+    provider: store.kind === "postgres" ? "atoll-postgres" : "atoll-local-file",
     schema,
     status: "live",
     api_url: `${config.publicApiUrl}/api/projects/${projectId}`,
@@ -357,7 +382,12 @@ async function redactRowForActor(store, projectId, graph, table, row, actor) {
   const out = {};
   for (const field of normalizedFields(table)) {
     const decision = decideFieldAccess(graph, actor, table, field, "read");
-    out[field.name] = decision.allowed ? row[field.name] ?? "" : `[${decision.access}]`;
+    const substitute = actor === "coding_agent" && decision.access !== "secret";
+    out[field.name] = decision.allowed
+      ? row[field.name] ?? ""
+      : substitute
+        ? syntheticValue(projectId, table, field, row)
+        : `[${decision.access}]`;
     await audit(store, {
       project_id: projectId,
       actor_type: actorType(actor),
@@ -365,12 +395,130 @@ async function redactRowForActor(store, projectId, graph, table, row, actor) {
       action: "read",
       resource: table.id,
       field: field.name,
-      decision: decision.allowed ? "ALLOW" : "DENY",
-      reason: decision.reason
+      decision: decision.allowed ? "ALLOW" : substitute ? "SYNTHETIC" : "DENY",
+      reason: decision.allowed ? decision.reason : substitute ? "coding_agent received synthetic substitute, not stored row value" : decision.reason
     });
   }
   out.__id = row.__id || String(row.id || "");
   return out;
+}
+
+async function applyRowsQuery(store, projectId, graph, table, rows, actor, params) {
+  const applied = { filters: [], sort: [], search: null, select: [] };
+  let output = [...rows];
+
+  const filters = params.getAll("filter");
+  for (const rawFilter of filters) {
+    const parsed = parseFilter(rawFilter);
+    const allowed = await assertQueryField(store, projectId, graph, table, actor, parsed.field, "filter");
+    if (!allowed.allowed) return allowed;
+    applied.filters.push(parsed);
+    output = output.filter((row) => filterMatches(row[parsed.field], parsed.operator, parsed.value));
+  }
+
+  const sortParam = params.get("sort");
+  if (sortParam) {
+    const sorts = sortParam.split(",").map((item) => item.trim()).filter(Boolean);
+    for (const sort of sorts) {
+      const descending = sort.startsWith("-");
+      const field = descending ? sort.slice(1) : sort;
+      const allowed = await assertQueryField(store, projectId, graph, table, actor, field, "sort");
+      if (!allowed.allowed) return allowed;
+      applied.sort.push({ field, direction: descending ? "desc" : "asc" });
+    }
+    output.sort((a, b) => compareRows(a, b, applied.sort));
+  }
+
+  const search = params.get("search");
+  if (search) {
+    const field = params.get("search_field") || params.get("searchField");
+    if (!field) {
+      return denyQuery("search", "global search is disabled; search must name an allowed field");
+    }
+    const allowed = await assertQueryField(store, projectId, graph, table, actor, field, "search");
+    if (!allowed.allowed) return allowed;
+    applied.search = { field, value: search };
+    output = output.filter((row) => String(row[field] ?? "").toLowerCase().includes(String(search).toLowerCase()));
+  }
+
+  const select = params.get("select") || params.get("fields");
+  if (select) {
+    const fields = select.split(",").map((item) => item.trim()).filter(Boolean);
+    for (const field of fields) {
+      const allowed = await assertQueryField(store, projectId, graph, table, actor, field, "select");
+      if (!allowed.allowed) return allowed;
+      applied.select.push(field);
+    }
+  }
+
+  return { allowed: true, rows: output, applied };
+}
+
+async function assertQueryField(store, projectId, graph, table, actor, fieldName, action) {
+  const field = fieldByName(table, fieldName);
+  if (!field) return denyQuery(fieldName, `unknown field ${fieldName}`);
+  if (actor === "coding_agent") {
+    await auditQueryDenied(store, projectId, actor, table.id, field.name, `${action} denied because coding_agent cannot query stored row values`);
+    return denyQuery(field.name, "coding_agent cannot filter, sort, search, or select stored row values");
+  }
+  const decision = decideFieldAccess(graph, actor, table, field, "read");
+  if (!decision.allowed) {
+    await auditQueryDenied(store, projectId, actor, table.id, field.name, `${action} denied: ${decision.reason}`);
+    return denyQuery(field.name, `${field.name} is not available in the query grammar for ${actor}`);
+  }
+  return { allowed: true };
+}
+
+async function auditQueryDenied(store, projectId, actor, resource, field, reason) {
+  await audit(store, {
+    project_id: projectId,
+    actor_type: actorType(actor),
+    actor_id: actor,
+    action: "query",
+    resource,
+    field,
+    decision: "DENY",
+    reason
+  });
+}
+
+function denyQuery(field, reason) {
+  return { allowed: false, field, reason };
+}
+
+function parseFilter(value) {
+  const parts = String(value || "").split(/[,:]/);
+  if (parts.length < 3) return { field: parts[0] || "", operator: "eq", value: parts.slice(1).join(":") };
+  return { field: parts[0], operator: parts[1] || "eq", value: parts.slice(2).join(":") };
+}
+
+function filterMatches(actual, operator, expected) {
+  const left = actual ?? "";
+  const numericLeft = Number(left);
+  const numericRight = Number(expected);
+  switch (operator) {
+    case "ne": return String(left) !== expected;
+    case "contains": return String(left).toLowerCase().includes(String(expected).toLowerCase());
+    case "startswith": return String(left).toLowerCase().startsWith(String(expected).toLowerCase());
+    case "gt": return Number.isFinite(numericLeft) && numericLeft > numericRight;
+    case "lt": return Number.isFinite(numericLeft) && numericLeft < numericRight;
+    case "eq":
+    default: return String(left) === expected;
+  }
+}
+
+function compareRows(a, b, sorts) {
+  for (const sort of sorts) {
+    const left = a[sort.field] ?? "";
+    const right = b[sort.field] ?? "";
+    const result = String(left).localeCompare(String(right), undefined, { numeric: true });
+    if (result !== 0) return sort.direction === "desc" ? -result : result;
+  }
+  return 0;
+}
+
+function fieldByName(table, fieldName) {
+  return normalizedFields(table).find((field) => field.name === fieldName);
 }
 
 function decideFieldAccess(graph, actor, table, field, action = "read") {
@@ -422,6 +570,27 @@ function fieldAccess(field, table = null) {
   if (field?.private) return "private";
   if (/email|project_id|organization_id|account_id|user_id|device_id/.test(name)) return "private";
   return "public";
+}
+
+function syntheticValue(projectId, table, field, row) {
+  const seed = crypto.createHash("sha256")
+    .update(`${projectId}:${table.id}:${field.name}:${row.__id || row.id || ""}`)
+    .digest("hex");
+  const name = String(field.name || "").toLowerCase();
+  const type = String(field.type || "").toLowerCase();
+  if (name === "id" || type.includes("uuid")) return `synthetic-${seed.slice(0, 12)}`;
+  if (name.includes("email")) return `agent-${seed.slice(0, 10)}@example.test`;
+  if (name.includes("token") || name.includes("key")) return `sk_test_${seed.slice(0, 32)}`;
+  if (name.includes("hash")) return `hash_${seed.slice(0, 24)}`;
+  if (name.includes("time") || name.endsWith("_at") || type.includes("time")) {
+    return new Date(Date.UTC(2026, Number.parseInt(seed.slice(0, 2), 16) % 12, (Number.parseInt(seed.slice(2, 4), 16) % 28) + 1, Number.parseInt(seed.slice(4, 6), 16) % 24)).toISOString();
+  }
+  if (type.includes("double") || type.includes("numeric") || type.includes("int") || name.includes("value") || name.includes("measurement")) {
+    return Number((10 + (Number.parseInt(seed.slice(0, 6), 16) % 9000) / 100).toFixed(2));
+  }
+  if (type.includes("json") || name.includes("payload")) return { synthetic: true, sample_id: seed.slice(0, 12) };
+  if (name.includes("status")) return Number.parseInt(seed.slice(0, 2), 16) % 2 ? "active" : "pending";
+  return `synthetic_${field.name}_${seed.slice(0, 10)}`;
 }
 
 async function audit(store, event) {
@@ -483,7 +652,7 @@ if (process.argv[1] === currentFile) {
   const config = controlConfig();
   const server = createControlApiServer(config);
   server.listen(config.port, () => {
-    console.log(`Baseplane Control API listening on http://127.0.0.1:${config.port}`);
+    console.log(`Atoll Control API listening on http://127.0.0.1:${config.port}`);
     console.log(`Storage: ${config.databaseUrl ? "postgres" : config.dataFile}`);
     console.log(`Public API URL: ${config.publicApiUrl}`);
   });

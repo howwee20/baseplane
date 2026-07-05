@@ -1,6 +1,6 @@
-# Baseplane Runtime
+# Atoll Runtime
 
-Baseplane Runtime is the self-hosted data plane target for the graph.
+Atoll Runtime is the self-hosted data plane target for the graph.
 
 The current alpha does not run production hosting. This folder defines the shape of the open-source runtime that the graph will compile toward.
 
@@ -21,7 +21,7 @@ The intended flow is:
 
 ```txt
 agent request
-  -> Baseplane Agent Gateway
+  -> Atoll Agent Gateway
   -> policy check
   -> allowed fields only
   -> audit log
@@ -30,7 +30,7 @@ agent request
 
 ## Local Control API
 
-The local Control API is the first managed-backend slice. It uses the compiler and policy engine, stores data in a local JSON file, and exposes the same shape that a hosted Baseplane API will expose later.
+The local Control API is the first managed-backend slice. It uses the compiler and policy engine, stores data in a local JSON file, and exposes the same shape that a hosted Atoll API will expose later.
 
 Run local file-backed mode:
 
@@ -47,7 +47,7 @@ http://127.0.0.1:8790
 Run Postgres-backed mode:
 
 ```bash
-CONTROL_DATABASE_URL=postgres://baseplane:baseplane_local_only@127.0.0.1:54329/baseplane_app \
+CONTROL_DATABASE_URL=postgres://atoll:atoll_local_only@127.0.0.1:54329/atoll_app \
 CONTROL_DATABASE_SSL=false \
 npm run control-api
 ```
@@ -62,7 +62,7 @@ Hosted environment variables:
 
 ```txt
 CONTROL_DATABASE_URL
-BASEPLANE_PUBLIC_API_URL
+ATOLL_PUBLIC_API_URL
 SESSION_SECRET
 CORS_ORIGIN
 CONTROL_DATABASE_SSL
@@ -100,7 +100,7 @@ https://howwee20.github.io/baseplane/app/?api=https://your-control-api.example
 or provide:
 
 ```js
-window.BASEPLANE_CONFIG = {
+window.ATOLL_CONFIG = {
   apiUrl: "https://your-control-api.example"
 };
 ```
