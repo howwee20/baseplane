@@ -208,21 +208,23 @@
 
     .demo-shell {
       align-self: center;
-      background: rgba(255, 253, 248, 0.56);
-      border: 1px solid var(--line);
-      box-shadow: 0 34px 100px rgba(17, 30, 23, 0.12);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
       min-height: 542px;
-      overflow: hidden;
+      overflow: visible;
       position: relative;
     }
 
     .demo-head {
       align-items: center;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 0;
       display: flex;
       gap: 14px;
       justify-content: space-between;
-      padding: 13px 16px;
+      padding: 0 0 14px;
+      position: relative;
+      z-index: 8;
     }
 
     .demo-title {
@@ -269,7 +271,7 @@
 
     .graph-panel {
       height: 318px;
-      overflow: hidden;
+      overflow: visible;
       position: relative;
     }
 
@@ -385,20 +387,22 @@
     }
 
     .demo-readout {
-      border-top: 1px solid var(--line);
+      border-top: 0;
       display: grid;
+      gap: 16px;
       grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      margin-top: 14px;
       min-height: 162px;
     }
 
     .read-panel,
     .audit-panel {
-      background: rgba(255, 253, 248, 0.86);
-      padding: 10px;
+      background: transparent;
+      padding: 0;
     }
 
     .read-panel {
-      border-right: 1px solid var(--line);
+      border-right: 0;
     }
 
     .panel-label {
@@ -417,6 +421,7 @@
 
     .row-line {
       align-items: center;
+      background: rgba(255, 253, 248, 0.72);
       border: 1px solid var(--line);
       display: grid;
       gap: 10px;
@@ -447,6 +452,7 @@
     }
 
     .audit-line {
+      background: rgba(255, 253, 248, 0.72);
       border: 1px solid var(--line);
       color: var(--muted);
       font-family: var(--mono);
@@ -539,7 +545,7 @@
       }
 
       .read-panel {
-        border-bottom: 1px solid var(--line);
+        border-bottom: 0;
         border-right: 0;
       }
 
