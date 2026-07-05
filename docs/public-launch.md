@@ -121,7 +121,7 @@ rows
 audit_events
 ```
 
-Production intentionally refuses to start in implicit file-backed mode. If `NODE_ENV=production` is set, `CONTROL_DATABASE_URL` must point at a real Postgres database.
+Production intentionally refuses to start in implicit file-backed mode. If `NODE_ENV=production` is set, `CONTROL_DATABASE_URL`, `DATABASE_URL`, or `POSTGRES_URL` must point at a real Postgres database.
 
 ### Vercel API Project
 
@@ -148,6 +148,7 @@ Set these Vercel production env vars before deploying:
 NODE_ENV=production
 ATOLL_PUBLIC_API_URL=https://api.atolldb.com
 CONTROL_DATABASE_URL=postgres://...
+# or DATABASE_URL / POSTGRES_URL from a Vercel database integration
 CONTROL_DATABASE_SSL=true
 SESSION_SECRET=<long random value>
 CORS_ORIGIN=https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io

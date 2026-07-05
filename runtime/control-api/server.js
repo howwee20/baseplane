@@ -291,7 +291,7 @@ function controlConfig(options = {}) {
   return {
     port,
     publicApiUrl,
-    databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || "",
+    databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL || "",
     dataFile: explicitDataFile || path.join(os.homedir(), ".atoll", "control-api.json"),
     explicitDataFile,
     sessionSecret: options.sessionSecret || process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,

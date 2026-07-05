@@ -61,7 +61,7 @@ docker compose -f runtime/docker-compose.yml up postgres control-api
 Hosted environment variables:
 
 ```txt
-CONTROL_DATABASE_URL
+CONTROL_DATABASE_URL, DATABASE_URL, or POSTGRES_URL
 ATOLL_PUBLIC_API_URL
 NODE_ENV
 SESSION_SECRET
@@ -70,7 +70,7 @@ CONTROL_DATABASE_SSL
 ATOLL_VERSION
 ```
 
-Production requires `CONTROL_DATABASE_URL`. The file-backed store is only for local development and explicit test runs.
+Production requires `CONTROL_DATABASE_URL`, `DATABASE_URL`, or `POSTGRES_URL`. The file-backed store is only for local development and explicit test runs.
 
 What it supports now:
 
