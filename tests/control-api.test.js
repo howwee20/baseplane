@@ -9,10 +9,12 @@ const dataFile = path.join(tmpDir, "data.json");
 const graph = JSON.parse(fs.readFileSync(path.resolve("examples/generic-telemetry/baseplane.json"), "utf8"));
 const schemaSql = fs.readFileSync(path.resolve("runtime/control-api/schema.sql"), "utf8");
 
-assert.throws(
-  () => createControlApiServer({ nodeEnv: "production" }),
-  /CONTROL_DATABASE_URL is required in production/
-);
+withClearedDatabaseEnv(() => {
+  assert.throws(
+    () => createControlApiServer({ nodeEnv: "production" }),
+    /Postgres database URL is required in production/
+  );
+});
 
 const server = createControlApiServer({
   dataFile,
@@ -166,4 +168,23 @@ async function apiError(method, route, body, token, status, code) {
   assert.equal(response.status, status, `${method} ${route} expected ${status}: ${JSON.stringify(json)}`);
   assert.equal(json.error, code);
   return json;
+}
+
+function withClearedDatabaseEnv(callback) {
+  const saved = {
+    CONTROL_DATABASE_URL: process.env.CONTROL_DATABASE_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
+    POSTGRES_URL: process.env.POSTGRES_URL
+  };
+  delete process.env.CONTROL_DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  delete process.env.POSTGRES_URL;
+  try {
+    callback();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }

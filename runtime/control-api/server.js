@@ -311,7 +311,7 @@ function createControlStore(config) {
     });
   }
   if (config.nodeEnv === "production" && !config.explicitDataFile) {
-    throw new Error("CONTROL_DATABASE_URL is required in production");
+    throw new Error("A Postgres database URL is required in production");
   }
   return createFileControlStore({
     dataFile: config.dataFile,
