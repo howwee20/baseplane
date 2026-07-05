@@ -276,13 +276,13 @@ export function createControlApiServer(options = {}) {
 }
 
 function controlConfig(options = {}) {
-  const port = Number(options.port || process.env.ATOLL_CONTROL_PORT || process.env.ATOLLDB_CONTROL_PORT || process.env.BASEPLANE_CONTROL_PORT || DEFAULT_PORT);
-  const publicApiUrl = options.publicApiUrl || process.env.ATOLL_PUBLIC_API_URL || process.env.ATOLL_API_URL || process.env.ATOLLDB_PUBLIC_API_URL || process.env.ATOLLDB_API_URL || process.env.BASEPLANE_PUBLIC_API_URL || `http://127.0.0.1:${port}`;
+  const port = Number(options.port || process.env.ATOLL_CONTROL_PORT || process.env.BASEPLANE_CONTROL_PORT || DEFAULT_PORT);
+  const publicApiUrl = options.publicApiUrl || process.env.ATOLL_PUBLIC_API_URL || process.env.ATOLL_API_URL || process.env.BASEPLANE_PUBLIC_API_URL || `http://127.0.0.1:${port}`;
   return {
     port,
     publicApiUrl,
     databaseUrl: options.databaseUrl || process.env.CONTROL_DATABASE_URL || "",
-    dataFile: options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.ATOLLDB_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || path.join(os.homedir(), ".atoll", "control-api.json"),
+    dataFile: options.dataFile || process.env.ATOLL_CONTROL_DATA || process.env.BASEPLANE_CONTROL_DATA || path.join(os.homedir(), ".atoll", "control-api.json"),
     sessionSecret: options.sessionSecret || process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET,
     corsOrigin: options.corsOrigin || process.env.CORS_ORIGIN || "*",
     postgresSsl: options.postgresSsl ?? postgresSslFromEnv()

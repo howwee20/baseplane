@@ -1144,7 +1144,7 @@ let selectedRowsTableId = "";
 let rowsActor = "owner";
 const savedControlApiUrl = localStorage.getItem(controlApiUrlStorageKey);
 const urlControlApiUrl = new URLSearchParams(window.location.search).get("api");
-const configuredControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.ATOLLDB_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
+const configuredControlApiUrl = window.ATOLL_CONFIG?.apiUrl || window.BASEPLANE_CONFIG?.apiUrl || urlControlApiUrl;
 let controlApiUrl = "http://127.0.0.1:8790";
 if (savedControlApiUrl && savedControlApiUrl !== "http://127.0.0.1:8789") controlApiUrl = savedControlApiUrl;
 if (configuredControlApiUrl) controlApiUrl = configuredControlApiUrl;
