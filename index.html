@@ -116,8 +116,7 @@
     }
 
     .nav a:focus-visible,
-    .button:focus-visible,
-    .actor-button:focus-visible {
+    .button:focus-visible {
       outline: 3px solid rgba(242, 106, 27, 0.24);
       outline-offset: 3px;
     }
@@ -218,6 +217,9 @@
       background: rgba(255, 253, 248, 0.82);
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: 62px 1fr;
+      min-height: clamp(640px, 72vh, 820px);
       overflow: hidden;
     }
 
@@ -227,7 +229,7 @@
       display: flex;
       gap: 18px;
       justify-content: space-between;
-      padding: 18px 20px;
+      padding: 0 18px;
     }
 
     .demo-title {
@@ -252,53 +254,50 @@
       text-transform: uppercase;
     }
 
-    .actor-toggle {
-      background: rgba(246, 243, 237, 0.72);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      display: flex;
-      flex: 0 0 auto;
-      gap: 4px;
-      padding: 5px;
-    }
-
-    .actor-button {
-      background: transparent;
-      border: 0;
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 850;
-      height: 34px;
-      padding: 0 13px;
-    }
-
-    .actor-button.active {
-      background: var(--orange);
-      color: #fff;
-    }
-
     .demo-body {
-      display: grid;
-      gap: 18px;
-      padding: 18px;
+      min-height: 0;
     }
 
     .graph-stage {
       background:
-        linear-gradient(rgba(14, 26, 20, 0.026) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(14, 26, 20, 0.026) 1px, transparent 1px),
-        rgba(246, 243, 237, 0.46);
+        linear-gradient(rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(14, 26, 20, 0.035) 1px, transparent 1px),
+        var(--bg);
       background-size: 32px 32px;
-      border: 1px solid rgba(14, 26, 20, 0.08);
-      min-height: 350px;
+      height: 100%;
+      min-height: 498px;
       overflow: hidden;
       position: relative;
+    }
+
+    .graph-canvas {
+      height: 1160px;
+      left: 0;
+      position: absolute;
+      top: 0;
+      transform-origin: 0 0;
+      width: 1280px;
+    }
+
+    .flow-guide {
+      border-top: 1px solid rgba(14, 26, 20, 0.08);
+      color: rgba(14, 26, 20, 0.42);
+      font-family: var(--mono);
+      font-size: 10px;
+      left: 24px;
+      letter-spacing: 0.14em;
+      padding-top: 8px;
+      pointer-events: none;
+      position: absolute;
+      right: 24px;
+      text-transform: uppercase;
+      z-index: 1;
     }
 
     .graph-lines {
       height: 100%;
       inset: 0;
+      overflow: visible;
       position: absolute;
       width: 100%;
       z-index: 1;
@@ -306,84 +305,99 @@
 
     .graph-lines path {
       fill: none;
-      opacity: 0.72;
-      stroke: rgba(14, 26, 20, 0.28);
+      opacity: 0.92;
+      stroke: rgba(61, 77, 69, 0.31);
+      stroke-dasharray: 9 8;
       stroke-linecap: round;
-      stroke-width: 1.4;
+      stroke-width: 1.55;
+      animation: dash-flow 1.5s linear infinite;
     }
 
-    .graph-lines path.protected {
-      stroke: rgba(242, 106, 27, 0.8);
-      stroke-dasharray: 6 7;
-      stroke-width: 2.1;
+    @keyframes dash-flow {
+      to {
+        stroke-dashoffset: -34;
+      }
     }
 
-    .graph-lines path.denied {
-      stroke: rgba(189, 79, 62, 0.78);
-      stroke-dasharray: 4 7;
+    .graph-lines path.writes,
+    .graph-lines path.publishes_to,
+    .graph-lines path.deploys_to {
+      stroke: rgba(242, 106, 27, 0.74);
+      stroke-dasharray: 11 7;
       stroke-width: 2.1;
+      animation-duration: 1s;
+    }
+
+    .preview-actions {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .preview-pill {
+      background: rgba(255, 253, 248, 0.76);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted-strong);
+      font-size: 12px;
+      font-weight: 850;
+      min-height: 32px;
+      padding: 7px 12px;
+    }
+
+    .preview-pill.primary {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: #fff;
     }
 
     .graph-node {
       background: rgba(255, 253, 248, 0.96);
       border: 1px solid var(--line);
-      border-top: 4px solid var(--orange);
-      box-shadow: 0 14px 35px rgba(17, 30, 23, 0.08);
-      min-height: 70px;
-      padding: 9px;
+      border-top: 4px solid var(--line-strong);
+      box-shadow: 0 18px 42px rgba(17, 30, 23, 0.08);
+      min-height: 98px;
+      padding: 13px 14px 12px;
       position: absolute;
-      transform: translate(-50%, -50%);
-      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-      width: 138px;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+      width: 190px;
       z-index: 2;
     }
 
     .graph-node.active,
     .graph-node:hover {
-      border-color: var(--line-strong);
-      box-shadow: 0 20px 52px rgba(17, 30, 23, 0.16);
-      transform: translate(-50%, -53%);
+      border-color: rgba(242, 106, 27, 0.62);
+      box-shadow: 0 24px 62px rgba(17, 30, 23, 0.15);
       z-index: 4;
     }
 
+    .graph-node.domain { border-top-color: var(--orange); }
+    .graph-node.route,
+    .graph-node.page,
     .graph-node.api,
-    .graph-node.app {
-      border-top-color: var(--amber);
-    }
-
-    .graph-node.table,
-    .graph-node.rows {
-      border-top-color: var(--blue);
-    }
-
-    .graph-node.locked,
-    .graph-node.secret {
-      border-top-color: var(--red);
-    }
-
-    .graph-node.actor {
-      border-top-color: var(--purple);
-    }
-
-    .graph-node.log {
-      border-top-color: var(--teal);
-    }
-
-    .graph-node.rule {
-      border-top-color: var(--orange);
-    }
+    .graph-node.webhook { border-top-color: var(--purple); }
+    .graph-node.table { border-top-color: var(--blue); }
+    .graph-node.function { border-top-color: var(--amber); }
+    .graph-node.secret { border-top-color: var(--red); }
+    .graph-node.agent { border-top-color: #111827; }
+    .graph-node.device { border-top-color: var(--teal); }
+    .graph-node.deployment { border-top-color: #6b7280; }
 
     .node-top {
       align-items: flex-start;
-      display: grid;
-      gap: 8px;
+      display: flex;
+      gap: 10px;
       justify-content: space-between;
+      margin-bottom: 7px;
     }
 
     .node-name {
       font-size: 14px;
-      font-weight: 900;
-      line-height: 1.08;
+      font-weight: 850;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
       min-width: 0;
       overflow-wrap: normal;
     }
@@ -394,6 +408,7 @@
       color: var(--muted);
       font-family: var(--mono);
       font-size: 9px;
+      letter-spacing: 0.05em;
       padding: 3px 6px;
       text-transform: uppercase;
       width: max-content;
@@ -402,108 +417,24 @@
     .node-copy {
       color: var(--muted);
       display: block;
-      font-size: 13px;
-      line-height: 1.32;
-      margin-top: 7px;
-    }
-
-    .node-status {
-      color: var(--red);
-      display: block;
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 800;
-      margin-top: 6px;
-      text-transform: uppercase;
-    }
-
-    .proof-grid {
-      display: grid;
-      gap: 14px;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .proof-panel {
-      background: rgba(255, 253, 248, 0.78);
-      border: 1px solid var(--line);
-      padding: 12px;
-    }
-
-    .proof-panel.receipt {
-      border-color: rgba(242, 106, 27, 0.34);
-      box-shadow: inset 0 0 0 1px rgba(242, 106, 27, 0.08);
-    }
-
-    .panel-title {
-      color: var(--orange);
-      font-family: var(--mono);
       font-size: 11px;
-      font-weight: 850;
-      margin: 0 0 10px;
-      text-transform: uppercase;
+      line-height: 1.38;
     }
 
-    .row-list,
-    .audit-list {
-      display: grid;
-      gap: 7px;
+    .node-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 10px;
     }
 
-    .row-line {
-      align-items: center;
-      background: var(--panel-soft);
-      border: 1px solid var(--line);
-      display: grid;
-      gap: 12px;
-      grid-template-columns: 118px 1fr;
-      min-height: 32px;
-      padding: 6px 9px;
-    }
-
-    .row-line span {
-      color: var(--muted);
+    .field-pill {
+      background: #eee9df;
+      border-radius: 999px;
+      color: #526058;
       font-family: var(--mono);
-      font-size: 12px;
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .row-line strong {
-      color: var(--ink);
-      font-size: 13px;
-      min-width: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .row-line.protected strong,
-    .row-line.secret strong {
-      color: var(--red);
-      font-family: var(--mono);
-      font-weight: 850;
-    }
-
-    .audit-line {
-      background: var(--panel-soft);
-      border: 1px solid var(--line);
-      color: var(--muted-strong);
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.35;
-      min-height: 32px;
-      padding: 7px 9px;
-    }
-
-    .audit-line.important {
-      background: var(--orange-soft);
-      border-color: rgba(242, 106, 27, 0.34);
-      color: var(--ink);
-      font-weight: 850;
-    }
-
-    .audit-line.denied {
-      background: var(--red-soft);
-      border-color: rgba(189, 79, 62, 0.32);
-      color: #56251d;
+      font-size: 9px;
+      padding: 3px 7px;
     }
 
     @media (max-width: 1180px) {
@@ -521,7 +452,7 @@
       }
 
       .graph-node {
-        width: 126px;
+        width: 190px;
       }
     }
 
@@ -567,11 +498,7 @@
       }
 
       .graph-node {
-        width: 128px;
-      }
-
-      .proof-grid {
-        grid-template-columns: 1fr;
+        width: 190px;
       }
     }
 
@@ -610,10 +537,6 @@
         width: 100%;
       }
 
-      .demo-body {
-        padding: 14px;
-      }
-
       .demo-title strong {
         font-size: 14px;
       }
@@ -623,21 +546,13 @@
         line-height: 1.5;
       }
 
-      .actor-toggle {
-        width: 100%;
-      }
-
-      .actor-button {
-        flex: 1;
-      }
-
       .graph-stage {
         min-height: 620px;
       }
 
       .graph-node {
-        min-height: 70px;
-        width: 124px;
+        min-height: 98px;
+        width: 190px;
       }
 
       .node-name {
@@ -648,9 +563,6 @@
         font-size: 12px;
       }
 
-      .row-line {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </head>
@@ -677,33 +589,32 @@
         <p class="proof-line"><span class="proof-dot" aria-hidden="true"></span>Schema visible. Values withheld. Every decision logged.</p>
       </section>
 
-      <section class="demo-card" aria-label="Atoll protected access demo">
+      <section class="demo-card" aria-label="Atoll Studio graph preview">
         <div class="demo-header">
           <div class="demo-title">
-            <strong>enterprise_portfolio_backend</strong>
-            <span>live graph / protected fields / audit receipts</span>
+            <strong>Atoll Studio</strong>
+            <span>graph / policies / deploy plan</span>
           </div>
-          <div class="actor-toggle" aria-label="View rows as actor">
-            <button class="actor-button" type="button" data-actor="owner" aria-pressed="false">owner</button>
-            <button class="actor-button active" type="button" data-actor="coding_agent" aria-pressed="true">coding_agent</button>
+          <div class="preview-actions" aria-label="Studio controls preview">
+            <span class="preview-pill primary">New Backend</span>
+            <span class="preview-pill">Level Lock On</span>
+            <span class="preview-pill">Reset</span>
+            <span class="preview-pill">JSON</span>
           </div>
         </div>
 
         <div class="demo-body">
           <div class="graph-stage" id="graph-stage">
-            <svg class="graph-lines" id="graph-lines" aria-hidden="true"></svg>
-            <div id="graph-nodes"></div>
-          </div>
-
-          <div class="proof-grid">
-            <article class="proof-panel">
-              <p class="panel-title" id="access-title">Viewing as coding_agent</p>
-              <div class="row-list" id="row-list"></div>
-            </article>
-            <article class="proof-panel receipt">
-              <p class="panel-title">Audit receipt</p>
-              <div class="audit-list" id="audit-list"></div>
-            </article>
+            <div class="graph-canvas" id="graph-canvas">
+              <div class="flow-guide" style="top:86px">Entry</div>
+              <div class="flow-guide" style="top:236px">Routes and APIs</div>
+              <div class="flow-guide" style="top:406px">Identity, projects, devices, and secrets</div>
+              <div class="flow-guide" style="top:646px">Data and functions</div>
+              <div class="flow-guide" style="top:836px">Agents</div>
+              <div class="flow-guide" style="top:1026px">Deployment target</div>
+              <svg class="graph-lines" id="graph-lines" aria-hidden="true"></svg>
+              <div id="graph-nodes"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -711,76 +622,54 @@
   </div>
 
   <script>
+    const canvasWidth = 1280;
+    const canvasHeight = 1160;
+    const nodeBox = { width: 190, height: 98 };
+
     const graphNodes = [
-      { id: "app", name: "capital_app", kind: "app", type: "app", x: 14, y: 16, mx: 28, my: 10, copy: "production entry" },
-      { id: "api", name: "/api/agent", kind: "api", type: "api", x: 33, y: 16, mx: 70, my: 10, copy: "schema access" },
-      { id: "users", name: "users", kind: "actor", type: "actor", x: 53, y: 16, mx: 28, my: 24, copy: "human accounts" },
-      { id: "owner", name: "owner", kind: "actor", type: "actor", x: 74, y: 16, mx: 70, my: 24, copy: "full read scope" },
-      { id: "portfolios", name: "portfolios", kind: "table", type: "table", x: 22, y: 42, mx: 28, my: 41, copy: "workspace books" },
-      { id: "positions", name: "positions", kind: "rows", type: "rows", x: 45, y: 42, mx: 70, my: 41, copy: "row surface" },
-      { id: "agent", name: "coding_agent", kind: "actor", type: "actor", x: 69, y: 42, mx: 28, my: 58, copy: "untrusted helper" },
-      { id: "policy", name: "policy_graph", kind: "rule", type: "rule", x: 87, y: 43, mx: 70, my: 58, copy: "server decision" },
-      { id: "alpha", name: "alpha_signal", kind: "locked", type: "locked", x: 18, y: 72, mx: 28, my: 76, copy: "protected value", status: "withheld" },
-      { id: "notes", name: "private_notes", kind: "locked", type: "locked", x: 39, y: 73, mx: 70, my: 76, copy: "protected value", status: "withheld" },
-      { id: "keys", name: "api_keys", kind: "secret", type: "secret", x: 61, y: 73, mx: 28, my: 91, copy: "secret reference", status: "denied" },
-      { id: "audit", name: "audit_events", kind: "log", type: "log", x: 82, y: 72, mx: 70, my: 91, copy: "exposure record" }
+      { id: "app_domain", name: "app.example.com", type: "domain", x: 545, y: 92, copy: "Primary production domain.", fields: [] },
+      { id: "dashboard_page", name: "/dashboard", type: "page", x: 180, y: 242, copy: "Authenticated telemetry dashboard.", fields: [] },
+      { id: "api_device_ingest", name: "/api/device-ingest", type: "api", x: 545, y: 242, copy: "Device-token telemetry ingest endpoint.", fields: ["device_token", "payload"] },
+      { id: "api_agent_query", name: "/api/agent-query", type: "api", x: 910, y: 242, copy: "Scoped AI-agent query endpoint.", fields: ["agent_identity", "query"] },
+      { id: "users", name: "users", type: "table", x: 60, y: 412, copy: "Human account records.", fields: ["id", "email"] },
+      { id: "organizations", name: "organizations", type: "table", x: 300, y: 412, copy: "Tenant boundary.", fields: ["id", "name", "plan"] },
+      { id: "projects", name: "projects", type: "table", x: 540, y: 412, copy: "Project and data boundary.", fields: ["id", "organization_id", "name"] },
+      { id: "device_publisher", name: "device_publisher", type: "device", x: 780, y: 412, copy: "Non-human device principal that publishes telemetry.", fields: [] },
+      { id: "devices", name: "devices", type: "table", x: 1020, y: 412, copy: "Registered hardware publishers.", fields: ["id", "project_id", "last_seen_at"] },
+      { id: "device_tokens", name: "device_tokens", type: "secret", x: 1020, y: 560, copy: "Device token hashes. Secret by default.", fields: ["device_id", "token_hash", "revoked_at"] },
+      { id: "telemetry_readings", name: "telemetry_readings", type: "table", x: 300, y: 652, copy: "Append-only telemetry measurements.", fields: ["id", "event_id", "project_id", "timestamp"] },
+      { id: "latest_device_state", name: "latest_device_state", type: "table", x: 540, y: 652, copy: "Current device health snapshot.", fields: ["device_id", "project_id", "status"] },
+      { id: "get_project_readings", name: "get_project_readings", type: "function", x: 780, y: 652, copy: "Returns scoped project readings.", fields: ["project_id", "range"] },
+      { id: "get_device_health", name: "get_device_health", type: "function", x: 1020, y: 652, copy: "Returns visible device health rows.", fields: ["project_id"] },
+      { id: "analysis_agent", name: "analysis_agent", type: "agent", x: 300, y: 842, copy: "Agent with field-scoped telemetry reads.", fields: [] },
+      { id: "coding_agent", name: "coding_agent", type: "agent", x: 540, y: 842, copy: "Agent that can inspect schema but not production rows.", fields: [] },
+      { id: "support_agent", name: "support_agent", type: "agent", x: 780, y: 842, copy: "Agent with operational status access only.", fields: [] },
+      { id: "postgres", name: "postgres", type: "deployment", x: 545, y: 1032, copy: "Customer-owned Postgres target.", fields: ["target"] }
     ];
 
     const graphEdges = [
-      { from: "app", to: "api" },
-      { from: "api", to: "positions" },
-      { from: "users", to: "owner" },
-      { from: "owner", to: "positions" },
-      { from: "portfolios", to: "positions" },
-      { from: "positions", to: "alpha", state: "protected" },
-      { from: "positions", to: "notes", state: "protected" },
-      { from: "api", to: "agent" },
-      { from: "agent", to: "policy", state: "protected" },
-      { from: "policy", to: "alpha", state: "protected" },
-      { from: "policy", to: "notes", state: "protected" },
-      { from: "policy", to: "keys", state: "denied" },
-      { from: "policy", to: "positions" },
-      { from: "positions", to: "audit", state: "protected" },
-      { from: "agent", to: "audit", state: "protected" },
-      { from: "owner", to: "audit" }
+      { from: "app_domain", to: "dashboard_page", type: "serves" },
+      { from: "app_domain", to: "api_device_ingest", type: "serves" },
+      { from: "app_domain", to: "api_agent_query", type: "serves" },
+      { from: "dashboard_page", to: "telemetry_readings", type: "reads" },
+      { from: "dashboard_page", to: "latest_device_state", type: "reads" },
+      { from: "dashboard_page", to: "projects", type: "reads" },
+      { from: "dashboard_page", to: "get_project_readings", type: "calls" },
+      { from: "dashboard_page", to: "get_device_health", type: "calls" },
+      { from: "device_publisher", to: "api_device_ingest", type: "publishes_to" },
+      { from: "api_device_ingest", to: "devices", type: "reads" },
+      { from: "api_device_ingest", to: "device_tokens", type: "reads" },
+      { from: "api_device_ingest", to: "telemetry_readings", type: "writes" },
+      { from: "api_device_ingest", to: "latest_device_state", type: "writes" },
+      { from: "analysis_agent", to: "telemetry_readings", type: "reads" },
+      { from: "coding_agent", to: "telemetry_readings", type: "reads" },
+      { from: "postgres", to: "telemetry_readings", type: "deploys_to" }
     ];
 
-    const rows = {
-      owner: [
-        ["portfolio_value", "$482,901,114", "clear"],
-        ["alpha_signal", "rebalance_score: 0.84", "clear"],
-        ["private_notes", "trim semiconductor exposure", "clear"],
-        ["api_token", "sk_live_...9fa2", "clear"]
-      ],
-      coding_agent: [
-        ["portfolio_value", "$482,901,114", "clear"],
-        ["alpha_signal", "[protected]", "protected"],
-        ["private_notes", "[protected]", "protected"],
-        ["api_token", "[secret]", "secret"]
-      ]
-    };
-
-    const audits = {
-      owner: [
-        ["owner read positions -> allowed", "important"],
-        ["owner read alpha_signal -> real value returned", ""],
-        ["coding_agent read positions -> 3 fields protected", ""]
-      ],
-      coding_agent: [
-        ["coding_agent read positions -> 3 fields protected", "important"],
-        ["coding_agent attempted api_keys -> denied", "denied"],
-        ["owner read positions -> allowed", ""]
-      ]
-    };
-
     const stage = document.getElementById("graph-stage");
+    const canvas = document.getElementById("graph-canvas");
     const nodesLayer = document.getElementById("graph-nodes");
     const linesLayer = document.getElementById("graph-lines");
-    const rowList = document.getElementById("row-list");
-    const auditList = document.getElementById("audit-list");
-    const accessTitle = document.getElementById("access-title");
-    const actorButtons = [...document.querySelectorAll(".actor-button")];
-    let activeActor = "coding_agent";
 
     function escapeHtml(value) {
       return String(value)
@@ -791,103 +680,101 @@
         .replaceAll("'", "&#039;");
     }
 
-    function nodePosition(node) {
-      const compact = window.matchMedia("(max-width: 940px)").matches;
-      return {
-        x: compact ? node.mx : node.x,
-        y: compact ? node.my : node.y
-      };
-    }
-
     function getNode(id) {
       return graphNodes.find((node) => node.id === id);
     }
 
-    function activeNodeIds() {
-      return activeActor === "coding_agent"
-        ? new Set(["agent", "policy", "positions", "alpha", "notes", "keys", "audit"])
-        : new Set(["owner", "positions", "alpha", "notes", "audit"]);
-    }
-
     function renderNodes() {
-      const active = activeNodeIds();
       nodesLayer.innerHTML = graphNodes.map((node) => {
-        const position = nodePosition(node);
         return `
-          <article class="graph-node ${node.type} ${active.has(node.id) ? "active" : ""}"
-            style="left:${position.x}%;top:${position.y}%">
+          <article class="graph-node ${node.type}" style="left:${node.x}px;top:${node.y}px">
             <span class="node-top">
               <span class="node-name">${escapeHtml(node.name)}</span>
-              <span class="node-kind">${escapeHtml(node.kind)}</span>
+              <span class="node-kind">${escapeHtml(node.type)}</span>
             </span>
             <span class="node-copy">${escapeHtml(node.copy)}</span>
-            ${node.status ? `<span class="node-status">${escapeHtml(node.status)}</span>` : ""}
+            ${node.fields.length ? `
+              <span class="node-fields">
+                ${node.fields.map((field) => `<span class="field-pill">${escapeHtml(field)}</span>`).join("")}
+              </span>
+            ` : ""}
           </article>
         `;
       }).join("");
     }
 
+    function anchors(source, target) {
+      const a = { x: source.x, y: source.y, width: nodeBox.width, height: nodeBox.height };
+      const b = { x: target.x, y: target.y, width: nodeBox.width, height: nodeBox.height };
+      const ac = { x: a.x + a.width / 2, y: a.y + a.height / 2 };
+      const bc = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      const dx = bc.x - ac.x;
+      const dy = bc.y - ac.y;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const dir = dx > 0 ? 1 : -1;
+        return {
+          start: { x: dir > 0 ? a.x + a.width : a.x, y: ac.y },
+          end: { x: dir > 0 ? b.x : b.x + b.width, y: bc.y },
+          axis: "x",
+          dir
+        };
+      }
+      const dir = dy > 0 ? 1 : -1;
+      return {
+        start: { x: ac.x, y: dir > 0 ? a.y + a.height : a.y },
+        end: { x: bc.x, y: dir > 0 ? b.y : b.y + b.height },
+        axis: "y",
+        dir
+      };
+    }
+
+    function edgePath(source, target) {
+      const anchor = anchors(source, target);
+      if (anchor.axis === "x") {
+        const bend = Math.max(68, Math.abs(anchor.end.x - anchor.start.x) * 0.42);
+        return `M ${anchor.start.x} ${anchor.start.y} C ${anchor.start.x + bend * anchor.dir} ${anchor.start.y}, ${anchor.end.x - bend * anchor.dir} ${anchor.end.y}, ${anchor.end.x} ${anchor.end.y}`;
+      }
+      const bend = Math.max(68, Math.abs(anchor.end.y - anchor.start.y) * 0.42);
+      return `M ${anchor.start.x} ${anchor.start.y} C ${anchor.start.x} ${anchor.start.y + bend * anchor.dir}, ${anchor.end.x} ${anchor.end.y - bend * anchor.dir}, ${anchor.end.x} ${anchor.end.y}`;
+    }
+
     function drawLines() {
-      const width = stage.clientWidth;
-      const height = stage.clientHeight;
-      linesLayer.setAttribute("viewBox", `0 0 ${width} ${height}`);
-      linesLayer.innerHTML = graphEdges.map((edge) => {
-        const from = nodePosition(getNode(edge.from));
-        const to = nodePosition(getNode(edge.to));
-        const x1 = width * from.x / 100;
-        const y1 = height * from.y / 100;
-        const x2 = width * to.x / 100;
-        const y2 = height * to.y / 100;
-        const bend = Math.max(34, Math.abs(x2 - x1) * 0.34);
-        return `<path class="${edge.state || ""}" d="M${x1} ${y1} C${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}"></path>`;
-      }).join("");
+      linesLayer.setAttribute("viewBox", `0 0 ${canvasWidth} ${canvasHeight}`);
+      linesLayer.innerHTML = `
+        <defs>
+          <marker id="preview-arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="strokeWidth">
+            <path d="M1,1 L9,5 L1,9 Q3,5 1,1" fill="rgba(61,77,69,0.34)"></path>
+          </marker>
+        </defs>
+        ${graphEdges.map((edge) => {
+          const from = getNode(edge.from);
+          const to = getNode(edge.to);
+          if (!from || !to) return "";
+          return `<path class="${escapeHtml(edge.type)}" d="${edgePath(from, to)}" marker-end="url(#preview-arrow)"></path>`;
+        }).join("")}
+      `;
     }
 
-    function renderRows() {
-      accessTitle.textContent = `Viewing as ${activeActor}`;
-      rowList.innerHTML = rows[activeActor].map(([field, value, state]) => `
-        <div class="row-line ${state}">
-          <span>${escapeHtml(field)}</span>
-          <strong>${escapeHtml(value)}</strong>
-        </div>
-      `).join("");
-    }
-
-    function renderAudits() {
-      auditList.innerHTML = audits[activeActor].map(([event, state]) => `
-        <div class="audit-line ${state}">${escapeHtml(event)}</div>
-      `).join("");
-    }
-
-    function renderButtons() {
-      actorButtons.forEach((button) => {
-        const active = button.dataset.actor === activeActor;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-pressed", String(active));
-      });
-    }
-
-    function setActor(actor) {
-      activeActor = actor;
-      render();
+    function frameGraph() {
+      const scale = Math.min(stage.clientWidth / canvasWidth, stage.clientHeight / canvasHeight);
+      const x = Math.max(0, (stage.clientWidth - canvasWidth * scale) / 2);
+      const y = Math.max(0, (stage.clientHeight - canvasHeight * scale) / 2);
+      canvas.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     }
 
     function render() {
-      renderButtons();
       renderNodes();
       drawLines();
-      renderRows();
-      renderAudits();
+      frameGraph();
     }
 
-    actorButtons.forEach((button) => {
-      button.addEventListener("click", () => setActor(button.dataset.actor));
+    window.addEventListener("resize", () => {
+      render();
     });
 
-    window.addEventListener("resize", () => {
-      renderNodes();
-      drawLines();
-    });
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(frameGraph);
+    }
 
     render();
   </script>
