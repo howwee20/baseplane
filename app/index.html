@@ -33,7 +33,7 @@
       margin: 0;
       background: var(--bg);
       color: var(--ink);
-      font-family: var(--sans);
+      font-family: var(--mono);
       overflow: hidden;
     }
 
@@ -75,6 +75,7 @@
 
     .brand a {
       color: var(--orange);
+      font-family: var(--sans);
       font-size: 22px;
       font-weight: 850;
       letter-spacing: -0.055em;
@@ -881,6 +882,368 @@
         height: 48vh;
       }
     }
+
+    /* Full-screen New Backend onboarding */
+    .onboarding {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .onboarding.open {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .onboarding-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.92);
+    }
+
+    .onboarding-brand {
+      color: var(--orange);
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .onboarding-progress-wrap {
+      flex: 1;
+      max-width: 420px;
+      min-width: 0;
+    }
+
+    .onboarding-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .onboarding-progress {
+      width: 100%;
+      height: 6px;
+      border: 1px solid var(--line);
+      background: rgba(244, 241, 235, 0.9);
+      overflow: hidden;
+    }
+
+    .onboarding-progress > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: var(--orange);
+      transition: width 160ms ease;
+    }
+
+    .onboarding-main {
+      min-height: 0;
+      overflow: auto;
+      padding: 28px 22px 18px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .onboarding-panel {
+      width: min(860px, 100%);
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .onboarding-title {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 850;
+      letter-spacing: 0;
+      line-height: 1.08;
+    }
+
+    .onboarding-help {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      max-width: 52ch;
+    }
+
+    .onboarding-tiles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .onboarding-tiles.count-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .onboarding-tiles.count-4,
+    .onboarding-tiles.count-5 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .onboarding-tile {
+      position: relative;
+      min-height: 118px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.96);
+      color: var(--ink);
+      text-align: left;
+      padding: 16px 16px 16px 18px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+    }
+
+    .onboarding-tile:hover {
+      border-color: rgba(242, 106, 27, 0.42);
+      background: #fffdf8;
+    }
+
+    .onboarding-tile:focus-visible,
+    .onboarding-close:focus-visible,
+    .onboarding-actions .button:focus-visible,
+    #onboarding-name:focus-visible {
+      outline: 2px solid rgba(242, 106, 27, 0.7);
+      outline-offset: 2px;
+    }
+
+    .onboarding-tile[aria-checked="true"],
+    .onboarding-tile[aria-selected="true"],
+    .onboarding-tile.selected {
+      border-color: rgba(242, 106, 27, 0.72);
+      background: rgba(242, 106, 27, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(242, 106, 27, 0.2);
+    }
+
+    .onboarding-tile-label {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0;
+      padding-right: 24px;
+    }
+
+    .onboarding-tile-desc {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .onboarding-tile-check {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      background: rgba(255, 253, 248, 0.9);
+    }
+
+    .onboarding-tile.selected .onboarding-tile-check,
+    .onboarding-tile[aria-checked="true"] .onboarding-tile-check,
+    .onboarding-tile[aria-selected="true"] .onboarding-tile-check {
+      border-color: var(--orange);
+      background: var(--orange);
+      color: white;
+    }
+
+    .onboarding-review {
+      display: grid;
+      gap: 14px;
+    }
+
+    .onboarding-review[hidden],
+    .onboarding-tiles[hidden] {
+      display: none !important;
+    }
+
+    .onboarding-name-label {
+      display: grid;
+      gap: 8px;
+    }
+
+    .onboarding-name-label span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #onboarding-name {
+      height: 48px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 0 14px;
+    }
+
+    .onboarding-summary {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.96);
+      padding: 14px 16px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .onboarding-summary-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .onboarding-summary-row strong {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding-top: 2px;
+    }
+
+    .onboarding-summary-row span {
+      line-height: 1.4;
+    }
+
+    .onboarding-error {
+      min-height: 20px;
+      color: var(--red);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .onboarding-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 22px 18px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 253, 248, 0.92);
+    }
+
+    .onboarding-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .onboarding-notice {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(18px);
+      z-index: 55;
+      width: min(420px, calc(100vw - 28px));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 253, 248, 0.96);
+      box-shadow: 0 18px 48px rgba(17, 30, 23, 0.14);
+      padding: 14px 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .onboarding-notice.open {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .onboarding-notice strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 850;
+      margin-bottom: 4px;
+    }
+
+    .onboarding-notice p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 760px) {
+      .onboarding-top {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px 14px 10px;
+      }
+
+      .onboarding-progress-wrap {
+        order: 3;
+        flex-basis: 100%;
+        max-width: none;
+      }
+
+      .onboarding-main {
+        padding: 20px 14px 12px;
+      }
+
+      .onboarding-tiles,
+      .onboarding-tiles.count-3,
+      .onboarding-tiles.count-4,
+      .onboarding-tiles.count-5 {
+        grid-template-columns: 1fr;
+      }
+
+      .onboarding-tile {
+        min-height: 104px;
+      }
+
+      .onboarding-summary-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+
+      .onboarding-footer {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 12px 14px 16px;
+      }
+
+      .onboarding-actions {
+        width: 100%;
+      }
+
+      .onboarding-actions .button {
+        flex: 1;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -903,7 +1266,7 @@
     <div class="body">
       <aside class="panel left" id="tools-panel" aria-label="Graph tools">
         <div class="drawer-head">
-          <h2 class="drawer-title">New Backend</h2>
+          <h2 class="drawer-title">Studio Tools</h2>
           <button class="close-button" id="close-tools" aria-label="Close tools">×</button>
         </div>
         <section class="section">
@@ -1058,11 +1421,11 @@
       <main class="workspace" id="workspace">
         <div class="canvas" id="canvas">
           <div class="flow-guide" style="top:86px">Entry</div>
-          <div class="flow-guide" style="top:236px">Routes and APIs</div>
-          <div class="flow-guide" style="top:406px">Identity, projects, devices, and secrets</div>
-          <div class="flow-guide" style="top:646px">Data and functions</div>
-          <div class="flow-guide" style="top:836px">Agents</div>
-          <div class="flow-guide" style="top:1026px">Deployment target</div>
+          <div class="flow-guide" style="top:236px">App connections</div>
+          <div class="flow-guide" style="top:406px">People and access</div>
+          <div class="flow-guide" style="top:646px">Information</div>
+          <div class="flow-guide" style="top:836px">AI access</div>
+          <div class="flow-guide" style="top:1026px">Runtime</div>
           <svg class="edges" id="edges"></svg>
           <div id="nodes"></div>
         </div>
@@ -1086,9 +1449,78 @@
     </section>
   </div>
 
+  <div
+    class="onboarding"
+    id="onboarding"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="onboarding-title"
+    hidden
+  >
+    <div class="onboarding-top">
+      <div class="onboarding-brand" aria-label="Atoll">Atoll</div>
+      <div class="onboarding-progress-wrap">
+        <div class="onboarding-progress-meta">
+          <span id="onboarding-step-label">Step 1 of 6</span>
+          <span id="onboarding-step-name">What are you building?</span>
+        </div>
+        <div
+          class="onboarding-progress"
+          id="onboarding-progress"
+          role="progressbar"
+          aria-valuemin="1"
+          aria-valuemax="6"
+          aria-valuenow="1"
+          aria-label="Onboarding progress"
+        >
+          <span id="onboarding-progress-fill"></span>
+        </div>
+      </div>
+      <button class="close-button onboarding-close" id="onboarding-close" aria-label="Cancel onboarding and keep current graph">×</button>
+    </div>
+
+    <div class="onboarding-main">
+      <div class="onboarding-panel">
+        <h1 class="onboarding-title" id="onboarding-title">What are you building?</h1>
+        <p class="onboarding-help" id="onboarding-help">Choose one option to continue.</p>
+        <div class="onboarding-tiles" id="onboarding-tiles" role="listbox" aria-label="Onboarding choices"></div>
+        <div class="onboarding-review" id="onboarding-review" hidden>
+          <label class="onboarding-name-label" for="onboarding-name">
+            <span>Backend name</span>
+            <input id="onboarding-name" name="backend-name" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Northwind Portal">
+          </label>
+          <div class="onboarding-summary" id="onboarding-summary" aria-live="polite"></div>
+        </div>
+        <div class="onboarding-error" id="onboarding-error" role="alert" aria-live="assertive"></div>
+      </div>
+    </div>
+
+    <div class="onboarding-footer">
+      <button class="button" id="onboarding-back" type="button">Back</button>
+      <div class="onboarding-actions">
+        <button class="button" id="onboarding-cancel" type="button">Cancel</button>
+        <button class="button primary" id="onboarding-continue" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="onboarding-notice" id="onboarding-notice" role="status" aria-live="polite">
+    <strong>Backend graph ready</strong>
+    <p>Your architecture graph is validated and open in Studio. Deployment is a separate next step.</p>
+  </div>
+
 <script src="./config.js"></script>
 <script type="module">
 import { compileGraph, evaluateAccess, generateRouteContracts } from "../packages/compiler/index.js";
+import { createFullStackTemplates } from "./templates.js";
+import {
+  ONBOARDING_STEP_COUNT,
+  ONBOARDING_STEPS,
+  buildOnboardingGraph,
+  createDefaultOnboardingState,
+  summarizeOnboardingState,
+  validateOnboardingState
+} from "./onboarding.js";
 
 const storageKey = "baseplane-alpha-graph-v3";
 const rowsStorageKey = "baseplane-alpha-rows-v1";
@@ -1211,198 +1643,8 @@ function agent(id, name, can) {
   return { id, name, can };
 }
 
-function createFullStackTemplates() {
-  const telemetry = {
-    version: "0.1.0",
-    app: {
-      name: "Generic Telemetry App",
-      description: "A private telemetry backend with scoped human, device, route, and AI-agent access."
-    },
-    nodes: [
-      node("app_domain", "app.example.com", "domain", "Primary production domain.", 56, 96, []),
-      { ...node("dashboard_page", "/dashboard", "page", "Authenticated telemetry dashboard.", 260, 92, []), path: "/dashboard" },
-      { ...node("api_device_ingest", "/api/device-ingest", "api", "Device-token telemetry ingest endpoint.", 260, 300, [["device_token", "secret_input"], ["payload", "jsonb"]]), path: "/api/device-ingest" },
-      { ...node("api_agent_query", "/api/agent-query", "api", "Scoped AI-agent query endpoint.", 260, 510, [["agent_identity", "token"], ["query", "jsonb"]]), path: "/api/agent-query" },
-      node("users", "users", "table", "Human account records.", 560, 36, [["id", "uuid primary key"], ["email", "text not null"]]),
-      node("organizations", "organizations", "table", "Tenant boundary.", 560, 210, [["id", "uuid primary key"], ["name", "text not null"], ["plan", "text"]]),
-      node("projects", "projects", "table", "Project and data boundary.", 560, 384, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"]]),
-      node("devices", "devices", "table", "Registered hardware publishers.", 850, 168, [["id", "text primary key"], ["project_id", "uuid not null"], ["last_seen_at", "timestamptz"]]),
-      node("device_tokens", "device_tokens", "secret", "Device token hashes. Secret by default.", 850, 350, [["device_id", "text primary key"], ["token_hash", "text not null"], ["revoked_at", "timestamptz"]]),
-      node("telemetry_readings", "telemetry_readings", "table", "Append-only telemetry measurements.", 1120, 175, [["id", "bigint generated always as identity primary key"], ["event_id", "text not null unique"], ["project_id", "uuid not null"], ["timestamp", "timestamptz not null"], ["measurement_value", "double precision not null"], ["raw_payload", "jsonb"]]),
-      node("latest_device_state", "latest_device_state", "table", "Current device health snapshot.", 1120, 420, [["device_id", "text primary key"], ["project_id", "uuid not null"], ["status", "text not null"], ["updated_at", "timestamptz not null"]]),
-      node("get_project_readings", "get_project_readings", "function", "Returns scoped project readings.", 1410, 150, [["project_id", "uuid"], ["range", "tstzrange"]]),
-      node("get_device_health", "get_device_health", "function", "Returns visible device health rows.", 1410, 350, [["project_id", "uuid"]]),
-      node("analysis_agent", "analysis_agent", "agent", "Agent with field-scoped telemetry reads.", 560, 650, []),
-      node("coding_agent", "coding_agent", "agent", "Agent that can inspect schema but not production rows.", 820, 650, []),
-      node("support_agent", "support_agent", "agent", "Agent with operational status access only.", 1080, 650, []),
-      node("device_publisher", "device_publisher", "device", "Non-human device principal that publishes telemetry.", 56, 300, []),
-      node("postgres", "postgres", "deployment", "Customer-owned Postgres target.", 1410, 560, [["target", "customer-owned postgres"]])
-    ],
-    edges: [
-      stableEdge("app_domain", "dashboard_page", "serves"),
-      stableEdge("app_domain", "api_device_ingest", "serves"),
-      stableEdge("app_domain", "api_agent_query", "serves"),
-      stableEdge("dashboard_page", "telemetry_readings", "reads"),
-      stableEdge("dashboard_page", "latest_device_state", "reads"),
-      stableEdge("dashboard_page", "projects", "reads"),
-      stableEdge("dashboard_page", "get_project_readings", "calls"),
-      stableEdge("dashboard_page", "get_device_health", "calls"),
-      stableEdge("device_publisher", "api_device_ingest", "publishes_to"),
-      stableEdge("api_device_ingest", "devices", "reads"),
-      stableEdge("api_device_ingest", "device_tokens", "reads"),
-      stableEdge("api_device_ingest", "telemetry_readings", "writes"),
-      stableEdge("api_device_ingest", "latest_device_state", "writes"),
-      stableEdge("analysis_agent", "telemetry_readings", "reads"),
-      stableEdge("coding_agent", "telemetry_readings", "reads"),
-      stableEdge("postgres", "telemetry_readings", "deploys_to")
-    ],
-    principals: [
-      principal("researcher", "human", "Researcher"),
-      principal("admin", "human", "Admin"),
-      principal("anonymous", "anonymous", "Anonymous"),
-      principal("analysis_agent", "agent", "analysis_agent"),
-      principal("coding_agent", "agent", "coding_agent"),
-      principal("support_agent", "agent", "support_agent"),
-      principal("device_publisher", "device", "device_publisher"),
-      principal("dashboard_page", "service", "/dashboard"),
-      principal("api_device_ingest", "service", "/api/device-ingest"),
-      principal("api_agent_query", "service", "/api/agent-query")
-    ],
-    policies: [
-      policyObject("researcher", "human", "read", "table", "telemetry_readings", "", "allow", "project membership required", "researcher can read telemetry for their project"),
-      policyObject("device_publisher", "device", "write", "table", "telemetry_readings", "", "allow", "valid device token", "device can insert telemetry"),
-      policyObject("device_publisher", "device", "read", "table", "telemetry_readings", "", "deny", "", "device write access does not imply read access"),
-      policyObject("coding_agent", "agent", "inspect", "schema", "public", "", "allow", "", "schema inspection is separate from row access"),
-      policyObject("coding_agent", "agent", "read", "table", "telemetry_readings", "", "deny", "", "coding agent cannot read production rows"),
-      policyObject("analysis_agent", "agent", "read", "field", "telemetry_readings", "timestamp", "allow", "project-scoped agent session", "analysis agent can read timestamp only"),
-      policyObject("analysis_agent", "agent", "read", "field", "telemetry_readings", "measurement_value", "allow", "project-scoped agent session", "analysis agent can read measurement value only"),
-      policyObject("support_agent", "agent", "read", "table", "latest_device_state", "", "allow", "", "support agent can read operational device status"),
-      policyObject("support_agent", "agent", "read", "secret", "device_tokens", "", "deny", "", "support agent cannot read device secrets"),
-      policyObject("dashboard_page", "service", "read", "table", "telemetry_readings", "", "allow", "authenticated researcher session", "dashboard reads chart data"),
-      policyObject("dashboard_page", "service", "read", "table", "latest_device_state", "", "allow", "authenticated researcher session", "dashboard reads device state"),
-      policyObject("dashboard_page", "service", "read", "table", "projects", "", "allow", "authenticated researcher session", "dashboard reads project metadata"),
-      policyObject("dashboard_page", "service", "read", "secret", "device_tokens", "", "deny", "", "dashboard cannot read secrets"),
-      policyObject("api_device_ingest", "service", "write", "table", "telemetry_readings", "", "allow", "valid device token", "ingest writes telemetry rows"),
-      policyObject("api_device_ingest", "service", "write", "table", "latest_device_state", "", "allow", "valid device token", "ingest updates latest state"),
-      policyObject("api_device_ingest", "service", "read", "table", "devices", "", "allow", "lookup device by token", "ingest validates device identity"),
-      policyObject("api_device_ingest", "service", "read", "field", "device_tokens", "token_hash", "allow", "hash compare only", "ingest can compare token hash but not expose it"),
-      policyObject("api_agent_query", "service", "read", "field", "telemetry_readings", "timestamp", "allow", "agent identity checked", "agent query API can return timestamp only"),
-      policyObject("api_agent_query", "service", "read", "field", "telemetry_readings", "measurement_value", "allow", "agent identity checked", "agent query API can return measurement value only"),
-      policyObject("anonymous", "anonymous", "read", "page", "dashboard_page", "", "deny", "", "dashboard requires authentication")
-    ],
-    routes: [
-      route("dashboard_page", "/dashboard", "page", "researcher session", ["telemetry_readings", "latest_device_state", "projects"], [], ["get_project_readings", "get_device_health"], ["researcher", "admin", "analysis_agent scoped fields only"], ["anonymous", "device_publisher", "coding_agent row access"], [], ["log dashboard export requests"]),
-      route("api_device_ingest", "/api/device-ingest", "api", "device token", ["devices", "device_tokens.token_hash"], ["telemetry_readings", "latest_device_state"], [], ["device_publisher"], ["anonymous", "browser users", "coding_agent"], ["device_tokens.token_hash"], ["log every insert", "log token failures"]),
-      route("api_agent_query", "/api/agent-query", "api", "agent identity", ["telemetry_readings.timestamp", "telemetry_readings.measurement_value"], [], [], ["analysis_agent"], ["coding_agent row access", "anonymous"], [], ["log every agent query", "log denied field requests"])
-    ],
-    deployments: [{ id: "postgres", name: "Postgres", target: "customer-owned postgres", environment: "production" }]
-  };
-  applyNodePositions(telemetry, {
-    app_domain: [545, 92],
-    dashboard_page: [180, 242],
-    api_device_ingest: [545, 242],
-    api_agent_query: [910, 242],
-    users: [60, 412],
-    organizations: [300, 412],
-    projects: [540, 412],
-    device_publisher: [780, 412],
-    devices: [1020, 412],
-    device_tokens: [1020, 560],
-    telemetry_readings: [300, 652],
-    latest_device_state: [540, 652],
-    get_project_readings: [780, 652],
-    get_device_health: [1020, 652],
-    analysis_agent: [300, 842],
-    coding_agent: [540, 842],
-    support_agent: [780, 842],
-    postgres: [545, 1032]
-  });
-
-  const saas = clone(telemetry);
-  saas.app = { name: "Generic SaaS App", description: "A team SaaS backend with organization membership, project data, routes, and support-agent boundaries." };
-  saas.nodes = saas.nodes.filter((item) => !["device_publisher", "api_device_ingest", "device_tokens", "telemetry_readings", "latest_device_state"].includes(item.id));
-  saas.nodes.push(node("projects_data", "projects_data", "table", "Customer-owned project rows.", 1120, 175, [["id", "uuid primary key"], ["organization_id", "uuid not null"], ["name", "text not null"], ["private_notes", "text"]]));
-  saas.edges = [stableEdge("app_domain", "dashboard_page", "serves"), stableEdge("dashboard_page", "projects_data", "reads"), stableEdge("support_agent", "projects_data", "reads"), stableEdge("postgres", "projects_data", "deploys_to")];
-  saas.policies = [
-    policyObject("researcher", "human", "read", "table", "projects_data", "", "allow", "organization membership required", "member can read organization projects"),
-    policyObject("support_agent", "agent", "read", "field", "projects_data", "name", "allow", "", "support can read project names"),
-    policyObject("support_agent", "agent", "read", "field", "projects_data", "private_notes", "deny", "", "support cannot read private notes"),
-    policyObject("dashboard_page", "service", "read", "table", "projects_data", "", "allow", "signed-in member", "dashboard reads project rows")
-  ];
-  saas.routes = [route("dashboard_page", "/dashboard", "page", "member session", ["projects_data"], [], [], ["researcher", "admin"], ["anonymous"], [], ["log exports"])];
-  applyNodePositions(saas, {
-    app_domain: [545, 92],
-    dashboard_page: [365, 242],
-    api_agent_query: [725, 242],
-    users: [180, 412],
-    organizations: [420, 412],
-    projects: [660, 412],
-    devices: [900, 412],
-    projects_data: [545, 652],
-    analysis_agent: [300, 842],
-    coding_agent: [540, 842],
-    support_agent: [780, 842],
-    postgres: [545, 1032]
-  });
-
-  const privateAgent = clone(telemetry);
-  privateAgent.app = { name: "Private Agent App", description: "An app where agents can inspect schema and selected fields without inheriting production row or secret access." };
-  privateAgent.nodes = privateAgent.nodes.filter((item) => ["app_domain", "api_agent_query", "analysis_agent", "coding_agent", "postgres"].includes(item.id));
-  privateAgent.nodes.push(node("customer_records", "customer_records", "table", "Private customer records.", 620, 120, [["id", "uuid primary key"], ["account_name", "text"], ["private_notes", "text"]]));
-  privateAgent.nodes.push(node("api_keys", "api_keys", "secret", "Private API key hashes.", 620, 360, [["id", "uuid primary key"], ["token_hash", "text not null"]]));
-  privateAgent.edges = [stableEdge("app_domain", "api_agent_query", "serves"), stableEdge("api_agent_query", "customer_records", "reads"), stableEdge("analysis_agent", "customer_records", "reads"), stableEdge("coding_agent", "customer_records", "reads")];
-  privateAgent.policies = [
-    policyObject("analysis_agent", "agent", "read", "field", "customer_records", "account_name", "allow", "", "analysis agent can read account names"),
-    policyObject("analysis_agent", "agent", "read", "field", "customer_records", "private_notes", "deny", "", "private notes remain private"),
-    policyObject("coding_agent", "agent", "inspect", "schema", "public", "", "allow", "", "coding agent can inspect schema"),
-    policyObject("coding_agent", "agent", "read", "table", "customer_records", "", "deny", "", "coding agent cannot read rows"),
-    policyObject("analysis_agent", "agent", "read", "secret", "api_keys", "", "deny", "", "secrets are denied by default"),
-    policyObject("api_agent_query", "service", "read", "field", "customer_records", "account_name", "allow", "agent identity checked", "API returns scoped fields")
-  ];
-  privateAgent.routes = [route("api_agent_query", "/api/agent-query", "api", "agent identity", ["customer_records.account_name"], [], [], ["analysis_agent"], ["coding_agent row access", "anonymous"], [], ["log every query"])];
-  applyNodePositions(privateAgent, {
-    app_domain: [545, 92],
-    api_agent_query: [545, 242],
-    customer_records: [420, 512],
-    api_keys: [660, 512],
-    analysis_agent: [300, 782],
-    coding_agent: [540, 782],
-    postgres: [545, 1032]
-  });
-
-  return { research: telemetry, saas, telemetry, privateAgent };
-}
-
-function applyNodePositions(target, positions) {
-  for (const item of target.nodes || []) {
-    const position = positions[item.id];
-    if (!position) continue;
-    item.x = position[0];
-    item.y = position[1];
-  }
-}
-
-function stableEdge(from, to, type) {
-  return { id: `edge_${from}_${to}_${type}`, from, to, type, description: "" };
-}
-
 function principal(id, type, name) {
   return { id, type, name };
-}
-
-function policyObject(principal_id, principal_type, action, resource_type, resource_id, field, effect, condition, reason) {
-  return {
-    id: `policy_${principal_id}_${action}_${resource_id}${field ? `_${field}` : ""}`.replace(/[^a-zA-Z0-9_]/g, "_"),
-    principal_type,
-    principal_id,
-    action,
-    resource_type,
-    resource_id,
-    field,
-    effect,
-    condition,
-    reason
-  };
 }
 
 function route(id, path, type, auth, reads, writes, calls, allowed_principals, denied_principals, secrets, audit) {
@@ -1806,11 +2048,11 @@ function renderNodes() {
         tabindex="0">
         <div class="node-head">
           <div class="node-name">${escapeHtml(item.name)}</div>
-          <div class="node-type">${escapeHtml(typeLabels[item.type] || item.type)}</div>
+          <div class="node-type">${escapeHtml(item.display_type || typeLabels[item.type] || item.type)}</div>
         </div>
         <p class="node-desc">${escapeHtml(item.description || "")}</p>
         <div class="field-pills">
-          ${(item.fields || []).slice(0, 4).map((field) => `<span class="field-pill">${escapeHtml(field.name)}</span>`).join("")}
+          ${(item.hide_fields ? [] : (item.fields || [])).slice(0, 4).map((field) => `<span class="field-pill">${escapeHtml(field.name)}</span>`).join("")}
         </div>
       </article>
     `;
@@ -2882,11 +3124,317 @@ async function copyHostedRequest() {
   }
 }
 
+/* ---------- Full-screen New Backend onboarding ---------- */
+const onboardingRoot = document.getElementById("onboarding");
+const onboardingTiles = document.getElementById("onboarding-tiles");
+const onboardingReview = document.getElementById("onboarding-review");
+const onboardingNameInput = document.getElementById("onboarding-name");
+const onboardingSummary = document.getElementById("onboarding-summary");
+const onboardingError = document.getElementById("onboarding-error");
+const onboardingContinue = document.getElementById("onboarding-continue");
+const onboardingBack = document.getElementById("onboarding-back");
+const onboardingCancel = document.getElementById("onboarding-cancel");
+const onboardingClose = document.getElementById("onboarding-close");
+const onboardingNotice = document.getElementById("onboarding-notice");
+const onboardingTitle = document.getElementById("onboarding-title");
+const onboardingHelp = document.getElementById("onboarding-help");
+const onboardingStepLabel = document.getElementById("onboarding-step-label");
+const onboardingStepName = document.getElementById("onboarding-step-name");
+const onboardingProgress = document.getElementById("onboarding-progress");
+const onboardingProgressFill = document.getElementById("onboarding-progress-fill");
+
+let onboardingOpen = false;
+let onboardingStepIndex = 0;
+let onboardingState = createDefaultOnboardingState();
+let onboardingLastFocus = null;
+let onboardingNoticeTimer = null;
+
+function openOnboarding() {
+  onboardingLastFocus = document.activeElement;
+  onboardingState = createDefaultOnboardingState();
+  onboardingStepIndex = 0;
+  onboardingOpen = true;
+  onboardingRoot.hidden = false;
+  onboardingRoot.classList.add("open");
+  document.body.style.overflow = "hidden";
+  closeToolsPanel();
+  closeOutputDrawer();
+  renderOnboarding();
+  window.setTimeout(() => focusOnboardingPrimary(), 0);
+}
+
+function closeOnboarding({ restoreFocus = true } = {}) {
+  if (!onboardingOpen) return;
+  onboardingOpen = false;
+  onboardingRoot.classList.remove("open");
+  onboardingRoot.hidden = true;
+  document.body.style.overflow = "";
+  onboardingError.textContent = "";
+  if (restoreFocus && onboardingLastFocus && typeof onboardingLastFocus.focus === "function") {
+    onboardingLastFocus.focus();
+  }
+  onboardingLastFocus = null;
+}
+
+function cancelOnboarding() {
+  // Cancel must not mutate the current graph.
+  closeOnboarding();
+}
+
+function currentOnboardingStep() {
+  return ONBOARDING_STEPS[onboardingStepIndex];
+}
+
+function renderOnboarding() {
+  const step = currentOnboardingStep();
+  const stepNumber = onboardingStepIndex + 1;
+  onboardingStepLabel.textContent = `Step ${stepNumber} of ${ONBOARDING_STEP_COUNT}`;
+  onboardingStepName.textContent = step.title;
+  onboardingTitle.textContent = step.title;
+  onboardingProgress.setAttribute("aria-valuenow", String(stepNumber));
+  onboardingProgress.setAttribute("aria-valuemax", String(ONBOARDING_STEP_COUNT));
+  onboardingProgressFill.style.width = `${(stepNumber / ONBOARDING_STEP_COUNT) * 100}%`;
+  onboardingBack.disabled = onboardingStepIndex === 0;
+  onboardingError.textContent = "";
+
+  if (step.mode === "review") {
+    onboardingHelp.textContent = "Name this backend, review your choices, then create a validated architecture graph.";
+    onboardingTiles.hidden = true;
+    onboardingTiles.innerHTML = "";
+    onboardingReview.hidden = false;
+    onboardingNameInput.value = onboardingState.name || "";
+    renderOnboardingSummary();
+    onboardingContinue.textContent = "Create backend graph";
+    return;
+  }
+
+  onboardingReview.hidden = true;
+  onboardingTiles.hidden = false;
+  onboardingContinue.textContent = "Continue";
+  onboardingHelp.textContent = step.mode === "multi"
+    ? "Select one or more. At least one is required."
+    : "Choose one option to continue.";
+
+  const options = step.options || [];
+  onboardingTiles.className = `onboarding-tiles count-${options.length}`;
+  onboardingTiles.setAttribute("role", step.mode === "multi" ? "group" : "listbox");
+  onboardingTiles.setAttribute("aria-label", step.title);
+  onboardingTiles.innerHTML = options.map((option) => {
+    const selected = step.mode === "multi"
+      ? onboardingState.dataDomains.includes(option.id)
+      : onboardingState[step.field] === option.id;
+    return `
+      <button
+        type="button"
+        class="onboarding-tile ${selected ? "selected" : ""}"
+        role="${step.mode === "multi" ? "checkbox" : "option"}"
+        ${step.mode === "multi"
+          ? `aria-checked="${selected ? "true" : "false"}"`
+          : `aria-selected="${selected ? "true" : "false"}"`}
+        data-option="${escapeAttr(option.id)}"
+      >
+        <span class="onboarding-tile-check" aria-hidden="true">✓</span>
+        <span class="onboarding-tile-label">${escapeHtml(option.label)}</span>
+        <span class="onboarding-tile-desc">${escapeHtml(option.description || "")}</span>
+      </button>
+    `;
+  }).join("");
+
+  onboardingTiles.querySelectorAll("[data-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectOnboardingOption(button.dataset.option);
+    });
+  });
+}
+
+function renderOnboardingSummary() {
+  const summary = summarizeOnboardingState(onboardingState);
+  const rows = [
+    ["Building", summary.appType || "—"],
+    ["Remembers", summary.dataDomains.length ? summary.dataDomains.join(", ") : "—"],
+    ["Audience", summary.audience || "—"],
+    ["AI access", summary.aiAccess || "—"],
+    ["Runtime", summary.runtime || "—"]
+  ];
+  onboardingSummary.innerHTML = rows.map(([label, value]) => `
+    <div class="onboarding-summary-row">
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(value)}</span>
+    </div>
+  `).join("");
+}
+
+function selectOnboardingOption(optionId) {
+  const step = currentOnboardingStep();
+  if (!step || step.mode === "review") return;
+
+  if (step.mode === "multi") {
+    const selected = new Set(onboardingState.dataDomains);
+    if (selected.has(optionId)) selected.delete(optionId);
+    else selected.add(optionId);
+    onboardingState.dataDomains = [...selected];
+  } else {
+    onboardingState[step.field] = optionId;
+  }
+  onboardingError.textContent = "";
+  renderOnboarding();
+  focusOnboardingOption(optionId);
+}
+
+function focusOnboardingOption(optionId) {
+  const button = [...onboardingTiles.querySelectorAll("[data-option]")].find((el) => el.dataset.option === optionId);
+  button?.focus();
+}
+
+function focusOnboardingPrimary() {
+  const step = currentOnboardingStep();
+  if (step?.mode === "review") {
+    onboardingNameInput.focus();
+    return;
+  }
+  const selected = onboardingTiles.querySelector(".onboarding-tile.selected") || onboardingTiles.querySelector(".onboarding-tile");
+  (selected || onboardingContinue).focus();
+}
+
+function validateCurrentOnboardingStep() {
+  const step = currentOnboardingStep();
+  if (step.mode === "single") {
+    if (!onboardingState[step.field]) {
+      return `${step.title} requires a selection.`;
+    }
+    return "";
+  }
+  if (step.mode === "multi") {
+    if (!onboardingState.dataDomains.length) {
+      return "Select at least one option.";
+    }
+    return "";
+  }
+  if (step.mode === "review") {
+    onboardingState.name = onboardingNameInput.value.trim();
+    if (!onboardingState.name) return "Enter a backend name.";
+    const validation = validateOnboardingState(onboardingState);
+    if (!validation.valid) return validation.errors[0] || "Complete all required choices.";
+    return "";
+  }
+  return "";
+}
+
+function continueOnboarding() {
+  const error = validateCurrentOnboardingStep();
+  if (error) {
+    onboardingError.textContent = error;
+    focusOnboardingPrimary();
+    return;
+  }
+
+  if (onboardingStepIndex < ONBOARDING_STEP_COUNT - 1) {
+    onboardingStepIndex += 1;
+    renderOnboarding();
+    focusOnboardingPrimary();
+    return;
+  }
+
+  createBackendGraphFromOnboarding();
+}
+
+function backOnboarding() {
+  if (onboardingStepIndex === 0) return;
+  if (currentOnboardingStep().mode === "review") {
+    onboardingState.name = onboardingNameInput.value;
+  }
+  onboardingStepIndex -= 1;
+  renderOnboarding();
+  focusOnboardingPrimary();
+}
+
+function createBackendGraphFromOnboarding() {
+  onboardingState.name = onboardingNameInput.value.trim();
+  const validation = validateOnboardingState(onboardingState);
+  if (!validation.valid) {
+    onboardingError.textContent = validation.errors[0] || "Complete all required choices.";
+    return;
+  }
+
+  let nextGraph;
+  try {
+    nextGraph = buildOnboardingGraph(onboardingState, templates);
+  } catch (error) {
+    onboardingError.textContent = error.message || "Could not build backend graph.";
+    return;
+  }
+
+  // Local architecture validation gate before mutating Studio graph.
+  try {
+    compileGraph(nextGraph);
+  } catch (error) {
+    onboardingError.textContent = error.message || "Generated graph failed validation.";
+    return;
+  }
+
+  setGraph(nextGraph);
+  closeOnboarding({ restoreFocus: false });
+  closeToolsPanel();
+  closeOutputDrawer();
+  showOnboardingReadyNotice();
+  document.getElementById("open-tools")?.focus();
+}
+
+function showOnboardingReadyNotice() {
+  if (!onboardingNotice) return;
+  onboardingNotice.classList.add("open");
+  clearTimeout(onboardingNoticeTimer);
+  onboardingNoticeTimer = setTimeout(() => {
+    onboardingNotice.classList.remove("open");
+  }, 4200);
+}
+
+function getOnboardingFocusable() {
+  return [...onboardingRoot.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+    .filter((el) => !el.disabled && el.getAttribute("aria-hidden") !== "true" && el.getClientRects().length > 0);
+}
+
+onboardingContinue.addEventListener("click", continueOnboarding);
+onboardingBack.addEventListener("click", backOnboarding);
+onboardingCancel.addEventListener("click", cancelOnboarding);
+onboardingClose.addEventListener("click", cancelOnboarding);
+onboardingNameInput.addEventListener("input", () => {
+  onboardingState.name = onboardingNameInput.value;
+  onboardingError.textContent = "";
+});
+onboardingNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    continueOnboarding();
+  }
+});
+onboardingRoot.addEventListener("keydown", (event) => {
+  if (!onboardingOpen) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    cancelOnboarding();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = getOnboardingFocusable();
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
 document.getElementById("apply-intent").addEventListener("click", applyIntent);
 document.getElementById("add-edge").addEventListener("click", addEdgeFromForm);
 document.getElementById("download-json").addEventListener("click", downloadJson);
 document.getElementById("export-zip").addEventListener("click", exportZip);
-document.getElementById("open-tools").addEventListener("click", () => openToolsPanel());
+document.getElementById("open-tools").addEventListener("click", () => openOnboarding());
 document.getElementById("open-rows").addEventListener("click", () => openToolsPanel("tools-rows"));
 document.getElementById("open-simulator").addEventListener("click", () => openToolsPanel("tools-simulator"));
 document.getElementById("open-deploy-preview").addEventListener("click", openDeployPreview);
@@ -2977,6 +3525,17 @@ document.querySelectorAll("[data-add-node]").forEach((button) => {
   });
 });
 window.addEventListener("keydown", (event) => {
+  if (onboardingOpen) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelOnboarding();
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+    }
+    return;
+  }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     toolsPanel.classList.toggle("open");
