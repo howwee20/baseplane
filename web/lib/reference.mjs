@@ -7,8 +7,8 @@ export const VARIABLES={
  solar_radiation:{label:'Solar radiation',tolerance:200,units:['W/m**2','W/m2','W/m²','Watts per square meter'],change:75},
  precip_accum_one_hour:{label:'Rainfall · preceding hour',tolerance:5,units:['Millimeters','mm'],change:1}
 };
-export const DEFAULTS={radiusKm:100,minNeighbors:3,toleranceScale:1,alignmentMinutes:5,maxAgeMinutes:60};
-export function settings(input={}){const s={...DEFAULTS,...input};if(![25,50,100,150].includes(s.radiusKm)||![2,3,4].includes(s.minNeighbors)||![0.5,1,1.5,2,3].includes(s.toleranceScale))throw Error('Choose a supported radius, minimum neighbor count and tolerance.');return s;}
+export const DEFAULTS={radiusKm:100,minNeighbors:3,toleranceScale:1,alignmentMinutes:5,maxAgeMinutes:90};
+export function settings(input={}){const s={...DEFAULTS,...input};if(![25,50,100,150].includes(s.radiusKm)||![2,3,4].includes(s.minNeighbors)||![0.5,1,1.5,2,3].includes(s.toleranceScale)||![30,60,90,120,180].includes(s.maxAgeMinutes))throw Error('Choose a supported radius, minimum neighbor count, tolerance and maximum reading age.');return s;}
 export const median=values=>{const a=values.filter(Number.isFinite).sort((a,b)=>a-b),i=Math.floor(a.length/2);return a.length?a.length%2?a[i]:(a[i-1]+a[i])/2:null;};
 export function nearby(target,stations,radiusKm=100){const chosen=[];for(const s of stations.filter(s=>s.id!==target.id&&s.archiveStatus!=='INACTIVE').map(s=>({...s,distance:distance(target,s)})).filter(s=>s.distance>=0.5&&s.distance<=radiusKm).sort((a,b)=>a.distance-b.distance)){if(chosen.every(other=>distance(s,other)>=0.5))chosen.push(s);if(chosen.length===5)break;}return chosen;}
 const usable=p=>p&&Number.isFinite(p.t)&&Number.isFinite(p.v)&&!p.flagged;
