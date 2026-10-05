@@ -1,12 +1,14 @@
 import {assess} from '../web/lib/diagnostics.mjs';
 import {captureEvidence,attentionReasons,handoff,handoffText} from '../web/lib/investigations.mjs';
 import {AppError,readDoc,saveDoc,summaries,recordSummary} from './storage.mjs';
-import {authenticate,authRoute,digest,randomToken,publicUser,normalizeEmail,safeEqual,passwordHash,rateLimit} from './auth.mjs';
-import {series} from '../web/comparison.js';
+import {authenticate,authRoute,digest,randomToken,publicUser,normalizeEmail,validEmail,changePassword} from './auth.mjs';
+import {series,neighbors} from '../web/comparison.js';
+import {parseBody,evidenceInput} from './validation.mjs';
+import {validateVisitContent,visitSummary} from '../web/lib/visits.mjs';
 import {latestReport,referenceTracker,nearby,settings as referenceSettings,VARIABLES} from '../web/lib/reference.mjs';
 const limited=(v,n=2000)=>typeof v==='string'?v.trim().slice(0,n):'';
 const response=(b,status=200,headers={})=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}});
-async function parse(req){const text=await req.text();if(text.length>8*1024*1024)throw new AppError('Upload is too large.',413);try{return JSON.parse(text||'{}');}catch{throw new AppError('Invalid JSON request.');}}
+const parse=parseBody;
 async function config(env){return (await readDoc(env.DB,'settings'))?.body||{network:'120',networkName:'Enviro-weather/Michigan State University',delayed:60,stale:180};}
 async function cacheGet(env,k){const doc=await readDoc(env.DB,'cache:'+k);return doc?{body:doc.body.data,at:doc.body.sourceAt,revision:doc.revision}:null;}
 async function cacheSet(env,k,v,at){return saveDoc(env.DB,'cache:'+k,'cache',{data:v,sourceAt:at||new Date().toISOString()});}
@@ -28,29 +30,30 @@ async function refresh(env,force=false){
  try{const cfg=await config(env);const metadata=await synoptic(env,'stations/metadata',{network:cfg.network,complete:1,sensorvars:1});const latest=await synoptic(env,'stations/latest',{network:cfg.network,showemptystations:1,showemptyvars:1,qc:'on',qc_remove_data:'off',qc_flags:'on',qc_checks:'all',units:'metric'});if(!metadata.STATION?.length)throw new AppError('No stations were returned.',503);await cacheSet(env,'metadata',metadata);await cacheSet(env,'latest',latest);await saveDoc(env.DB,'refresh-error','settings',{message:null});return networkView(env);
  }catch(e){await saveDoc(env.DB,'refresh-error','settings',{message:e.status===429?'Another weather request was running at refresh time.':e instanceof AppError?e.message:'Weather service is unavailable. Saved observations remain available.'});throw e;}
 }
-async function evidence(env,b,stationId){const network=await networkView(env),histories=new Map();for(const id of [stationId,...b.comparisonIds||[]])histories.set(id,await cacheGet(env,`history:${id}:${b.hours||24}`));const supplemental={};for(const service of ['precip','statistics','qcsegments']){const product=await cacheGet(env,`product:${service}:${stationId}:${b.hours||24}`);if(product)supplemental[service]={fetchedAt:product.at,data:product.body};}return {...captureEvidence({network,stationId,hours:b.hours||24,variable:b.variable||'air_temp',comparisonIds:b.comparisonIds||[],getHistory:(id)=>histories.get(id)}),supplemental};}
+async function evidence(env,b,stationId){
+ const input=evidenceInput(b,stationId),network=await networkView(env),station=network.stations.find(s=>s.id===stationId);
+ if(!station)throw new AppError('Select a station in the saved network inventory.');
+ const allowed=neighbors(station,network.stations);if(input.comparisonIds.some(id=>!allowed.some(s=>s.id===id)))throw new AppError('Comparison stations must be among the nearest active neighbors.');
+ const histories=new Map();for(const id of [stationId,...input.comparisonIds])histories.set(id,await cacheGet(env,`history:${id}:${input.hours}`));
+ const supplemental={};for(const service of ['precip','statistics','qcsegments']){const product=await cacheGet(env,`product:${service}:${stationId}:${input.hours}`);if(product)supplemental[service]={fetchedAt:product.at,data:product.body};}
+ return {...captureEvidence({network,stationId,...input,getHistory:id=>histories.get(id)}),supplemental};
+}
 async function historyData(env,id,hours){const key=`history:${id}:${hours}`,cached=await cacheGet(env,key);if(cached&&Date.now()-Date.parse(cached.at)<600000)return {...cached.body,fetchedAt:cached.at,cached:true};const data=await synoptic(env,'stations/timeseries',{stid:id,recent:hours*60,units:'metric',qc:'on',qc_remove_data:'off',qc_flags:'on',qc_checks:'all'});const at=new Date().toISOString();await cacheSet(env,key,data,at);return {...data,fetchedAt:at,cached:false};}
 function reportSettings(url){try{return referenceSettings({radiusKm:Number(url.searchParams.get('radius')||100),minNeighbors:Number(url.searchParams.get('minimum')||3),toleranceScale:Number(url.searchParams.get('tolerance')||1),maxAgeMinutes:Number(url.searchParams.get('age')||90)});}catch(e){throw new AppError(e.message);}}
 async function saveRecord(env,r,expected){r.updated=new Date().toISOString();return saveDoc(env.DB,'record:'+r.id,r.caseType==='investigation'?'investigation':r.kind,r,recordSummary(r),expected);}
 async function route(req,env){
  const url=new URL(req.url),path=url.pathname.replace(/^\/api/,'')||'/',method=req.method;
  if(path==='/health')return response({ok:true,service:'Enviroweather Fleet',version:'1.0.0'});
- if(path.startsWith('/auth/')&&path!='/auth/me'&&path!='/auth/logout'&&path!='/auth/password')return response(await authRoute(req,env,path,method==='POST'?await parse(req):{}));
- if(path==='/migration'&&method==='POST'){
-  if(!env.MIGRATION_TOKEN||!safeEqual(req.headers.get('X-Migration-Token')||'',env.MIGRATION_TOKEN))throw new AppError('Sign in to continue.',401);
-  const b=await parse(req);for(const [key,value]of Object.entries(b.cache||{}))await cacheSet(env,key,value.body||value,value.at);
-  let records=0,visits=0;for(const original of b.records||[]){const r={...original};if(await readDoc(env.DB,'record:'+r.id))continue;await saveRecord(env,r);records++;}
-  for(const v of b.visits||[]){const clean={...v,photos:[],sharedAt:new Date().toISOString(),sharedBy:'EJ',attachmentNote:'Photos remain in the iPad notebook; completed PDFs are shared in Teams.'};await saveDoc(env.DB,'visit:'+v.id,'visit',clean,recordSummary(clean));visits++;}
-  if(b.refresh)await refresh(env,true);return response({records,visits,cache:Object.keys(b.cache||{}).length});
- }
+ if(path.startsWith('/auth/')&&path!='/auth/me'&&path!='/auth/logout'&&path!='/auth/password')return response(await authRoute(req,env,path,path==='/auth/status'?{}:method==='POST'?await parse(req,8192):{}));
+ if(path==='/migration')throw new AppError('This migration endpoint has been retired.',410);
  const user=await authenticate(req,env);if(!user)throw new AppError('Sign in to continue.',401);
  if(path==='/auth/me')return response(publicUser(user));
  if(path==='/auth/logout'&&method==='POST'){await env.DB.prepare('DELETE FROM sessions WHERE hash=?').bind(await digest(req.headers.get('Authorization').slice(7))).run();return response({ok:true});}
- if(path==='/auth/password'&&method==='POST'){const b=await parse(req);await rateLimit(env.DB,'password:'+user.id);if(typeof b.currentPassword!=='string'||!safeEqual(await passwordHash(b.currentPassword,user.salt),user.password_hash))throw new AppError('Current password is incorrect.',403);if(typeof b.password!=='string'||b.password.length<14||b.password.length>256)throw new AppError('Use at least 14 characters.');const salt=randomToken(),hash=await passwordHash(b.password,salt);await env.DB.batch([env.DB.prepare('UPDATE users SET password_hash=?,salt=? WHERE id=?').bind(hash,salt,user.id),env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(user.id)]);return response({ok:true});}
+ if(path==='/auth/password'&&method==='POST')return response(await changePassword(env,user,await parse(req,8192)));
  if(!['GET','HEAD'].includes(method)&&user.role==='viewer')throw new AppError('Your account has view-only access.',403);
  if(path==='/team'&&method==='GET'){if(user.role!=='owner')throw new AppError('Only the owner can manage team access.',403);const {results}=await env.DB.prepare('SELECT id,email,name,role,active FROM users ORDER BY created').all();return response({users:results});}
- if(path==='/team/invites'&&method==='POST'){if(user.role!=='owner')throw new AppError('Only the owner can invite teammates.',403);const b=await parse(req),email=normalizeEmail(b.email);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!['editor','viewer'].includes(b.role))throw new AppError('Enter an email and access level.');const token=randomToken();await env.DB.prepare('INSERT INTO invites(hash,email,role,expires) VALUES(?,?,?,?)').bind(await digest(token),email,b.role,Date.now()+7*86400000).run();return response({url:'https://atolldb.com/#invite='+token,email,role:b.role});}
- if(path.startsWith('/team/users/')&&method==='PATCH'){if(user.role!=='owner')throw new AppError('Only the owner can manage access.',403);const id=path.split('/').at(-1),b=await parse(req);if(id===user.id)throw new AppError('The owner account must remain active.');await env.DB.prepare('UPDATE users SET active=? WHERE id=? AND role<>?').bind(b.active?1:0,id,'owner').run();await env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id).run();return response({ok:true});}
+ if(path==='/team/invites'&&method==='POST'){if(user.role!=='owner')throw new AppError('Only the owner can invite teammates.',403);const b=await parse(req,8192);if(!validEmail(b.email)||!['editor','viewer'].includes(b.role))throw new AppError('Enter an email and access level.');const email=normalizeEmail(b.email),token=randomToken();await env.DB.prepare('INSERT INTO invites(hash,email,role,expires) VALUES(?,?,?,?)').bind(await digest(token),email,b.role,Date.now()+7*86400000).run();return response({url:'https://atolldb.com/#invite='+token,email,role:b.role});}
+ if(path.startsWith('/team/users/')&&method==='PATCH'){if(user.role!=='owner')throw new AppError('Only the owner can manage access.',403);const id=path.split('/').at(-1),b=await parse(req);if(id===user.id)throw new AppError('The owner account must remain active.');if(typeof b.active!=='boolean')throw new AppError('Choose an active or disabled account.');await env.DB.batch([env.DB.prepare('UPDATE users SET active=?,credential_version=credential_version+1 WHERE id=? AND role<>?').bind(b.active?1:0,id,'owner'),env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id)]);return response({ok:true});}
  if(path==='/state'&&method==='GET')return response({...await networkView(env),records:await summaries(env.DB,['issue','bench','investigation']),user:publicUser(user)});
  if(path==='/anomalies'&&method==='GET')return response(latestReport(await networkView(env),reportSettings(url)));
  if(path==='/reference'&&method==='GET'){
@@ -73,9 +76,22 @@ async function route(req,env){
  }
  if(path==='/records'&&method==='POST'){const b=await parse(req);if(!['issue','bench'].includes(b.kind)||!limited(b.title,200))throw new AppError('Enter a title and record type.');const now=new Date().toISOString(),r={id:crypto.randomUUID(),kind:b.kind,title:limited(b.title,200),station:limited(b.station,100),notes:limited(b.notes,10000),status:'open',source:limited(b.source,500)||'Manually entered',equipment:limited(b.equipment,500),program:limited(b.program,500),expected:limited(b.expected,3000),observed:limited(b.observed,3000),outcome:['pass','fail','inconclusive'].includes(b.outcome)?b.outcome:'inconclusive',created:now,activity:[{at:now,actor:user.name,action:'Record created'}]};await saveRecord(env,r);return response(r,201);}
  if(path==='/visits'&&method==='GET')return response(await summaries(env.DB,['visit']));
- if(path.startsWith('/visits/')&&method==='GET'){const doc=await readDoc(env.DB,'visit:'+path.split('/').at(-1));if(!doc)throw new AppError('Visit not found.',404);return response(doc.body);}
- if(path==='/visits'&&method==='POST'){const b=await parse(req),v=b.visit;if(!v||typeof v.id!=='string'||!v.fields?.siteName||!v.fields?.date||v.status!=='complete')throw new AppError('Complete the station visit before publishing.');const previous=await readDoc(env.DB,'visit:'+v.id);const clean={...v,photos:[],sharedAt:new Date().toISOString(),sharedBy:user.name,attachmentNote:'Photos stay in the local notebook. Share the completed PDF in Teams.'};await saveDoc(env.DB,'visit:'+v.id,'visit',clean,recordSummary(clean),previous?.revision);return response({ok:true,sharedAt:clean.sharedAt});}
- if(path==='/export'&&method==='GET'){const records=[];for(const summary of await summaries(env.DB,['issue','bench','investigation']))records.push((await readDoc(env.DB,'record:'+summary.id)).body);const visits=[];for(const summary of await summaries(env.DB,['visit']))visits.push((await readDoc(env.DB,'visit:'+summary.id)).body);return response({schemaVersion:2,exportedAt:new Date().toISOString(),...await networkView(env),records,visits});}
+ if(path.startsWith('/visits/')&&method==='GET'){const doc=await readDoc(env.DB,'visit:'+path.split('/').at(-1));if(!doc)throw new AppError('Visit not found.',404);return response({...doc.body,_revision:doc.revision});}
+ if(path==='/visits'&&method==='POST'){
+  const b=await parse(req,160*1024);let v;try{v=validateVisitContent(b.visit);}catch(e){throw new AppError(e.message);}
+  if(!v.fields.siteName?.trim()||!v.fields.date||v.status!=='complete')throw new AppError('Complete the station visit before publishing.');
+  const previous=await readDoc(env.DB,'visit:'+v.id);
+  if(previous&&(!b.revision||b.revision!==previous.revision)||!previous&&b.revision)throw new AppError('The shared visit changed. Open its latest copy before publishing.',409);
+  const clean={...v,photos:[],sharedAt:new Date().toISOString(),sharedBy:user.name,attachmentNote:'Photos stay in the local notebook. Share the completed PDF in Teams.'};
+  const revision=await saveDoc(env.DB,'visit:'+v.id,'visit',clean,visitSummary(clean),previous?b.revision:null);return response({ok:true,sharedAt:clean.sharedAt,revision});
+ }
+ if(path==='/export'&&method==='GET'){
+  const cursor=url.searchParams.get('cursor')||'';if(cursor&&!/^(record|visit):[a-zA-Z0-9-]{1,100}$/.test(cursor))throw new AppError('Invalid export cursor.');
+  const {results}=await env.DB.prepare("SELECT d.key,SUM(length(c.data)) AS size FROM documents d JOIN chunks c ON c.key=d.key AND c.revision=d.revision WHERE d.type IN ('issue','bench','investigation','visit') AND d.key>? GROUP BY d.key ORDER BY d.key LIMIT 51").bind(cursor).all();
+  const records=[],visits=[];let size=0,last=cursor,count=0;
+  for(const row of results.slice(0,50)){const bytes=Math.ceil(row.size*3/4);if(bytes>24*1024*1024)throw new AppError('A saved record exceeds the export limit.',413);if(count&&size+bytes>4*1024*1024)break;const doc=await readDoc(env.DB,row.key);if(doc)(row.key.startsWith('visit:')?visits:records).push(doc.body);size+=bytes;last=row.key;count++;}
+  return response({schemaVersion:2,exportedAt:new Date().toISOString(),...(!cursor?await networkView(env):{}),records,visits,nextCursor:count<results.length?last:null});
+ }
  throw new AppError('Endpoint not found.',404);
 }
 export default {

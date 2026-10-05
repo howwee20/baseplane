@@ -1,0 +1,8 @@
+{
+ "name":"enviroweather-fleet-edge",
+ "main":"worker.mjs",
+ "account_id":"4b602bfaa9328e61dad012d90f886665",
+ "compatibility_date":"2026-05-22",
+ "workers_dev":false,
+ "routes":[{"pattern":"atolldb.com/*","zone_id":"d177b2bf5cec98ec89bc712da8ceb99f"},{"pattern":"www.atolldb.com/*","zone_id":"d177b2bf5cec98ec89bc712da8ceb99f"}]
+}

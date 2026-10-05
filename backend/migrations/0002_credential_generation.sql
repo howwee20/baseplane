@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sessions ADD COLUMN credential_version INTEGER NOT NULL DEFAULT 0;

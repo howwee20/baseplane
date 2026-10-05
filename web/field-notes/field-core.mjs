@@ -1,4 +1,6 @@
+import {validateVisitContent} from '../lib/visits.mjs';
 export const depthTemps=[5,10,20,50,100],depthMoistures=[5,10,20,30,50,60,100];
+export const MAX_LOGGER_COLUMNS=256;
 export const readingTargets=[
  {key:'windSpeed',label:'Wind speed',unit:'m/s',aliases:['WS','WS_ms','WindSpeed','WindSpd','WindSpeed_ms']},
  {key:'windDirection',label:'Wind direction',unit:'°',aliases:['WD','WindDir','WindDirection']},
@@ -11,11 +13,12 @@ export const readingTargets=[
 ];
 export function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function parseCSV(text){
- const rows=[];let row=[],cell='',quoted=false;
+ const rows=[];let row=[],cell='',quoted=false,cells=0;
+ const pushCell=()=>{if(cell.length>4096||++cells>250000)throw Error('Logger export is too large or contains oversized values.');row.push(cell);};
  for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else if(quoted||cell==='')quoted=!quoted;else cell+=c;}
- else if(c===','&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell='';}else cell+=c;}
+ else if(c===','&&!quoted){if(row.length>=MAX_LOGGER_COLUMNS-1)throw Error('Choose a logger export with at most 256 columns.');pushCell();cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;pushCell();if(row.some(x=>x.trim())){if(rows.length>=50000)throw Error('Choose an export with at most 50,000 rows.');rows.push(row);}row=[];cell='';}else cell+=c;}
  if(quoted)throw Error('A quoted CSV value is unfinished. Select a complete export.');
- row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;
+ pushCell();if(row.some(x=>x.trim())){if(rows.length>=50000)throw Error('Choose an export with at most 50,000 rows.');rows.push(row);}return rows;
 }
 function latest(rows,timeFor){
  if(!rows.length)throw Error('No data records found.');
@@ -29,11 +32,13 @@ export function parseStationData(text,source='Station data'){
  if(text.startsWith('{')){
  const json=JSON.parse(text),head=json.head;
  if(!head||!Array.isArray(head.fields)||!Array.isArray(json.data))throw Error('Expected Campbell JSON with head.fields and data rows.');
+ if(head.fields.length>MAX_LOGGER_COLUMNS)throw Error('Choose a logger export with at most 256 columns.');
+ if(json.data.length>50000||head.fields.some(f=>!f||typeof f.name!=='string'||f.name.length>200||String(f.units??'').length>100||String(f.process??'').length>100))throw Error('Logger field labels or row count exceed the import limits.');
  const record=latest(json.data,r=>r.time);if(!Array.isArray(record.vals)||record.vals.length!==head.fields.length)throw Error('The data row does not match its field schema.');
  return {station:String(head.environment?.station_name??''),model:String(head.environment?.model??''),serial:String(head.environment?.serial_no??''),table:String(head.environment?.table_name??''),timestamp:String(record.time),source,columns:head.fields.map((f,i)=>({name:String(f.name),unit:String(f.units??''),process:String(f.process??''),value:record.vals[i]}))};
  }
  const rows=parseCSV(text),toa5=rows[0]?.[0]==='TOA5';
- const names=rows[toa5?1:0];if(!names||names.length<2)throw Error('Expected TOA5 or comma-separated data with headers.');
+ const names=rows[toa5?1:0];if(names?.some(n=>n.length>200))throw Error('Logger column names must be at most 200 characters.');if(!names||names.length<2)throw Error('Expected TOA5 or comma-separated data with headers.');
  const units=toa5?rows[2]:[],process=toa5?rows[3]:[];
  const ti=names.findIndex(n=>/^(timestamp|time|date_time)$/i.test(n.trim()));if(ti<0)throw Error('No TIMESTAMP column found.');
  const data=rows.slice(toa5?4:1);if(data.some(r=>r.length!==names.length))throw Error('A row does not match the column headers. Use a complete export.');
@@ -62,8 +67,7 @@ export function convertReading(value,unit,targetUnit){
 }
 export function newVisit(){const now=new Date(),local=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString();return {schemaVersion:1,id:crypto.randomUUID(),updated:now.toISOString(),status:'draft',fields:{date:local.slice(0,10),timeIn:local.slice(11,16)},sources:{},history:[],photos:[],pending:false,baseUpdated:null};}
 export function validateVisit(v){
- if(!v||v.schemaVersion!==1||typeof v.id!=='string'||!/^[a-zA-Z0-9-]{1,100}$/.test(v.id)||!v.fields||typeof v.fields!=='object'||Array.isArray(v.fields)||!v.sources||typeof v.sources!=='object'||!['draft','complete'].includes(v.status)||typeof v.updated!=='string'||!Number.isFinite(Date.parse(v.updated)))throw Error('This is not a valid Field Notes visit.');
- if(Object.values(v.fields).some(x=>!['string','boolean'].includes(typeof x)))throw Error('Invalid field values.');
+ validateVisitContent(v,{local:true});
  if(v.photos!==undefined){if(!Array.isArray(v.photos)||v.photos.length>40)throw Error('Invalid visit photo list.');for(const p of v.photos)validatePhotoMeta(p);if(new Set(v.photos.map(p=>p.id)).size!==v.photos.length)throw Error('Duplicate photo references.');}
  return v;
 }
@@ -76,7 +80,7 @@ export function prepareRestore(backup,existingIds=new Set(),newId=()=>crypto.ran
  if(!backup||backup.format!=='FieldNotesBackup'||![1,2].includes(backup.schemaVersion??1)||!Array.isArray(backup.visits)||!Array.isArray(backup.photos??[]))throw Error('Not a Field Notes backup.');
  const bytes=new Map();for(const photo of backup.photos??[]){validatePhotoBytes(photo);if(bytes.has(photo.id))throw Error('Duplicate backup photo.');bytes.set(photo.id,photo);}
  const visits=[],photos=[],seenVisits=new Set(),used=new Set();
- for(const original of backup.visits){validateVisit(original);if(seenVisits.has(original.id))throw Error('Duplicate backup visit.');seenVisits.add(original.id);const v=structuredClone(original);if(existingIds.has(v.id)){v.id=newId();v.updated=new Date().toISOString();}existingIds.add(v.id);v.pending=false;v.baseUpdated=null;v.photos??=[];
+ for(const original of backup.visits){validateVisit(original);if(seenVisits.has(original.id))throw Error('Duplicate backup visit.');seenVisits.add(original.id);const v=structuredClone(original);if(existingIds.has(v.id)){v.id=newId();v.updated=new Date().toISOString();delete v.publishedRevision;}existingIds.add(v.id);v.pending=false;v.baseUpdated=null;v.photos??=[];
  for(const meta of v.photos){const data=bytes.get(meta.id);if(!data||data.visitId!==original.id||used.has(meta.id))throw Error('Backup is missing a visit photo or contains inconsistent references.');used.add(meta.id);meta.id=newId();photos.push({...data,id:meta.id,visitId:v.id});}visits.push(v);}
  if(used.size!==bytes.size)throw Error('Backup contains unattached photos.');return {visits,photos};
 }

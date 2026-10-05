@@ -1,7 +1,7 @@
 import {parseVisitPlan,applyVisitPlan} from './field-plan.mjs';
-import {request,hasSession} from '../auth.mjs';
+import {request,hasSession,sessionGeneration} from '../auth.mjs';
 import {renderForm} from './field-form.mjs?v=cleanup-2';
-import {newVisit,validateVisit,parseStationData,readingTargets,suggestColumn,convertReading,escapeHtml as e,MAX_BACKUP_BYTES,prepareRestore} from './field-core.mjs?v=cleanup-1';
+import {newVisit,validateVisit,parseStationData,readingTargets,suggestColumn,convertReading,escapeHtml as e,MAX_BACKUP_BYTES,prepareRestore} from './field-core.mjs?v=security-1';
 import {putVisit,allVisits,getVisit,getPhoto,commitVisits,initializeStorage,nativeBackup,storageStatus} from './field-store.mjs?v=cleanup-1';
 const $=s=>document.querySelector(s),form=$('#sheet');form.innerHTML=renderForm();
 let current,importData,saveChain=Promise.resolve(),saveError=false,photoBusy=false,photoRendering=Promise.resolve(),saveTimer,saveSequence=0;
@@ -47,7 +47,7 @@ $('#newSheetBtn').onclick=()=>beginNewVisit().catch(error=>notice(error.message,
 $('#helpBtn').onclick=()=>$('#helpDialog').showModal();
 $('#importBtn').onclick=()=>{$('#importDialog').showModal();};
 $('#pasteBtn').onclick=()=>{$('#pasteData').value='';$('#pasteDialog').showModal();};
-function visitDate(value){if(!value)return 'No date';const [year,month,day]=value.split('-').map(Number);return new Date(year,month-1,day).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
+function visitDate(value){if(typeof value!=='string'||!value)return 'No date';const [year,month,day]=value.split('-').map(Number);return new Date(year,month-1,day).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});}
 function homeNotice(message){$('#homeNotice').textContent=message;$('#homeNotice').hidden=!message;}
 function renderHome(){
  const query=$('#visitSearch').value.trim().toLocaleLowerCase(),status=$('#visitStatus').value,color=$('#visitColorFilter').value;
@@ -190,7 +190,7 @@ if(document.modelContext?.registerTool){try{document.modelContext.registerTool({
 window.dispatchEvent(new Event('field-notes-ready'));
 if(native)window.webkit.messageHandlers.fieldNotes.postMessage({action:'ready'});
 
-$('#publishTeamBtn').onclick=async()=>{const button=$('#publishTeamBtn');button.disabled=true;try{if(!hasSession())throw Error('Sign in at the Fleet workspace, then return here to publish. Your local visit stays saved.');await save();const visit=collect();if(visit.status!=='complete')throw Error('Finish this visit before publishing.');await request('visits',{method:'POST',body:JSON.stringify({visit})});notice('Visit published to the team. Photos remain on this device; share the PDF in Teams.');}catch(error){notice(error.message,true);}finally{button.disabled=false;}};
+$('#publishTeamBtn').onclick=async()=>{const button=$('#publishTeamBtn');button.disabled=true;try{if(!hasSession())throw Error('Sign in at the Fleet workspace, then return here to publish. Your local visit stays saved.');await save();const visit=collect();if(visit.status!=='complete')throw Error('Finish this visit before publishing.');const published=await request('visits',{method:'POST',body:JSON.stringify({visit:{...visit,photos:[]},revision:visit.publishedRevision||null})});current.publishedRevision=published.revision;await save();notice('Visit published to the team. Photos remain on this device; share the PDF in Teams.');}catch(error){notice(error.message,true);}finally{button.disabled=false;}};
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
 const planDialog=document.createElement('dialog');planDialog.innerHTML='<h2>Prepare a field visit</h2><pre id="plan-preview" style="white-space:pre-wrap"></pre><p>Review the station and planned checks. This creates a new visit without filling sensor readings or marking work done.</p><div class="actions"><button id="plan-cancel">Cancel</button><button id="plan-apply" class="primary">Create visit from plan</button></div>';document.body.append(planDialog);
@@ -201,3 +201,10 @@ planDialog.querySelector('#plan-apply').onclick=async()=>{try{await preserveBefo
 const planFile=document.createElement('label');planFile.className='file-button quiet';planFile.textContent='Import visit plan';const planInput=document.createElement('input');planInput.type='file';planInput.accept='.json';planInput.style.display='none';planFile.append(planInput);document.querySelector('.home-tools')?.append(planFile);
 planInput.onchange=async()=>{try{const file=planInput.files[0];if(!file)return;if(file.size>8000000)throw Error('Choose a visit-plan file smaller than 8 MB.');reviewPlan(JSON.parse(await file.text()));}catch(error){notice(error.message,true);}finally{planInput.value='';}};
 const caseId=new URLSearchParams(location.search).get('case');if(caseId&&/^[a-zA-Z0-9-]{1,100}$/.test(caseId)){history.replaceState(null,'',location.pathname);request('records/'+caseId+'/handoff').then(reviewPlan).catch(error=>notice('Unable to open visit plan: '+error.message,true));}
+
+const sharedDialog=document.createElement('dialog');sharedDialog.innerHTML='<h2>Open shared visit</h2><pre id="shared-preview" style="white-space:pre-wrap"></pre><p>Review the shared notes. A separate local copy preserves any visit already on this device.</p><div class="actions"><button id="shared-cancel">Cancel</button><button id="shared-open" class="primary">Open this version</button></div>';document.body.append(sharedDialog);
+let stagedShared;
+sharedDialog.querySelector('#shared-cancel').onclick=()=>{sharedDialog.close();stagedShared=null;};
+sharedDialog.querySelector('#shared-open').onclick=async()=>{try{if(!stagedShared||!hasSession())throw Error('Sign in again to open the shared visit.');await preserveBeforeSwitch();const local=await getVisit(stagedShared.id);if(local){const preserved=structuredClone(local);preserved.id=crypto.randomUUID();delete preserved.publishedRevision;preserved.updated=new Date().toISOString();const photos=[];for(const meta of preserved.photos||[]){const stored=await getPhoto(meta.id);if(!stored)throw Error('A local photo could not be preserved. Export a backup first.');meta.id=crypto.randomUUID();photos.push({...stored,id:meta.id,visitId:preserved.id});}await commitVisits([preserved],photos);}const v=validateVisit({...stagedShared,publishedRevision:stagedShared._revision,photos:[],pending:false,baseUpdated:null});await putVisit(v);openSheet(v);sharedDialog.close();stagedShared=null;notice('Shared version opened. Existing local entries were preserved in a separate visit.');}catch(error){notice(error.message,true);}};
+window.addEventListener('fleet-session-changed',()=>{if(!hasSession()){stagedShared=null;sharedDialog.close();sharedDialog.querySelector('#shared-preview').textContent='';}});
+const sharedId=new URLSearchParams(location.search).get('visit');if(sharedId&&/^[a-zA-Z0-9-]{1,100}$/.test(sharedId)){history.replaceState(null,'',location.pathname);const version=sessionGeneration();request('visits/'+sharedId).then(v=>{if(version!==sessionGeneration()||!hasSession())return;stagedShared=v;sharedDialog.querySelector('#shared-preview').textContent=[v.fields.siteName,v.fields.date,v.fields.notes||'',v.fields.observations||''].join('\n');sharedDialog.showModal();}).catch(error=>notice('Unable to open shared visit: '+error.message,true));}

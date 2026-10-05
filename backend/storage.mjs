@@ -6,13 +6,14 @@ export async function readDoc(db,key){
 }
 export async function saveDoc(db,key,type,body,summary={},expected){
  const raw=Buffer.from(JSON.stringify(body));if(raw.length>24*1024*1024)throw new AppError('This record is too large. Export the existing case and start a follow-up case.',413);
- const previous=expected||(await db.prepare('SELECT revision FROM documents WHERE key=?').bind(key).first())?.revision;
+ const previous=expected===null?null:expected||(await db.prepare('SELECT revision FROM documents WHERE key=?').bind(key).first())?.revision;
  const revision=crypto.randomUUID(),now=new Date().toISOString(),statements=[];
  for(let i=0,part=0;i<raw.length;i+=131072,part++)statements.push(db.prepare('INSERT INTO chunks (key,revision,part,data) VALUES(?,?,?,?)').bind(key,revision,part,raw.subarray(i,i+131072).toString('base64')));
  const station=summary.station||null,status=summary.status||null;
- if(expected)statements.push(db.prepare('UPDATE documents SET type=?,station=?,status=?,revision=?,updated=?,summary=? WHERE key=? AND revision=?').bind(type,station,status,revision,now,JSON.stringify(summary),key,expected));
+ if(expected===null)statements.push(db.prepare('INSERT INTO documents (key,type,station,status,revision,created,updated,summary) VALUES(?,?,?,?,?,?,?,?)').bind(key,type,station,status,revision,summary.created||now,now,JSON.stringify(summary)));
+ else if(expected)statements.push(db.prepare('UPDATE documents SET type=?,station=?,status=?,revision=?,updated=?,summary=? WHERE key=? AND revision=?').bind(type,station,status,revision,now,JSON.stringify(summary),key,expected));
  else statements.push(db.prepare('INSERT INTO documents (key,type,station,status,revision,created,updated,summary) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(key) DO UPDATE SET type=excluded.type,station=excluded.station,status=excluded.status,revision=excluded.revision,updated=excluded.updated,summary=excluded.summary').bind(key,type,station,status,revision,summary.created||now,now,JSON.stringify(summary)));
- let results;try{results=await db.batch(statements);}catch(e){if(String(e).includes('UNIQUE'))throw new AppError('An open investigation already exists for this station. Reload to see it.',409);throw e;}
+ let results;try{results=await db.batch(statements);}catch(e){if(String(e).includes('UNIQUE'))throw new AppError(expected===null?'This visit was already published. Open the shared copy before changing it.':'An open investigation already exists for this station. Reload to see it.',409);throw e;}
  if(expected&&results.at(-1).meta.changes!==1){await db.prepare('DELETE FROM chunks WHERE key=? AND revision=?').bind(key,revision).run();throw new AppError('Someone updated this record. Your entries are still open; reload the record before saving.',409);}
  if(previous)await db.prepare('DELETE FROM chunks WHERE key=? AND revision=?').bind(key,previous).run();return revision;
 }

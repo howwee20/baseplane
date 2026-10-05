@@ -11,10 +11,10 @@ fs.writeFileSync(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Atoll Control API</title>
+    <title>Retired Atoll API</title>
   </head>
   <body>
-    <pre>Atoll Control API. Use /health, /version, or /api/*.</pre>
+    <pre>This legacy API has been retired. Enviroweather Fleet is available at https://atolldb.com.</pre>
   </body>
 </html>
 `,
