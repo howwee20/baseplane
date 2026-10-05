@@ -1,4 +1,4 @@
-import {anomalyPage,trackerPage,bindReportTools} from './reports.mjs?v=reference-2';
+import {anomalyPage,trackerPage,bindReportTools} from './reports.mjs?v=reference-3';
 import {request,hasSession,setSession,showAuth,downloadFromAPI} from './auth.mjs';
 import {analyzeCSV} from './lib/diagnostics.mjs';
 import {neighbors,series,reference} from './comparison.js';
