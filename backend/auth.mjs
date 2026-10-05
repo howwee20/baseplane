@@ -32,7 +32,7 @@ export async function authRoute(req,env,path,b){
   if(typeof b.password!=='string'||b.password.length<14||b.password.length>256)throw new AppError('Use a password with at least 14 characters.');
   let role,inviteHash;
   const noOwner=!(await env.DB.prepare("SELECT id FROM users WHERE role='owner'").first());
-  if(noOwner&&safeEqual(b.token||'',env.BOOTSTRAP_TOKEN||'disabled')&&email===env.OWNER_EMAIL)role='owner';
+  if(noOwner&&env.BOOTSTRAP_TOKEN&&safeEqual(b.token||'',env.BOOTSTRAP_TOKEN)&&email===env.OWNER_EMAIL)role='owner';
   else {inviteHash=await digest(String(b.token||''));const invite=await env.DB.prepare('SELECT * FROM invites WHERE hash=? AND used=0 AND expires>?').bind(inviteHash,Date.now()).first();if(!invite||invite.email!==email)throw new AppError('This invitation is invalid or expired.',403);role=invite.role;}
   const u={id:crypto.randomUUID(),email,name:b.name.trim().slice(0,100),role,salt:randomToken(),created:new Date().toISOString()};u.password_hash=await passwordHash(b.password,u.salt);
   const sql=[env.DB.prepare('INSERT INTO users(id,email,name,role,password_hash,salt,created) VALUES(?,?,?,?,?,?,?)').bind(u.id,u.email,u.name,u.role,u.password_hash,u.salt,u.created)];
