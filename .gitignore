@@ -7,3 +7,10 @@ public/
 .env.*
 !.env.example
 .env*.local
+
+.wrangler/
+**/.wrangler/
+.dev.vars
+**/.dev.vars
+backend/*.secrets.json
+_site/

@@ -1,0 +1,15 @@
+{
+  "name": "enviroweather-fleet-api",
+  "main": "worker.mjs",
+  "account_id": "4b602bfaa9328e61dad012d90f886665",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {
+    "OWNER_EMAIL": "howeej2255@gmail.com",
+    "ALLOWED_ORIGINS": "https://atolldb.com,https://www.atolldb.com,http://127.0.0.1:8130,http://localhost:8130"
+  },
+  "d1_databases": [{"binding":"DB","database_name":"enviroweather-fleet","database_id":"24362d82-48ab-46ef-a611-2d778d1386f5","migrations_dir":"migrations"}],
+  "triggers": {"crons":["*/15 * * * *"]},
+  "observability": {"enabled":true}
+}

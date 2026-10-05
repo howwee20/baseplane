@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {assess,parseCSV,analyzeCSV} from '../../web/lib/diagnostics.mjs';
+const now=Date.parse('2026-09-30T18:00:00Z');
+const station=(minutes=10,value=15)=>({STID:'TEST',STATUS:'ACTIVE',OBSERVATIONS:{air_temp_value_1:{value,date_time:new Date(now-minutes*60000).toISOString()}}});
+test('fresh, delayed, stale and missing data stay distinct',()=>{assert.equal(assess(station(),{},now).status,'reporting');assert.equal(assess(station(61),{},now).status,'delayed');assert.equal(assess(station(181),{},now).status,'stale');assert.equal(assess(station(0,null),{},now).status,'unknown');assert.equal(assess(station(0,false),{},now).status,'unknown');assert.equal(assess(station(0,0),{},now).status,'reporting');});
+test('QC flagged data retained and future timestamps not counted healthy',()=>{const s=station();s.QC_FLAGGED=true;assert.equal(assess(s,{},now).status,'qc');assert.equal(assess(s,{},now).fields[0].value,15);assert.equal(assess(station(-10),{},now).status,'clock');});
+test('inactive inventory remains separate from outage and missing location is not 0,0',()=>{const s=station(500);s.STATUS='INACTIVE';assert.equal(assess(s,{},now).status,'inactive');assert.equal(assess(s,{},now).lat,null);});
+test('TOA5 fixture detects a gap, missing value, constant sensor and counter reset',()=>{const a=analyzeCSV(readFileSync(new URL('../../web/sample-logger.dat',import.meta.url),'utf8'));assert.equal(a.rows,5);assert.equal(a.format,'Campbell TOA5');assert.equal(a.gaps,1);assert.equal(a.recordResets,1);assert.equal(a.stats.find(s=>s.name==='AirTC').missing,1);assert.equal(a.stats.find(s=>s.name==='SoilTC').constant,true);assert.equal(a.medianIntervalSeconds,300);});
+test('CSV quoting preserves commas and quotes',()=>{assert.deepEqual(parseCSV('a,b\n"one,two","say ""yes"""\n'),[['a','b'],['one,two','say "yes"']]);assert.throws(()=>parseCSV('a\n"unterminated'));});
+test('duplicate and reverse timestamps are exposed',()=>{const a=analyzeCSV('timestamp,value\n2026-01-01T00:01:00Z,1\n2026-01-01T00:01:00Z,2\n2026-01-01T00:00:00Z,3');assert.equal(a.duplicateTimes,1);assert.equal(a.reverseTimes,1);});
+test('actual Synoptic passed QC objects never become false alarms',()=>{const s=station();s.OBSERVATIONS.air_temp_value_1.qc={status:'passed'};assert.equal(assess(s,{},now).status,'reporting');s.OBSERVATIONS.air_temp_value_1.qc={status:'failed',qc_flags:[3]};assert.equal(assess(s,{},now).status,'qc');assert.deepEqual(assess(s,{},now).fields[0].qc,[3]);});
+test('derived values do not hide missing primary observations',()=>{const s=station(0,null);s.OBSERVATIONS.dew_point_temperature_value_1d={value:8,date_time:new Date(now).toISOString()};assert.equal(assess(s,{},now).status,'unknown');});

@@ -1,0 +1,6 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {neighbors,reference,series} from '../../web/comparison.js';
+test('neighbor selection excludes self, inactive, missing coordinates and distant stations',()=>{const a={id:'a',lat:44,lon:-85};assert.deepEqual(neighbors(a,[a,{id:'b',lat:44.1,lon:-85},{id:'c',lat:44,lon:-85,archiveStatus:'INACTIVE'},{id:'d',lat:null,lon:-85},{id:'e',lat:48,lon:-85}]).map(s=>s.id),['b']);});
+test('reference requires two time-aligned unflagged neighbors with matching units',()=>{const s=(v,t=1000000,flagged=false,unit='C')=>({unit,points:[{v,t,flagged}]});assert.equal(reference(s(20),[s(18),s(22)]).median,20);assert.equal(reference(s(20),[s(18),s(22,1)]),null);assert.equal(reference(s(20),[s(18),s(22,1000000,true)]),null);assert.equal(reference(s(20),[s(18),s(22,1000000,false,'F')]),null);assert.equal(reference(s(20,1000000,true),[s(18),s(22)]),null);});
+test('series preserves QC and excludes null, derived and nonnumeric values',()=>{const r=series({UNITS:{air_temp:'C'},STATION:[{OBSERVATIONS:{date_time:['2026-09-30T00:00Z','2026-09-30T00:05Z'],air_temp_set_1:[12,null]},QC:{air_temp_set_1:[[3],null]}}]},'air_temp');assert.equal(r.points.length,1);assert.equal(r.points[0].flagged,true);});

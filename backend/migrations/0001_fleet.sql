@@ -1,0 +1,11 @@
+CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, name TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('owner','editor','viewer')), password_hash TEXT NOT NULL, salt TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created TEXT NOT NULL);
+CREATE UNIQUE INDEX one_owner ON users(role) WHERE role='owner';
+CREATE TABLE sessions (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires INTEGER NOT NULL);
+CREATE INDEX sessions_user ON sessions(user_id);
+CREATE TABLE invites (hash TEXT PRIMARY KEY, email TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('editor','viewer')), expires INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires INTEGER NOT NULL);
+CREATE TABLE locks (name TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL);
+CREATE TABLE documents (key TEXT PRIMARY KEY, type TEXT NOT NULL, station TEXT, status TEXT, revision TEXT NOT NULL, created TEXT NOT NULL, updated TEXT NOT NULL, summary TEXT NOT NULL);
+CREATE UNIQUE INDEX one_station_investigation ON documents(station) WHERE type='investigation' AND status='open';
+CREATE INDEX documents_type_updated ON documents(type,updated);
+CREATE TABLE chunks (key TEXT NOT NULL, revision TEXT NOT NULL, part INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(key,revision,part));

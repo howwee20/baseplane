@@ -1,190 +1,40 @@
-# Atoll
+# Enviroweather Fleet
 
-Atoll is the database you can see.
+Station diagnostics, investigations, bench analysis, and Field Notes at https://atolldb.com.
 
-It gives teams one visible surface for rows, access levels, AI-agent permissions, audit logs, deploy requests, and exportable backend artifacts.
+The website is hosted by GitHub Pages in `howwee20/baseplane`. The independent API is hosted in the owner's Cloudflare account at `https://enviroweather-fleet-api.polyswap.workers.dev`. Cloudflare D1 holds private team records and cached observations. No ChatGPT account, subscription, service, database, or backend is required to use the app.
 
-Baseplane is the engine underneath Atoll. It models domains, routes, pages, APIs, tables, functions, secrets, devices, deployments, humans, and AI agents as one machine-readable graph.
+## App workflow
 
-The graph compiles into backend infrastructure artifacts: SQL, RLS policies, route contracts, agent gateway policies, function contracts, policy tests, and deploy plans.
+Sign in with your Fleet email/password. The owner creates invitation links in Team access; invitations work only for the selected email and last seven days. Editors can create and update records, viewers can read and export. Disable access to revoke a member's existing sessions. My account changes passwords and signs out all devices.
 
-Atoll owns the visible control plane. The customer owns the data plane.
+Review the network, inspect a station, compare nearby stations, and save investigation evidence. Extended diagnostics loads derived precipitation, window statistics calculated from loaded history, and QC segments for the selected 24/72/168-hour window. An investigation retains fixed observations, source timestamps, flags, and any extended products already loaded at capture time. Prepare field visit reviews a plan before creating a local notebook visit; it never fills field readings or checks performed work.
 
-## Alpha Surface
+Field Notes saves locally and can work offline after an initial successful load. Publish to team shares completed visit text. Photos remain local, and existing visit PDFs are shared in Teams. Export notebook backups to retain photo bytes separately. Browser notes use IndexedDB; clearing website data removes that local notebook. The separately installed iPad app retains its own native SQLite notebook and is not modified by this deployment.
 
-- Studio: graph-first browser UI in `/app`.
-- Compiler: turns `baseplane.json` into backend artifacts.
-- Policy simulator: explains allow/deny decisions.
-- Agent Gateway V0: checks agent requests against the graph before data access.
-- Runtime skeleton: documents the self-hosted target shape.
-- Introspection starter: converts local SQL schema files into a starting graph.
-- Managed alpha plan: documents the hosted sign-in, project, deploy request, and provisioner path.
-- Public launch runbook: documents `atolldb.com`, `api.atolldb.com`, GitHub Pages DNS, hosted API env vars, and smoke tests.
-- Managed v0 roadmap: defines visible control plane, protected data plane, field access levels, and agent lockout.
+## Connections
 
-## Current Boundary
+- Synoptic MSU account: metadata, latest, time series, advanced QC flags/segments, derived precipitation, window statistics calculated from loaded history. The separate Synoptic Statistics API is not included in the current account. One concurrent upstream request, serialized by D1 leases. Network snapshots refresh every 15 minutes; history/products cache for ten minutes.
+- Michigan radar: NWS imagery via Iowa Environmental Mesonet, separate from historical evidence.
+- Teams Field Notes channel is linked. Automatic Graph uploads are not configured.
+- Flyspray Ticket Tracker: account activation and a supported API connection remain required.
+- Campbell website login does not establish LoggerNet, direct logger, or internal MSU API access. File imports remain supported.
 
-The current app and CLI are intentionally local-first:
+All readings and QC are investigation evidence rather than hardware certification. Empty data is not assumed zero. API credentials stay in backend secrets and are never shipped to browsers or the Pages artifact.
 
-- no customer credentials
-- no hosted-backend API calls
-- no customer data collection
-- no destructive apply command
-- no managed infrastructure claim
+## Development and deployment
 
-The product promise right now is: design and export a permissioned backend, then prove access decisions before an agent touches rows.
-
-Real customer sign-in and database spin-up require Atoll managed infrastructure: a hosted control API, control-plane database, auth/session service, deploy worker, isolated customer data planes, secrets boundary, and audit logs. See `docs/cloud-preview-plan.md`.
-
-Public domain and hosted API setup is documented in `docs/public-launch.md`.
-
-The managed database direction is documented in `docs/managed-v0-roadmap.md`.
-
-The v0.2 data-access thesis is documented in `docs/data-access-system-v0.2.md`.
-
-## Run Locally
-
-```bash
-npm test
-npm run control-api
+```sh
 npm run serve
+npm --prefix backend ci
+npm --prefix backend run dev
+npm run fleet:test
 ```
 
-Open:
+Create a private `backend/.dev.vars` with `SYNOPTIC_TOKEN`, `BOOTSTRAP_TOKEN`, and optionally `MIGRATION_TOKEN` for local development. These files are ignored. The owner bootstrap requires both the secret and the configured OWNER_EMAIL; there can be only one owner. After initial setup, remove the bootstrap secret. Migration is disabled once its secret is removed.
 
-```txt
-http://127.0.0.1:8130/
-http://127.0.0.1:8130/app/
-```
+Remote D1 uses the named `enviroweather-fleet` database in `backend/wrangler.jsonc`. Apply migrations explicitly with `wrangler d1 migrations apply enviroweather-fleet --remote`, set secrets through Wrangler, then `npm run fleet:deploy`. Keep `web/config.js` pointing at the verified API origin. Push web changes to main to deploy Pages through `.github/workflows/pages.yml`; the published artifact contains only `web/`. Existing atolldb.com GitHub DNS and HTTPS remain in use.
 
-The Control API defaults to:
+Passwords use salted scrypt (N=16384,r=8,p=5); sessions use random bearer tokens whose digests are stored in D1. Browser sessions are tab-scoped. Password changes and disabling users revoke sessions. Auth attempts are rate limited. Record updates use revision checks; stale edits receive a conflict response rather than replacing newer evidence.
 
-```txt
-http://127.0.0.1:8790
-```
-
-Use Postgres-backed managed-alpha mode with:
-
-```bash
-docker compose -f runtime/docker-compose.yml up postgres control-api
-```
-
-or point the API at any Postgres-compatible database:
-
-```bash
-CONTROL_DATABASE_URL=postgres://user:pass@host:5432/db \
-ATOLL_PUBLIC_API_URL=https://api.atolldb.com \
-NODE_ENV=production \
-SESSION_SECRET=replace-with-random-secret \
-CORS_ORIGIN=https://atolldb.com,https://www.atolldb.com,https://howwee20.github.io \
-npm run control-api
-```
-
-## CLI
-
-```bash
-node cli/baseplane.js validate examples/generic-telemetry/baseplane.json
-node cli/baseplane.js generate examples/generic-telemetry/baseplane.json --out generated
-node cli/baseplane.js test-policies examples/generic-telemetry/baseplane.json
-node cli/baseplane.js diff examples/generic-telemetry/baseplane.json
-node cli/baseplane.js apply --dry-run examples/generic-telemetry/baseplane.json
-node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json
-```
-
-Generated package:
-
-- `baseplane.json`
-- `schema.sql`
-- `rls_policies.sql`
-- `route_contracts.md`
-- `function_stubs.md`
-- `agent_gateway_policy.json`
-- `policy_tests.json`
-- `deploy_plan.md`
-- `README.md`
-
-## Agent Gateway V0
-
-Agent Gateway V0 is a local authorization primitive. It does not query production data.
-
-It answers:
-
-```txt
-Can this agent/service/human perform this action on this table or field?
-```
-
-Example:
-
-```js
-import { authorizeAgentRequest, redactRecord } from "./packages/agent-gateway/index.js";
-
-const authorization = authorizeAgentRequest(graph, {
-  agent_id: "analysis_agent",
-  action: "read",
-  resource: "telemetry_readings",
-  fields: ["timestamp", "measurement_value"]
-});
-
-const safeRecord = redactRecord(row, authorization);
-```
-
-Runtime skeleton:
-
-```bash
-docker compose -f runtime/docker-compose.yml up
-curl http://127.0.0.1:8787/health
-```
-
-## Introspection
-
-The public alpha introspects local SQL files, not live databases:
-
-```bash
-node cli/baseplane.js introspect --schema ./schema.sql --out ./baseplane.json
-```
-
-Direct `--database-url` introspection is intentionally disabled until the credential boundary is hardened.
-
-## Graph Model
-
-`baseplane.json` is the source of truth.
-
-```json
-{
-  "version": "0.1.0",
-  "app": {
-    "name": "Generic Telemetry App",
-    "description": "A private telemetry backend with scoped human and agent access."
-  },
-  "nodes": [],
-  "edges": [],
-  "principals": [],
-  "policies": [],
-  "routes": [],
-  "deployments": []
-}
-```
-
-The anti-slop rule:
-
-```txt
-If it is on the graph, it must become code, policy, or documentation.
-```
-
-## Trust Rules
-
-- no policy means deny
-- secret nodes are denied unless explicitly allowed
-- private fields are denied unless explicitly allowed
-- agent row access is denied unless explicitly allowed
-- schema inspection is separate from row reading
-- route access is separate from database access
-- write access is separate from read access
-
-## Examples
-
-- `examples/generic-telemetry/baseplane.json`
-- `examples/generic-saas/baseplane.json`
-- `examples/private-agent/baseplane.json`
-
-These are generic examples only. Atoll is a separate product and does not contain customer-specific schemas, credentials, or production data.
+The former Atoll project is retained in repository history and unserved legacy source. Its former platform landing page and studio are excluded from the Pages artifact. The previous site can be recovered from commit `516e905`.

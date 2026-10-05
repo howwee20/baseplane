@@ -1,9 +1,12 @@
-name: Deploy Baseplane Alpha
+name: Deploy Enviroweather Fleet
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -22,11 +25,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify diagnostics and access controls
+        run: node --test backend/tests/*.test.mjs
+
       - name: Build static site artifact
         run: |
           mkdir -p _site
-          cp index.html README.md package.json _site/
-          cp -R app docs examples packages schema signin _site/
+          cp -R web/. _site/
+          printf 'atolldb.com\n' > _site/CNAME
+          touch _site/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -1,0 +1,1 @@
+export const API_BASE = globalThis.location?.hostname==='127.0.0.1'||globalThis.location?.hostname==='localhost' ? 'http://127.0.0.1:8787/api' : 'https://enviroweather-fleet-api.polyswap.workers.dev/api';
