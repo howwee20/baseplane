@@ -315,8 +315,8 @@ dialog .footnote{margin-top:8px}
 #invite-result label{display:block;margin-top:10px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
 
 /* Daily review */
-.review-metrics{grid-template-columns:1fr 1fr 1.5fr}
-.review-metrics .metric:last-child .value{font-size:16px;line-height:1.3}
+.review-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+
 
 /* Responsive */
 @media(max-width:1180px){
@@ -388,3 +388,5 @@ dialog .footnote{margin-top:8px}
  .panel,.metric{break-inside:avoid;box-shadow:none}
  .map{height:300px}
 }
+
+.panelhead p:empty,.footnote:empty{display:none}

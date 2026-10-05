@@ -8,6 +8,8 @@ The website is hosted by GitHub Pages in `howwee20/baseplane`. The independent A
 
 Navigation is grouped into Workspace, Analysis, Records and Account. Anomaly report and Reference tracker keep their primary filters visible, with provisional reference controls under Reference settings. The October 5 UI polish was implemented by Claude Fable 5.1 and reviewed in the browser; it changes presentation and copy while retaining data, auth and evidence workflows.
 
+The subsequent copy cleanup removes capability slogans, duplicate page descriptions and general advice banners. Rows show compact reading age and QC information. Reading rules, radar details and storage guidance are available in disclosures; source times, missing data and actionable errors stay visible.
+
 Sign in with your Fleet email/password. The owner creates invitation links in Team access; invitations work only for the selected email and last seven days. Editors can create and update records, viewers can read and export. Disable access to revoke a member's existing sessions. My account changes passwords and signs out all devices.
 
 Review the network, inspect a station, compare nearby stations, and save investigation evidence. Extended diagnostics loads derived precipitation, window statistics calculated from loaded history, and QC segments for the selected 24/72/168-hour window. An investigation retains fixed observations, source timestamps, flags, and any extended products already loaded at capture time. Prepare field visit reviews a plan before creating a local notebook visit; it never fills field readings or checks performed work.

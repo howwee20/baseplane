@@ -8,7 +8,7 @@ const row=html=>`<div class="work-row">${html}</div>`;
 export function renderForm(){return `
 <section id="visit" class="visit-grid"><div><div class="two">${f('siteName','Site Name')}${f('siteId','ID')}</div>${f('date','Date','','date')}<div class="two">${f('timeIn','Time In','','time')}${f('timeOut','Time Out','','time')}</div>${f('technicians','Technician(s) on Site')}</div><div>${f('ticket','Ticket Number: (FS#)')}${r('maintenance','Maintenance Mode Activated:',[['yes','Yes'],['no','No']])}<div class="two">${f('maintenanceOn','If Yes, Time On','','time')}${f('maintenanceOff','Time Off','','time')}</div><p class="small">Record the maintenance interval you set in LoggerLink.</p></div></section>
 <section id="observations">${text('observations','Initial Observations',3)}</section>
-${photoSection('arrival','Arrival photos','Photograph the station as you find it, before starting work.')}
+${photoSection('arrival','Arrival photos','Before work')}
 <section id="work"><h2>Work Completed</h2>
 ${row(c('grassDone','Trimmed Grass / Weeds (Weed-Whacked)',true)+f('grassNotes','Notes'))}
 ${row(c('windDone','Wind Speed & Direction',true)+`<div class="reading-grid">${f('windSpeed','Speed','m/s')}${f('windDirection','Direction','°')}${c('windVerified','Verified with Kestrel & Compass')}</div>`+f('windOther','Other Height Values'))}
@@ -21,6 +21,6 @@ ${row(c('rainDone','Tipping Bucket',true)+`<div class="reading-grid">${f('rain1'
 <section id="soil">${c('soilDone','Soil Temp/Moisture',true)}<div class="soil-layout"><div><div class="soil-header"><span>Depth</span><span>Temperature · °C</span><span>Moisture · %</span></div>${[5,10,20,50,100,30,60].map(d=>`<div class="soil-row"><span>${d} cm</span>${depthTemps.includes(d)?`<input name="soilTemp${d}" inputmode="decimal" aria-label="Soil temperature ${d} cm">`:'<span></span>'}${depthMoistures.includes(d)?`<input name="soilMoisture${d}" inputmode="decimal" aria-label="Soil moisture ${d} cm">`:'<span></span>'}</div>`).join('')}</div>${text('additionalSensors','Additional Sensors',7)}</div></section>
 <section id="power"><h2>Power & Battery</h2>${row(c('powerDone','Power Source',true)+r('powerSource','',[['solar','Solar'],['ac-dc','AC-DC']]))}${row(c('panelDone','Solar Panel Cleaned & Voltage Checked',true)+f('panelVoltage','Voltage','V'))}${row(c('batteryDone','Battery Voltage',true)+f('batteryVoltage','Voltage','V'))}${row(c('batteryBoxDone','Battery Box Condition & Battery Type',true)+`<div class="reading-grid">${f('batteryCondition','Condition')}${f('batteryType','Battery Type')}${f('batteryAh','Capacity','Ah')}</div>`)}${r('sensorReplaced','Sensor Replaced?',[['yes','Yes'],['no','No']])}</section>
 <section id="notes">${text('notes','Additional Notes',6)}${c('picturesTaken','Remember to Take Pictures!')}</section>
-${photoSection('departure','Departure photos','Photograph the station after completing work, before leaving.')}
-${photoSection('additional','Additional photos','Document damage, repairs, sensor changes, or anything else during your visit.')}
+${photoSection('departure','Departure photos','After work')}
+${photoSection('additional','Additional photos','Repairs and other details')}
 <section id="provenance" hidden><h2>Imported Reading Sources</h2><div id="sourceList"></div></section>`;}
