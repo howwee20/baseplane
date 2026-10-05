@@ -17,4 +17,6 @@ Use a separate invited account. Start with viewer access. Any editor exercise sh
 
 Record each issue with the action, expected behavior, actual behavior, timestamp, account role, browser/device, and a screenshot with credentials removed. Assign pass/fail to each exercise. Log defects as private team cases; do not put real station notes in public GitHub issues.
 
-Pending review: a teammate has not performed this acceptance test. Teams Graph uploads, Flyspray, internal MSU APIs, and LoggerNet remain unconnected. Shared photos remain local. Prior public commits still contain the removed historical maintenance examples; cleanup or restricted repository access is a separate remaining privacy task.
+Pending review: a teammate has not performed this acceptance test. Teams Graph uploads, Flyspray, internal MSU APIs, and LoggerNet remain unconnected. Shared photos remain local. The removed historical maintenance examples have been cleaned from main-branch history and their old build runs. A private Git bundle preserves the original history. GitHub retains the old direct commit URL; its removal still requires GitHub Support.
+
+Review the Anomaly report and Reference tracker with a station whose nearby histories are available. Check variable, radius, minimum references, tolerance, coverage, observation and fetch times, QC exclusions, and failed sources. Download the report and verify all observations and reference memberships are retained. Outside-range findings need human review of weather, site exposure and sensor placement.

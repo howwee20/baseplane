@@ -30,7 +30,7 @@ The public website serves the sign-in page, application code, blank forms, map o
 
 See [the team review guide](docs/team-review.md) for a repeatable review with synthetic records. Automated checks and a successful browser login are recorded evidence; they are not a substitute for a teammate's acceptance test or physical station validation.
 
-The repository is public. A maintenance-example payload was removed from the current frontend on October 5, 2026; it remains in earlier Git commits until repository history is cleaned or access to that history is restricted. No provider secret was found in the tracked files. Avoid adding real station cases, exports, photos, or credentials to source control.
+The repository is public. A maintenance-example payload was removed from the current frontend and main-branch history on October 5, 2026; old build runs containing it were deleted. A private Git bundle preserves the original history for recovery. GitHub still serves the old direct commit URL; removing that retained copy requires GitHub Support. No provider secret was found in the tracked files. Avoid adding real station cases, exports, photos, or credentials to source control.
 
 ## Development and deployment
 
@@ -52,3 +52,11 @@ Use the signed-in Export action to back up shared records and evidence. Save Fie
 Passwords use salted scrypt (N=16384,r=8,p=5); sessions use random bearer tokens whose digests are stored in D1. Browser sessions are tab-scoped. Password changes and disabling users revoke sessions. Auth attempts are rate limited. Record updates use revision checks; stale edits receive a conflict response rather than replacing newer evidence.
 
 The former Atoll project is retained in repository history and unserved legacy source. Its former platform landing page and studio are excluded from the Pages artifact. The previous site can be recovered from commit `516e905`.
+
+## Anomaly report and reference tracker
+
+Anomaly report screens the latest primary air temperature, relative humidity, wind speed, solar radiation and preceding-hour precipitation against nearby stations. Reference tracker loads 24/72/168-hour histories sequentially using the same server-side Synoptic connection. Reference sites are at least 500 m apart from each other and the target so co-located instruments are not counted as independent sites. Both require sign-in. Settings select a 25/50/100/150-km radius, at least 2/3/4 references, and a tolerance scale. Downloads retain the settings, source times, observations and reference membership.
+
+Default tolerance floors are 3 °C, 20 percentage points, 3 m/s, 200 W/m², and 5 mm for reported preceding-hour precipitation. These are provisional review thresholds, not manufacturer specifications or MSU-approved calibration criteria. The reference band uses the greater of the floor or 3 × 1.4826 × the median absolute deviation from the nearby median. Unsupported or missing units, QC flags, old latest readings and insufficient neighbors remain unavailable or excluded.
+
+The tracker compares station and neighbor changes about an hour apart while holding reference membership fixed. It distinguishes shared changes, isolated changes and offsets, but applies no elevation/terrain correction and does not infer historical weather from live radar. An outside-range reading is a request for review, not a confirmed fault. Persistent-difference screening requires six outside-range readings and at least half of evaluated observations; coverage is shown separately.

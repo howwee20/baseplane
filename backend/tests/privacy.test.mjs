@@ -13,7 +13,7 @@ function fixture(){
  const env={DB,OWNER_EMAIL:'owner@example.com',ALLOWED_ORIGINS:'https://atolldb.com',SYNOPTIC_TOKEN:'synthetic-provider-secret-only'};
  return {env,async call(path,{token,method='GET',body}={}){return worker.fetch(new Request('https://fleet.test/api/'+path,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),env);},async session(role){const id=crypto.randomUUID(),token=role==='owner'?'a'.repeat(64):role==='editor'?'b'.repeat(64):'c'.repeat(64);await DB.prepare('INSERT INTO users(id,email,name,role,password_hash,salt,created) VALUES(?,?,?,?,?,?,?)').bind(id,role+'@example.com','Synthetic '+role,role,'unused','unused',new Date().toISOString()).run();await DB.prepare('INSERT INTO sessions(hash,user_id,expires) VALUES(?,?,?)').bind(await digest(token),id,Date.now()+60000).run();return token;}};
 }
-const privateEndpoints=[['state'],['history?station=TEST'],['products?station=TEST&service=qcsegments'],['records/private'],['records/private/handoff'],['visits'],['visits/private'],['export'],['team'],['refresh','POST'],['thresholds','POST'],['records','POST'],['records/private','PATCH'],['records/private/evidence','POST'],['investigations','POST'],['visits','POST'],['team/invites','POST'],['team/users/private','PATCH']];
+const privateEndpoints=[['state'],['anomalies'],['reference?station=TEST'],['history?station=TEST'],['products?station=TEST&service=qcsegments'],['records/private'],['records/private/handoff'],['visits'],['visits/private'],['export'],['team'],['refresh','POST'],['thresholds','POST'],['records','POST'],['records/private','PATCH'],['records/private/evidence','POST'],['investigations','POST'],['visits','POST'],['team/invites','POST'],['team/users/private','PATCH']];
 
 test('every private data, QC, handoff and edit route rejects anonymous and invalid sessions',async()=>{
  const f=fixture();await saveDoc(f.env.DB,'record:private','issue',{id:'private',notes:'PRIVATE-NOTE-SENTINEL'});
@@ -46,6 +46,14 @@ test('partial upstream refresh cannot replace good metadata or observations with
  const f=fixture(),token=await f.session('editor'),at=await savedNetwork(f),originalFetch=globalThis.fetch;let requests=0;
  globalThis.fetch=async()=>++requests===1?Response.json({SUMMARY:{RESPONSE_CODE:1},STATION:[{STID:'REPLACEMENT'}]}):new Response('Unavailable',{status:503});
  try{assert.equal((await f.call('refresh',{token,method:'POST'})).status,503);const state=await (await f.call('state',{token})).json();assert.equal(state.fetchedAt,at);assert.equal(state.stations[0].id,'TEST');assert.equal((await readDoc(f.env.DB,'cache:metadata')).body.data.STATION[0].STID,'TEST');assert.match(state.lastError,/Saved observations remain available/);}finally{globalThis.fetch=originalFetch;}
+});
+test('private report and tracker return aligned cached comparisons to viewers without provider credentials',async()=>{
+ const f=fixture(),token=await f.session('viewer'),now=Date.now(),at=new Date(now).toISOString(),stations=Array.from({length:4},(_,i)=>({STID:'S'+i,NAME:'Synthetic '+i,STATUS:'ACTIVE',LATITUDE:44,LONGITUDE:-85+i*0.02,OBSERVATIONS:{air_temp_value_1:{value:14+i*0.1,date_time:at}}}));
+ for(const [key,data]of [['metadata',{STATION:stations}],['latest',{STATION:stations,UNITS:{air_temp:'Celsius'}}]])await saveDoc(f.env.DB,'cache:'+key,'cache',{data,sourceAt:at});
+ for(let i=0;i<stations.length;i++)await saveDoc(f.env.DB,'cache:history:S'+i+':24','cache',{sourceAt:at,data:{UNITS:{air_temp:'Celsius'},STATION:[{OBSERVATIONS:{date_time:[new Date(now-3600000).toISOString(),at],air_temp_set_1:[10+i*0.1,14+i*0.1]},QC:{air_temp_set_1:[null,null]}}]}});
+ let res=await f.call('anomalies',{token});assert.equal(res.status,200);const report=await res.json();assert.equal(report.stationCount,4);assert.equal(report.summary.inRange,4);
+ res=await f.call('reference?station=S0&variable=air_temp&hours=24',{token});assert.equal(res.status,200);const tracker=await res.json();assert.equal(tracker.sources.length,4);assert.equal(tracker.summary.evaluated,2);assert.equal(tracker.weather.kind,'shared-change');assert.equal(tracker.weather.neighbors,3);assert.equal(JSON.stringify(tracker).includes(f.env.SYNOPTIC_TOKEN),false);
+ assert.equal((await f.call('reference?station=S0&variable=air_temp&hours=1',{token})).status,400);assert.equal((await f.call('anomalies?radius=1000',{token})).status,400);
 });
 test('public Pages assets exclude private notebooks, credential files and maintenance seed payloads',()=>{
  const root=new URL('../../web/',import.meta.url);let files=0;
