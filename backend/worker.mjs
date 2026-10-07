@@ -6,6 +6,8 @@ import {series,neighbors} from '../web/comparison.js';
 import {parseBody,evidenceInput} from './validation.mjs';
 import {validateVisitContent,visitSummary} from '../web/lib/visits.mjs';
 import {latestReport,referenceTracker,nearby,settings as referenceSettings,VARIABLES} from '../web/lib/reference.mjs';
+import {fleetRoute,runAssessment,runFeedFailure,opsView,scheduledMaintenance} from './fleet.mjs';
+export const RELEASE={version:'1.1.0',protocol:'fleet-ops-1'};
 const limited=(v,n=2000)=>typeof v==='string'?v.trim().slice(0,n):'';
 const response=(b,status=200,headers={})=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}});
 const parse=parseBody;
@@ -14,7 +16,7 @@ async function cacheGet(env,k){const doc=await readDoc(env.DB,'cache:'+k);return
 async function cacheSet(env,k,v,at){return saveDoc(env.DB,'cache:'+k,'cache',{data:v,sourceAt:at||new Date().toISOString()});}
 async function networkView(env){
  const cfg=await config(env),latest=await cacheGet(env,'latest'),meta=await cacheGet(env,'metadata'),byId=new Map((latest?.body.STATION||[]).map(s=>[s.STID,s]));
- const stations=(meta?.body.STATION||[]).map(s=>assess({...s,...byId.get(s.STID)},latest?.body.UNITS||{},Date.now(),cfg));
+ const stations=(meta?.body.STATION||[]).map(s=>({...assess({...s,...byId.get(s.STID)},latest?.body.UNITS||{},Date.now(),cfg),carriedForward:byId.get(s.STID)?.CARRIED_FORWARD||null}));
  return {connection:{...cfg,configured:!!env.SYNOPTIC_TOKEN},fetchedAt:latest?.at||null,cacheAgeMinutes:latest?Math.floor((Date.now()-Date.parse(latest.at))/60000):null,stations:stations.map(s=>({...s,reasons:attentionReasons(s,cfg)})),units:latest?.body.UNITS||{},qcSummary:latest?.body.QC_SUMMARY||null,lastError:(await readDoc(env.DB,'refresh-error'))?.body.message||null,refreshing:false};
 }
 async function synoptic(env,path,params={}){
@@ -27,8 +29,18 @@ async function synoptic(env,path,params={}){
 }
 async function refresh(env,force=false){
  const existing=await cacheGet(env,'latest');if(!force&&existing&&Date.now()-Date.parse(existing.at)<60000)return networkView(env);
- try{const cfg=await config(env);const metadata=await synoptic(env,'stations/metadata',{network:cfg.network,complete:1,sensorvars:1});const latest=await synoptic(env,'stations/latest',{network:cfg.network,showemptystations:1,showemptyvars:1,qc:'on',qc_remove_data:'off',qc_flags:'on',qc_checks:'all',units:'metric'});if(!metadata.STATION?.length)throw new AppError('No stations were returned.',503);await cacheSet(env,'metadata',metadata);await cacheSet(env,'latest',latest);await saveDoc(env.DB,'refresh-error','settings',{message:null});return networkView(env);
- }catch(e){await saveDoc(env.DB,'refresh-error','settings',{message:e.status===429?'Another weather request was running at refresh time.':e instanceof AppError?e.message:'Weather service is unavailable. Saved observations remain available.'});throw e;}
+ let snapshot;
+ try{const cfg=await config(env);const metadata=await synoptic(env,'stations/metadata',{network:cfg.network,complete:1,sensorvars:1});const latest=await synoptic(env,'stations/latest',{network:cfg.network,showemptystations:1,showemptyvars:1,qc:'on',qc_remove_data:'off',qc_flags:'on',qc_checks:'all',units:'metric'});if(!metadata.STATION?.length)throw new AppError('No stations were returned.',503);
+  const retrievedAt=new Date().toISOString(),ingestId=crypto.randomUUID(),rows=latest.STATION||[],inResponse=new Set(rows.map(s=>s.STID));
+  await cacheSet(env,'metadata',metadata,retrievedAt);
+  // An empty or partial "successful" response never erases the last good observations: missing stations are
+  // carried forward and labelled, and the assessment treats them as having no new evidence.
+  if(rows.length){const missing=(existing?.body.STATION||[]).filter(s=>!inResponse.has(s.STID)).map(s=>({...s,CARRIED_FORWARD:s.CARRIED_FORWARD||existing.at}));await cacheSet(env,'latest',{...latest,STATION:[...rows,...missing]},retrievedAt);}
+  await saveDoc(env.DB,'refresh-error','settings',{message:rows.length?null:'The weather service returned no station observations. Showing the last good snapshot.'});
+  snapshot={metadata,latest,ingestId,retrievedAt,thresholds:{delayed:cfg.delayed,stale:cfg.stale}};
+ }catch(e){const message=e.status===429?'Another weather request was running at refresh time.':e instanceof AppError?e.message:'Weather service is unavailable. Saved observations remain available.';await saveDoc(env.DB,'refresh-error','settings',{message});if(e.status!==429)try{await runFeedFailure(env,message);}catch(err){console.error('Feed incident update failed:',String(err.message).slice(0,200));}throw e;}
+ try{const r=await runAssessment(env,snapshot);if(r?.ingest)await saveDoc(env.DB,'assessment-error','settings',null);}catch(e){console.error('Assessment failed:',String(e.message).replaceAll(env.SYNOPTIC_TOKEN||'__unset__','[redacted]').slice(0,300));await saveDoc(env.DB,'assessment-error','settings',{message:'Station assessment failed for the latest snapshot; incidents may be out of date.',at:new Date().toISOString()});}
+ return networkView(env);
 }
 async function evidence(env,b,stationId){
  const input=evidenceInput(b,stationId),network=await networkView(env),station=network.stations.find(s=>s.id===stationId);
@@ -43,7 +55,7 @@ function reportSettings(url){try{return referenceSettings({radiusKm:Number(url.s
 async function saveRecord(env,r,expected){r.updated=new Date().toISOString();return saveDoc(env.DB,'record:'+r.id,r.caseType==='investigation'?'investigation':r.kind,r,recordSummary(r),expected);}
 async function route(req,env){
  const url=new URL(req.url),path=url.pathname.replace(/^\/api/,'')||'/',method=req.method;
- if(path==='/health')return response({ok:true,service:'Enviroweather Fleet',version:'1.0.0'});
+ if(path==='/health')return response({ok:true,service:'Enviroweather Fleet',version:RELEASE.version,protocol:RELEASE.protocol,release:env.RELEASE_ID||null});
  if(path.startsWith('/auth/')&&path!='/auth/me'&&path!='/auth/logout'&&path!='/auth/password')return response(await authRoute(req,env,path,path==='/auth/status'?{}:method==='POST'?await parse(req,8192):{}));
  if(path==='/migration')throw new AppError('This migration endpoint has been retired.',410);
  const user=await authenticate(req,env);if(!user)throw new AppError('Sign in to continue.',401);
@@ -54,7 +66,8 @@ async function route(req,env){
  if(path==='/team'&&method==='GET'){if(user.role!=='owner')throw new AppError('Only the owner can manage team access.',403);const {results}=await env.DB.prepare('SELECT id,email,name,role,active FROM users ORDER BY created').all();return response({users:results});}
  if(path==='/team/invites'&&method==='POST'){if(user.role!=='owner')throw new AppError('Only the owner can invite teammates.',403);const b=await parse(req,8192);if(!validEmail(b.email)||!['editor','viewer'].includes(b.role))throw new AppError('Enter an email and access level.');const email=normalizeEmail(b.email),token=randomToken();await env.DB.prepare('INSERT INTO invites(hash,email,role,expires) VALUES(?,?,?,?)').bind(await digest(token),email,b.role,Date.now()+7*86400000).run();return response({url:'https://atolldb.com/#invite='+token,email,role:b.role});}
  if(path.startsWith('/team/users/')&&method==='PATCH'){if(user.role!=='owner')throw new AppError('Only the owner can manage access.',403);const id=path.split('/').at(-1),b=await parse(req);if(id===user.id)throw new AppError('The owner account must remain active.');if(typeof b.active!=='boolean')throw new AppError('Choose an active or disabled account.');await env.DB.batch([env.DB.prepare('UPDATE users SET active=?,credential_version=credential_version+1 WHERE id=? AND role<>?').bind(b.active?1:0,id,'owner'),env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id)]);return response({ok:true});}
- if(path==='/state'&&method==='GET')return response({...await networkView(env),records:await summaries(env.DB,['issue','bench','investigation']),user:publicUser(user)});
+ if(path==='/state'&&method==='GET'){const network=await networkView(env);return response({...network,records:await summaries(env.DB,['issue','bench','investigation']),user:publicUser(user),ops:await opsView(env,network),assessmentError:(await readDoc(env.DB,'assessment-error'))?.body||null,release:{...RELEASE,release:env.RELEASE_ID||null}});}
+ if(path.startsWith('/ops/')){const res=await fleetRoute(req,env,user,path,method,url,{networkView,cacheGet,parse});if(res)return res;}
  if(path==='/anomalies'&&method==='GET')return response(latestReport(await networkView(env),reportSettings(url)));
  if(path==='/reference'&&method==='GET'){
   const network=await networkView(env),id=url.searchParams.get('station'),variable=url.searchParams.get('variable')||'air_temp',hours=Number(url.searchParams.get('hours')||24),options=reportSettings(url),station=network.stations.find(s=>s.id===id&&s.archiveStatus!=='INACTIVE');
@@ -99,8 +112,8 @@ export default {
   const origin=req.headers.get('Origin'),allowed=(env.ALLOWED_ORIGINS||'').split(','),cors=origin&&allowed.includes(origin)?{'Access-Control-Allow-Origin':origin,'Vary':'Origin'}:{};
   const headers={...cors,'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-store'};
   if(origin&&!allowed.includes(origin))return response({error:'This origin is not allowed.'},403,headers);
-  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET,POST,PATCH,OPTIONS','Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Max-Age':'600'}});
+  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET,POST,PATCH,PUT,OPTIONS','Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Max-Age':'600'}});
   try{const res=await route(req,env);for(const [key,v]of Object.entries(headers))res.headers.set(key,v);return res;}catch(e){const status=e.status||500;if(status===500)console.error('Request failed:',String(e.message).replaceAll(env.SYNOPTIC_TOKEN||'__unset__','[redacted]').slice(0,500));return response({error:status===500?'The service could not complete this request. Your entries have not been discarded. Please retry.':e.message},status,headers);}
  },
- async scheduled(controller,env,ctx){ctx.waitUntil((async()=>{try{await refresh(env,true);}catch{}await env.DB.prepare('DELETE FROM sessions WHERE expires<?').bind(Date.now()).run();await env.DB.prepare('DELETE FROM attempts WHERE expires<?').bind(Date.now()).run();})());}
+ async scheduled(controller,env,ctx){ctx.waitUntil((async()=>{try{await refresh(env,true);}catch{}await env.DB.prepare('DELETE FROM sessions WHERE expires<?').bind(Date.now()).run();await env.DB.prepare('DELETE FROM attempts WHERE expires<?').bind(Date.now()).run();if(new Date(controller.scheduledTime||Date.now()).getUTCMinutes()<15)try{await scheduledMaintenance(env);}catch{}})());}
 };

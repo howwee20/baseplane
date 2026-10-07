@@ -8,8 +8,9 @@ import {parseBody} from '../validation.mjs';
 import {saveDoc,readDoc} from '../storage.mjs';
 import {newVisit,validateVisit,prepareRestore,parseStationData} from '../../web/field-notes/field-core.mjs';
 import retiredApi from '../../api/index.js';
+import {MIGRATIONS} from './fixtures/migrations.mjs';
 function fixture(){
- const sql=new DatabaseSync(':memory:');for(const name of ['0001_fleet.sql','0002_credential_generation.sql','0003_compact_visit_summaries.sql','0004_invalid_legacy_visit_ids.sql'])sql.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ const sql=new DatabaseSync(':memory:');for(const name of MIGRATIONS)sql.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const reads=[];let queue=Promise.resolve();
  const DB={prepare(query){const stmt=sql.prepare(query);let values=[];return {bind(...v){values=v;return this;},async first(){reads.push({query,values});return stmt.get(...values)||null;},async all(){reads.push({query,values});return {results:stmt.all(...values)};},async run(){return {meta:{changes:Number(stmt.run(...values).changes)}};}};},batch(stmts){const run=queue.then(async()=>{sql.exec('BEGIN');try{const results=[];for(const s of stmts)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}});queue=run.catch(()=>{});return run;}};
  const env={DB,OWNER_EMAIL:'owner@example.com',ALLOWED_ORIGINS:'https://atolldb.com'};

@@ -5,15 +5,18 @@ import {readFileSync,readdirSync} from 'node:fs';
 import worker from '../worker.mjs';
 import {digest} from '../auth.mjs';
 import {readDoc,saveDoc} from '../storage.mjs';
+import {MIGRATIONS} from './fixtures/migrations.mjs';
 
 function fixture(){
  const sql=new DatabaseSync(':memory:');
- for(const name of ['0001_fleet.sql','0002_credential_generation.sql','0003_compact_visit_summaries.sql','0004_invalid_legacy_visit_ids.sql'])sql.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
+ for(const name of MIGRATIONS)sql.exec(readFileSync(new URL('../migrations/'+name,import.meta.url),'utf8'));
  const DB={prepare(query){const stmt=sql.prepare(query);let values=[];return {bind(...v){values=v;return this;},async first(){return stmt.get(...values)||null;},async all(){return {results:stmt.all(...values)};},async run(){return {meta:{changes:Number(stmt.run(...values).changes)}};}};},async batch(stmts){sql.exec('BEGIN');try{const results=[];for(const s of stmts)results.push(await s.run());sql.exec('COMMIT');return results;}catch(e){sql.exec('ROLLBACK');throw e;}}};
  const env={DB,OWNER_EMAIL:'owner@example.com',ALLOWED_ORIGINS:'https://atolldb.com',SYNOPTIC_TOKEN:'synthetic-provider-secret-only'};
  return {env,async call(path,{token,method='GET',body}={}){return worker.fetch(new Request('https://fleet.test/api/'+path,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),env);},async session(role){const id=crypto.randomUUID(),token=role==='owner'?'a'.repeat(64):role==='editor'?'b'.repeat(64):'c'.repeat(64);await DB.prepare('INSERT INTO users(id,email,name,role,password_hash,salt,created) VALUES(?,?,?,?,?,?,?)').bind(id,role+'@example.com','Synthetic '+role,role,'unused','unused',new Date().toISOString()).run();await DB.prepare('INSERT INTO sessions(hash,user_id,expires) VALUES(?,?,?)').bind(await digest(token),id,Date.now()+60000).run();return token;}};
 }
-const privateEndpoints=[['state'],['anomalies'],['reference?station=TEST'],['history?station=TEST'],['products?station=TEST&service=qcsegments'],['records/private'],['records/private/handoff'],['visits'],['visits/private'],['export'],['team'],['refresh','POST'],['thresholds','POST'],['records','POST'],['records/private','PATCH'],['records/private/evidence','POST'],['investigations','POST'],['visits','POST'],['team/invites','POST'],['team/users/private','PATCH']];
+const privateEndpoints=[['state'],['anomalies'],['reference?station=TEST'],['history?station=TEST'],['products?station=TEST&service=qcsegments'],['records/private'],['records/private/handoff'],['visits'],['visits/private'],['export'],['team'],['refresh','POST'],['thresholds','POST'],['records','POST'],['records/private','PATCH'],['records/private/evidence','POST'],['investigations','POST'],['visits','POST'],['team/invites','POST'],['team/users/private','PATCH'],
+ ['ops/settings'],['ops/incidents'],['ops/incidents/00000000-0000-4000-8000-000000000000'],['ops/alerts'],['ops/stations/TEST'],['ops/notes/TEST'],['ops/work'],['ops/work/00000000-0000-4000-8000-000000000000'],['ops/work/00000000-0000-4000-8000-000000000000/handoff'],['ops/routing'],['ops/forecast?stations=TEST'],['ops/plans'],['ops/plans/00000000-0000-4000-8000-000000000000'],['ops/plans/00000000-0000-4000-8000-000000000000/export?format=csv'],['ops/export'],
+ ['ops/settings','POST'],['ops/incidents/00000000-0000-4000-8000-000000000000','PATCH'],['ops/incidents/00000000-0000-4000-8000-000000000000/merge','POST'],['ops/incidents/00000000-0000-4000-8000-000000000000/split','POST'],['ops/alerts/ack','POST'],['ops/profiles/TEST/air_temp_1','PATCH'],['ops/notes/TEST','PUT'],['ops/reference-overrides','POST'],['ops/reference-overrides/00000000-0000-4000-8000-000000000000/remove','POST'],['ops/work','POST'],['ops/work/00000000-0000-4000-8000-000000000000','PATCH'],['ops/plans/context','POST'],['ops/plans','POST'],['ops/plans/00000000-0000-4000-8000-000000000000','PATCH'],['ops/plans/00000000-0000-4000-8000-000000000000/copy','POST']];
 
 test('every private data, QC, handoff and edit route rejects anonymous and invalid sessions',async()=>{
  const f=fixture();await saveDoc(f.env.DB,'record:private','issue',{id:'private',notes:'PRIVATE-NOTE-SENTINEL'});
@@ -24,7 +27,7 @@ test('every private data, QC, handoff and edit route rejects anonymous and inval
 test('viewers cannot perform any team write; editors cannot manage members or invite owners',async()=>{
  const f=fixture(),viewer=await f.session('viewer'),editor=await f.session('editor');
  for(const [path,method]of privateEndpoints.filter(([,method])=>method))assert.equal((await f.call(path,{method,token:viewer,body:{role:'owner'}})).status,403,path);
- for(const [path,method]of [['team','GET'],['team/invites','POST'],['team/users/private','PATCH']])assert.equal((await f.call(path,{method,token:editor,...(method==='GET'?{}:{body:{role:'owner'}})})).status,403,path);
+ for(const [path,method]of [['team','GET'],['team/invites','POST'],['team/users/private','PATCH'],['ops/settings','POST']])assert.equal((await f.call(path,{method,token:editor,...(method==='GET'?{}:{body:{role:'owner'}})})).status,403,path);
 });
 test('a missing bootstrap secret never permits a predictable fallback owner token',async()=>{
  const f=fixture();const res=await f.call('auth/register',{method:'POST',body:{name:'Synthetic owner',email:f.env.OWNER_EMAIL,password:'synthetic-password-only-123',token:'disabled'}});assert.equal(res.status,403);assert.equal(await f.env.DB.prepare("SELECT id FROM users WHERE role='owner'").first(),null);

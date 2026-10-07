@@ -20,7 +20,7 @@ export function assess(station,units={},now=Date.now(),thresholds={delayed:60,st
   else if(age>thresholds.delayed)status='delayed';
   else if(flagged)status='qc';
   const finiteCoordinate=v=>v===null||v===undefined||v===''?null:Number.isFinite(Number(v))?Number(v):null;
-  return {id:station.STID,name:station.NAME||station.STID,lat:finiteCoordinate(station.LATITUDE),lon:finiteCoordinate(station.LONGITUDE),state:station.STATE,network:station.MNET_ID,archiveStatus:station.STATUS,status,last:last===null?null:new Date(last).toISOString(),ageMinutes:age===null?null:Math.max(0,Math.round(age)),flagged,fields,period:station.PERIOD_OF_RECORD,timezone:station.TIMEZONE,sensors:station.SENSOR_VARIABLES||{},restricted:!!station.RESTRICTED};
+  return {id:station.STID,name:station.NAME||station.STID,lat:finiteCoordinate(station.LATITUDE),lon:finiteCoordinate(station.LONGITUDE),elevationFt:finiteCoordinate(station.ELEVATION),state:station.STATE,network:station.MNET_ID,archiveStatus:station.STATUS,status,last:last===null?null:new Date(last).toISOString(),ageMinutes:age===null?null:Math.max(0,Math.round(age)),flagged,fields,period:station.PERIOD_OF_RECORD,timezone:station.TIMEZONE,sensors:station.SENSOR_VARIABLES||{},restricted:!!station.RESTRICTED};
 }
 export function parseCSV(text) {
   const rows=[];let row=[],cell='',quote=false;
