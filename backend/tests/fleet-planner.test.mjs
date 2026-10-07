@@ -173,3 +173,17 @@ test('reference coverage: silent sensors are "not reporting", soil depths must m
  assert.ok(flatline(flat,'air_temp'));assert.equal(flatline(flat.map(p=>({...p,v:0})),'precip_accum_one_hour'),null,'zero rain never flatlines');
  assert.equal(flatline(flat.map(p=>({...p,v:0})).slice(0,12),'wind_speed'),null,'12 h of calm is plausible');
 });
+
+test('offline packets omit gate codes, are scoped to the saving account and are cleared on sign-out',async t=>{
+ const mem=new Map(),shim={get length(){return mem.size;},key:i=>[...mem.keys()][i]??null,getItem:k=>mem.get(k)??null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)};
+ const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');Object.defineProperty(globalThis,'localStorage',{value:shim,configurable:true});
+ t.after(()=>{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;});
+ const {savePacket,listPackets,getPacket,clearPackets}=await import('../../web/lib/fleet/packets.mjs');
+ const plan={id:'00000000-0000-4000-8000-000000000001',title:'Synthetic day',date:'2026-10-09',status:'accepted',inputs:{start:{label:'Base',lat:42.7,lon:-84.5}},result:{stops:[{stationId:'TST01'}]},navigation:{google:[]}};
+ savePacket(plan,{TST01:{accessNotes:'North gate',gateCode:'SYNTH-SECRET',entrance:{lat:43,lon:-85}}},{email:'a@example.test'},'2026-10-08T12:00:00Z');
+ savePacket({...plan,id:'00000000-0000-4000-8000-000000000002'},{},{email:'b@example.test'});
+ assert.equal(JSON.stringify([...mem.values()]).includes('SYNTH-SECRET'),false);
+ assert.equal(getPacket(plan.id).notes.TST01.accessNotes,'North gate');assert.equal(getPacket(plan.id).savedAt,'2026-10-08T12:00:00Z');
+ assert.deepEqual(listPackets('a@example.test').map(p=>p.id),[plan.id]);
+ clearPackets();assert.equal(listPackets().length,0);
+});

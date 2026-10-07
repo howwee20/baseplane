@@ -2,8 +2,9 @@
 -- Forward-only. Existing documents/chunks records are untouched.
 CREATE TABLE ingests (id TEXT PRIMARY KEY, retrieved_at TEXT NOT NULL, status TEXT NOT NULL, quality TEXT NOT NULL, station_count INTEGER, active_count INTEGER, response_count INTEGER, fresh_count INTEGER, network_newest TEXT, reasons TEXT NOT NULL DEFAULT '[]', assessed_at TEXT, engine TEXT);
 CREATE INDEX ingests_time ON ingests(retrieved_at);
-CREATE TABLE station_state (station TEXT PRIMARY KEY, body TEXT NOT NULL, updated TEXT NOT NULL);
-CREATE TABLE sensor_profiles (station TEXT NOT NULL, channel TEXT NOT NULL, variable TEXT NOT NULL, body TEXT NOT NULL, expected TEXT NOT NULL, source TEXT NOT NULL, revision TEXT NOT NULL, updated TEXT NOT NULL, updated_by TEXT, PRIMARY KEY(station,channel));
+-- Fleet-wide expected-sensor profiles and per-station hysteresis state are each one bounded JSON row, so an
+-- assessment stays within D1's per-invocation query limit (every batch statement counts).
+CREATE TABLE fleet_blobs (key TEXT PRIMARY KEY, body TEXT NOT NULL, revision TEXT NOT NULL, updated TEXT NOT NULL, updated_by TEXT);
 CREATE TABLE incidents (id TEXT PRIMARY KEY, scope TEXT NOT NULL CHECK(scope IN ('station','group','feed')), kind TEXT NOT NULL, station TEXT, group_id TEXT, tier TEXT NOT NULL, tier_override TEXT, state TEXT NOT NULL, confidence TEXT NOT NULL, telemetry TEXT NOT NULL, assignee TEXT, acknowledged_by TEXT, acknowledged_at TEXT, first_suspected TEXT, first_confirmed TEXT, last_good TEXT, last_assessed TEXT, recovered_at TEXT, resolved_at TEXT, resolution TEXT, deferral TEXT, body TEXT NOT NULL, revision TEXT NOT NULL, created TEXT NOT NULL, updated TEXT NOT NULL, algorithm TEXT NOT NULL);
 CREATE INDEX incidents_state ON incidents(state, tier);
 CREATE INDEX incidents_station ON incidents(station, state);

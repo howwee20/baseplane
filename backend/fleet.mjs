@@ -54,13 +54,13 @@ export async function runAssessment(env,{metadata,latest,ingestId,retrievedAt,th
   const {fleet}=await fleetSettings(env);
   for(let attempt=0;attempt<3;attempt++){
    const [profiles,states,incidents,notes,previous]=await Promise.all([store.loadProfiles(env.DB),store.loadStationStates(env.DB),store.loadEngineIncidents(env.DB,fleet.reopenWindowHours),store.allStationNotes(env.DB),store.latestIngest(env.DB)]);
-   const r=processSnapshot({metadata,latest,ingestId,retrievedAt,previousIngest:previous,profiles,notes,stationStates:states,incidents,thresholds,config:fleet});
-   // Profile bootstrap can be large on the first run; it is idempotent and written in bounded batches first.
-   const first=r.profileChanges.filter(p=>!p.revision);for(let i=0;i<first.length;i+=100)await env.DB.batch(store.profileStatements(env.DB,first.slice(i,i+100)));
+   const r=processSnapshot({metadata,latest,ingestId,retrievedAt,previousIngest:previous,profiles:profiles.stations,notes,stationStates:states.states,incidents,thresholds,config:fleet});
+   for(const row of r.profileChanges)row.revision=crypto.randomUUID();
+   const changedStates=Object.fromEntries(Object.entries(r.stationStates).map(([k,{repeat,...v}])=>[k,v]));
    try{
-    await store.saveEngineResult(env.DB,{ingest:r.ingest,result:r,loadedRevisions:new Map(incidents.map(i=>[i.id,i.revision])),profileChanges:r.profileChanges.filter(p=>p.revision),engine:`${ENGINE_VERSION}+${PRIORITY_VERSION}+${HEALTH_VERSION}`});
+    const statements=await store.saveEngineResult(env.DB,{ingest:r.ingest,result:r,loadedRevisions:new Map(incidents.map(i=>[i.id,i.revision])),profiles:r.profileChanges.length?{stations:{...profiles.stations,...r.profileRows},revision:profiles.revision}:null,stationStates:Object.keys(changedStates).length?{states:{...states.states,...changedStates},revision:states.revision}:null,engine:`${ENGINE_VERSION}+${PRIORITY_VERSION}+${HEALTH_VERSION}`});
     await saveDoc(env.DB,'cache:health','cache',{data:compactHealth(r.assessments),sourceAt:retrievedAt,ingestId,quality:r.ingest.quality});
-    return {ingest:r.ingest,incidents:r.incidents.length,alerts:r.alerts.length};
+    return {ingest:r.ingest,incidents:r.incidents.length,alerts:r.alerts.length,statements};
    }catch(e){if(e.status===409&&attempt<2)continue;throw e;}
   }
  }finally{await release(env,'assessment',owner);}
@@ -71,6 +71,9 @@ export async function runFeedFailure(env,reason){
   await store.saveEngineResult(env.DB,{ingest:r.ingest,result:r,loadedRevisions:new Map(incidents.map(i=>[i.id,i.revision])),engine:ENGINE_VERSION});}
  finally{await release(env,'assessment',owner);}
 }
+// One statement either way, so recording assessment health never eats into the D1 query budget.
+export async function recordAssessmentError(env,message){if(message)await env.DB.prepare("INSERT INTO fleet_blobs(key,body,revision,updated,updated_by) VALUES('assessment-error',?,?,?,'system') ON CONFLICT(key) DO UPDATE SET body=excluded.body,revision=excluded.revision,updated=excluded.updated").bind(JSON.stringify({message,at:new Date().toISOString()}),crypto.randomUUID(),new Date().toISOString()).run();else await env.DB.prepare("DELETE FROM fleet_blobs WHERE key='assessment-error'").run();}
+export async function assessmentError(env){const b=(await store.readBlob(env.DB,'assessment-error')).body;return b?.message?b:null;}
 function compactHealth(assessments){const out={};for(const a of assessments)out[a.stationId]={name:a.name,reporting:a.reporting,newest:a.newest,ageMinutes:a.ageMinutes,expectedCount:a.expectedCount,reportingCount:a.reportingCount,issueKeys:a.issueKeys,issueGroups:a.issueGroups.map(g=>({id:g.id,label:g.label,provisional:g.provisional,channels:g.channels})),qcSuspect:a.qcSuspect,reasonCodes:a.reasonCodes,reasons:a.reasons,assessedAt:a.assessedAt};return out;}
 export async function scheduledMaintenance(env){await store.pruneFleet(env.DB);await pruneCache(env.DB);}
 
@@ -97,8 +100,8 @@ async function stationDetail(env,user,stationId,ctx){
  const now=Date.now(),health=assessStation({station:{...rawMeta,...rawLatest,SENSOR_VARIABLES:rawMeta?.SENSOR_VARIABLES||rawLatest?.SENSOR_VARIABLES},profile,units:latest?.body.UNITS||{},now,config:{delayed:network.connection.delayed,stale:network.connection.stale,channelLagMinutes:fleet.channelLagMinutes},maintenance:maintenanceActive(notes,now),inResponse:!!rawLatest});
  const coverage=stationCoverage(s,network.stations,{overrides,now});
  const groupIds=[...new Set(incidents.incidents.map(i=>i.groupId).filter(Boolean))],groups=(await Promise.all(groupIds.map(g=>store.getIncident(env.DB,g)))).filter(Boolean);
- const state=(await env.DB.prepare('SELECT body FROM station_state WHERE station=?').bind(stationId).first())?.body;
- return {station:{id:s.id,name:s.name,lat:s.lat,lon:s.lon,elevationFt:s.elevationFt,archiveStatus:s.archiveStatus,status:s.status,last:s.last,ageMinutes:s.ageMinutes},fetchedAt:network.fetchedAt,health,profile,incidents:incidents.incidents,groups,work,notes:redactNotes(notes,user),coverage,overrides,engineState:state?JSON.parse(state):null,templates:Object.fromEntries(Object.entries(TEMPLATES).map(([k,v])=>[k,{label:v.label,taskClass:v.taskClass,estimateMinutes:v.estimateMinutes,uncertaintyMinutes:v.uncertaintyMinutes,onSite:v.onSite}]))};
+ const state=(await store.loadStationStates(env.DB)).states[stationId]||null;
+ return {station:{id:s.id,name:s.name,lat:s.lat,lon:s.lon,elevationFt:s.elevationFt,archiveStatus:s.archiveStatus,status:s.status,last:s.last,ageMinutes:s.ageMinutes},fetchedAt:network.fetchedAt,health,profile,incidents:incidents.incidents,groups,work,notes:redactNotes(notes,user),coverage,overrides,engineState:state,templates:Object.fromEntries(Object.entries(TEMPLATES).map(([k,v])=>[k,{label:v.label,taskClass:v.taskClass,estimateMinutes:v.estimateMinutes,uncertaintyMinutes:v.uncertaintyMinutes,onSite:v.onSite}]))};
 }
 function redactNotes(n,user){if(!n)return n;if(user.role==='viewer'&&n.gateCode)return {...n,gateCode:null,gateCodeRestricted:true};return n;}
 function validateNotes(b){
@@ -227,13 +230,13 @@ export async function fleetRoute(req,env,user,path,method,url,ctx){
  }
  if(parts[1]==='export'&&method==='GET'){
   const kinds=['incidents','work','plans','notes','profiles','overrides'],kind=url.searchParams.get('kind')||'incidents',offset=Number(url.searchParams.get('offset')||0);if(!kinds.includes(kind)||!Number.isInteger(offset)||offset<0||offset>1e6)throw new AppError('Invalid export page.');
-  const q={incidents:'SELECT * FROM incidents ORDER BY created,id',work:'SELECT * FROM work_items ORDER BY created,id',plans:'SELECT * FROM plans ORDER BY created,id',notes:'SELECT station,body,revision,updated,updated_by FROM station_notes ORDER BY station',profiles:'SELECT station,channel,body,expected,source,revision,updated,updated_by FROM sensor_profiles ORDER BY station,channel',overrides:'SELECT * FROM reference_overrides ORDER BY at,id'}[kind];
-  const limit=kind==='profiles'?500:100,{results}=await env.DB.prepare(q+' LIMIT ? OFFSET ?').bind(limit+1,offset).all();
+  const q={incidents:'SELECT * FROM incidents ORDER BY created,id',work:'SELECT * FROM work_items ORDER BY created,id',plans:'SELECT * FROM plans ORDER BY created,id',notes:'SELECT station,body,revision,updated,updated_by FROM station_notes ORDER BY station',profiles:null,overrides:'SELECT * FROM reference_overrides ORDER BY at,id'}[kind];
+  const limit=kind==='profiles'?500:100,{results}=kind==='profiles'?{results:Object.entries((await store.loadProfiles(env.DB)).stations).flatMap(([station,rows])=>rows.map(r=>({...r,station}))).slice(offset,offset+limit+1)}:await env.DB.prepare(q+' LIMIT ? OFFSET ?').bind(limit+1,offset).all();
   let rows=results.slice(0,limit);
   if(kind==='incidents')rows=await Promise.all(rows.map(async r=>({...store.incidentFromRow(r),events:await store.incidentEvents(env.DB,r.id,500)})));
   else if(kind==='work')rows=rows.map(store.workFromRow);else if(kind==='plans')rows=rows.map(store.planFromRow);
   else if(kind==='notes')rows=rows.map(r=>redactNotes({...JSON.parse(r.body),station:r.station,revision:r.revision,updated:r.updated,updatedBy:r.updated_by},user));
-  else if(kind==='profiles')rows=rows.map(r=>({...JSON.parse(r.body),station:r.station,channel:r.channel,expected:r.expected,source:r.source,revision:r.revision,updated:r.updated,updatedBy:r.updated_by}));
+
   const next=results.length>limit?{kind,offset:offset+limit}:kinds.indexOf(kind)<kinds.length-1?{kind:kinds[kinds.indexOf(kind)+1],offset:0}:null;
   return json({schemaVersion:1,kind:'enviroweather-fleet-operations-export',exportedAt:new Date().toISOString(),page:{kind,offset},rows,next});
  }

@@ -8,27 +8,32 @@ const sized=(v,what)=>{const s=JSON.stringify(v);if(s.length>MAX_BODY)throw new 
 // ---------- ingests, profiles and station state ----------
 export async function latestIngest(db){const r=await db.prepare("SELECT * FROM ingests WHERE status='ok' ORDER BY retrieved_at DESC LIMIT 1").first();return r?{...r,activeCount:r.active_count,reasons:P(r.reasons,[])}:null;}
 export async function recentIngests(db,limit=12){const {results}=await db.prepare('SELECT id,retrieved_at,status,quality,station_count,active_count,response_count,fresh_count,network_newest,reasons,assessed_at FROM ingests ORDER BY retrieved_at DESC LIMIT ?').bind(limit).all();return results.map(r=>({...r,reasons:P(r.reasons,[])}));}
-export async function loadProfiles(db){const {results}=await db.prepare('SELECT station,channel,body,revision FROM sensor_profiles').all();const out={};for(const r of results)(out[r.station]??=[]).push({...P(r.body,{}),station:r.station,channel:r.channel,revision:r.revision});return out;}
-export async function stationProfile(db,station){const {results}=await db.prepare('SELECT channel,body,revision,updated,updated_by FROM sensor_profiles WHERE station=? ORDER BY channel').bind(station).all();return results.map(r=>({...P(r.body,{}),station,channel:r.channel,revision:r.revision,updated:r.updated,updatedBy:r.updated_by}));}
-const profileBody=r=>{const {station,channel,revision,updated,updatedBy,...rest}=r;return rest;};
-// Inference never overwrites a row changed since it was loaded (team edits win; the next ingest catches up).
-export function profileStatements(db,rows,actor='system'){
- const now=new Date().toISOString();
- return rows.map(r=>r.revision
-  ?db.prepare('UPDATE sensor_profiles SET variable=?,body=?,expected=?,source=?,revision=?,updated=?,updated_by=? WHERE station=? AND channel=? AND revision=?').bind(r.variable,J(profileBody(r)),r.expected,r.source,crypto.randomUUID(),now,actor,r.station,r.channel,r.revision)
-  :db.prepare('INSERT OR IGNORE INTO sensor_profiles(station,channel,variable,body,expected,source,revision,updated,updated_by) VALUES(?,?,?,?,?,?,?,?,?)').bind(r.station,r.channel,r.variable,J(profileBody(r)),r.expected,r.source,crypto.randomUUID(),now,actor));
+// Profiles and hysteresis state are single bounded JSON rows: one read and at most one write per assessment.
+const BLOB_MAX=1_800_000;// below the 2 MB D1 row limit
+export async function readBlob(db,key){const r=await db.prepare('SELECT body,revision,updated,updated_by FROM fleet_blobs WHERE key=?').bind(key).first();return r?{body:P(r.body,{}),revision:r.revision,updated:r.updated,updatedBy:r.updated_by}:{body:{},revision:null};}
+export function blobStatement(db,key,body,expected,actor='system'){
+ const text=JSON.stringify(body);if(text.length>BLOB_MAX)throw new AppError(`Fleet ${key} data exceeds ${BLOB_MAX} bytes; split storage before adding more stations.`,507);
+ const rev=crypto.randomUUID(),now=new Date().toISOString();
+ return expected?db.prepare('UPDATE fleet_blobs SET body=?,revision=?,updated=?,updated_by=? WHERE key=? AND revision=?').bind(text,rev,now,actor,key,expected)
+  :db.prepare('INSERT INTO fleet_blobs(key,body,revision,updated,updated_by) VALUES(?,?,?,?,?)').bind(key,text,rev,now,actor);
 }
+// Fails the surrounding batch if the blob changed since it was read (or appeared when it was absent).
+export const blobGuard=(db,key,expected)=>expected?db.prepare('INSERT INTO write_guard(x) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM fleet_blobs WHERE key=? AND revision=?)').bind(key,expected):db.prepare('INSERT INTO write_guard(x) SELECT 1 WHERE EXISTS(SELECT 1 FROM fleet_blobs WHERE key=?)').bind(key);
+export async function loadProfiles(db){const b=await readBlob(db,'profiles');return {stations:b.body.stations||{},revision:b.revision};}
+export async function stationProfile(db,station){return ((await loadProfiles(db)).stations[station]||[]).map(r=>({...r,station}));}
 export async function updateProfileRow(db,station,channel,revision,patch,actor){
- const row=await db.prepare('SELECT body,revision FROM sensor_profiles WHERE station=? AND channel=?').bind(station,channel).first();
- if(!row)throw new AppError('Sensor channel not found in the profile.',404);
- if(!revision||revision!==row.revision)throw new AppError('This sensor profile changed. Reload before saving.',409);
- const body={...P(row.body,{}),...patch,source:'team',groupSource:patch.sensorGroup?'team':P(row.body,{}).groupSource},next=crypto.randomUUID(),now=new Date().toISOString();
- const r=await db.prepare('UPDATE sensor_profiles SET body=?,expected=?,source=?,revision=?,updated=?,updated_by=? WHERE station=? AND channel=? AND revision=?').bind(J(body),body.expected,'team',next,now,actor,station,channel,revision).run();
- if(r.meta.changes!==1)throw new AppError('This sensor profile changed. Reload before saving.',409);
- return {...body,station,channel,revision:next,updated:now,updatedBy:actor};
+ for(let attempt=0;attempt<3;attempt++){
+  const {stations,revision:blobRev}=await loadProfiles(db),rows=stations[station]||[],row=rows.find(r=>r.channel===channel);
+  if(!row)throw new AppError('Sensor channel not found in the profile.',404);
+  if(!revision||revision!==row.revision)throw new AppError('This sensor profile changed. Reload before saving.',409);
+  const now=new Date().toISOString(),next={...row,...patch,source:'team',groupSource:patch.sensorGroup?'team':row.groupSource,revision:crypto.randomUUID(),updated:now,updatedBy:actor};
+  const body={stations:{...stations,[station]:rows.map(r=>r.channel===channel?next:r)}};
+  try{const [,res]=await db.batch([blobGuard(db,'profiles',blobRev),blobStatement(db,'profiles',body,blobRev,actor)]);if(res.meta.changes===1)return {...next,station};}
+  catch(e){if(!String(e).includes('CHECK constraint'))throw e;}
+ }
+ throw new AppError('Sensor profiles are busy. Retry in a moment.',409);
 }
-export async function loadStationStates(db){const {results}=await db.prepare('SELECT station,body FROM station_state').all();return Object.fromEntries(results.map(r=>[r.station,P(r.body)]));}
-export function stationStateStatements(db,states){const now=new Date().toISOString();return Object.entries(states).map(([station,body])=>{const {repeat,...clean}=body;return db.prepare('INSERT INTO station_state(station,body,updated) VALUES(?,?,?) ON CONFLICT(station) DO UPDATE SET body=excluded.body,updated=excluded.updated').bind(station,J(clean),now);});}
+export async function loadStationStates(db){const b=await readBlob(db,'station_state');return {states:b.body.states||{},revision:b.revision};}
 
 // ---------- incidents ----------
 const COLS=['id','scope','kind','station','group_id','tier','tier_override','state','confidence','telemetry','assignee','acknowledged_by','acknowledged_at','first_suspected','first_confirmed','last_good','last_assessed','recovered_at','resolved_at','resolution','deferral','body','revision','created','updated','algorithm'];
@@ -52,24 +57,25 @@ export async function listIncidents(db,{state='open',station=null,cursor='',limi
 }
 export async function incidentEvents(db,id,limit=200){const {results}=await db.prepare('SELECT id,at,actor,type,detail,ingest_id FROM incident_events WHERE incident_id=? ORDER BY at DESC,id DESC LIMIT ?').bind(id,limit).all();return results;}
 export const eventStatement=(db,e)=>db.prepare('INSERT OR IGNORE INTO incident_events(id,incident_id,at,actor,type,detail,ingest_id) VALUES(?,?,?,?,?,?,?)').bind(e.id||crypto.randomUUID(),e.incidentId,e.at||new Date().toISOString(),String(e.actor).slice(0,100),e.type,String(e.detail).slice(0,2000),e.ingestId||null);
-// Engine results are written in one transaction. Revision guards roll the whole batch back if a teammate edited
-// one of the incidents after the engine loaded it; the caller reloads and reruns.
-export async function saveEngineResult(db,{ingest,result,loadedRevisions,profileChanges=[],engine}){
- const statements=[];
- for(const inc of result.incidents)if(!inc._new&&loadedRevisions.has(inc.id))statements.push(db.prepare('INSERT INTO write_guard(x) SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM incidents WHERE id=? AND revision=?)').bind(inc.id,loadedRevisions.get(inc.id)));
- for(const inc of result.incidents){
-  const {_new,_changed,_bump,...clean}=inc;
-  if(_new||_bump||!clean.revision)clean.revision=crypto.randomUUID();
-  if(_new)statements.push(db.prepare(`INSERT INTO incidents(${COLS.join(',')}) VALUES(${COLS.map(()=>'?').join(',')})`).bind(...rowValues(clean)));
-  // Engine-owned columns only; assignee, acknowledgement, tier override and deferral belong to people.
-  else statements.push(db.prepare('UPDATE incidents SET kind=?,group_id=?,tier=?,state=?,confidence=?,telemetry=?,first_suspected=?,first_confirmed=?,last_good=?,last_assessed=?,recovered_at=?,resolved_at=?,resolution=?,acknowledged_by=?,acknowledged_at=?,body=?,revision=?,updated=? WHERE id=?').bind(clean.kind,clean.groupId??null,clean.tier,clean.state,clean.confidence,clean.telemetry,clean.firstSuspected??null,clean.firstConfirmed??null,clean.lastGood??null,clean.lastAssessed??null,clean.recoveredAt??null,clean.resolvedAt??null,clean.resolution??null,clean.acknowledgedBy??null,clean.acknowledgedAt??null,sized(clean.body,'Incident'),clean.revision,clean.updated,clean.id));
- }
- for(const e of result.events)statements.push(eventStatement(db,e));
- for(const a of result.alerts)statements.push(db.prepare('INSERT OR IGNORE INTO alerts(id,dedupe,incident_id,kind,tier,title,detail,created,suppressed) VALUES(?,?,?,?,?,?,?,?,?)').bind(a.id,a.dedupe,a.incidentId,a.kind,a.tier,String(a.title).slice(0,300),String(a.detail).slice(0,2000),a.created,a.suppressed?1:0));
- statements.push(...stationStateStatements(db,result.stationStates||{}));
- statements.push(...profileStatements(db,profileChanges));
+// Multi-row inserts keep audit writes within D1's per-invocation statement budget (100 bound parameters each).
+function multiRow(db,head,rows,width,tail=''){const out=[],per=Math.floor(100/width);for(let i=0;i<rows.length;i+=per){const chunk=rows.slice(i,i+per);out.push(db.prepare(`${head} VALUES ${chunk.map(()=>'('+Array(width).fill('?').join(',')+')').join(',')} ${tail}`).bind(...chunk.flat()));}return out;}
+export const eventsStatements=(db,events)=>multiRow(db,'INSERT OR IGNORE INTO incident_events(id,incident_id,at,actor,type,detail,ingest_id)',events.map(e=>[e.id||crypto.randomUUID(),e.incidentId,e.at||new Date().toISOString(),String(e.actor).slice(0,100),e.type,String(e.detail).slice(0,2000),e.ingestId||null]),7);
+const ENGINE_COLS=['kind','group_id','tier','state','confidence','telemetry','first_suspected','first_confirmed','last_good','last_assessed','recovered_at','resolved_at','resolution','acknowledged_by','acknowledged_at','body','revision','updated'];
+// Engine results are written in one transaction. A single guard rolls the batch back if a teammate edited any loaded
+// incident (or a profile) after the engine read it; the caller reloads and reruns. Upserts change engine-owned columns
+// only: assignee, tier override and deferral belong to people.
+export async function saveEngineResult(db,{ingest,result,loadedRevisions,profiles=null,stationStates=null,engine}){
+ const statements=[],guarded=result.incidents.filter(i=>!i._new&&loadedRevisions.has(i.id));
+ for(let i=0;i<guarded.length;i+=45){const chunk=guarded.slice(i,i+45);statements.push(db.prepare(`INSERT INTO write_guard(x) SELECT 1 WHERE (SELECT count(*) FROM incidents WHERE ${chunk.map(()=>'(id=? AND revision=?)').join(' OR ')})<>?`).bind(...chunk.flatMap(c=>[c.id,loadedRevisions.get(c.id)]),chunk.length));}
+ const rows=result.incidents.map(inc=>{const {_new,_changed,_bump,...clean}=inc;if(_new||_bump||!clean.revision)clean.revision=crypto.randomUUID();return rowValues(clean);});
+ statements.push(...multiRow(db,`INSERT INTO incidents(${COLS.join(',')})`,rows,COLS.length,`ON CONFLICT(id) DO UPDATE SET ${ENGINE_COLS.map(c=>`${c}=excluded.${c}`).join(',')}`));
+ statements.push(...eventsStatements(db,result.events));
+ statements.push(...multiRow(db,'INSERT OR IGNORE INTO alerts(id,dedupe,incident_id,kind,tier,title,detail,created,suppressed)',result.alerts.map(a=>[a.id,a.dedupe,a.incidentId,a.kind,a.tier,String(a.title).slice(0,300),String(a.detail).slice(0,2000),a.created,a.suppressed?1:0]),9));
+ if(stationStates)statements.push(blobGuard(db,'station_state',stationStates.revision),blobStatement(db,'station_state',{states:stationStates.states},stationStates.revision));
+ if(profiles){statements.push(blobGuard(db,'profiles',profiles.revision),blobStatement(db,'profiles',{stations:profiles.stations},profiles.revision));}
  statements.push(db.prepare('INSERT INTO ingests(id,retrieved_at,status,quality,station_count,active_count,response_count,fresh_count,network_newest,reasons,assessed_at,engine) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET assessed_at=excluded.assessed_at,quality=excluded.quality,reasons=excluded.reasons').bind(ingest.id,ingest.retrievedAt,ingest.status,ingest.quality,ingest.stationCount??null,ingest.activeCount??null,ingest.responseCount??null,ingest.freshCount??null,ingest.networkNewest??null,J(ingest.reasons||[]),new Date().toISOString(),engine));
- try{await db.batch(statements);}catch(e){if(String(e).includes('CHECK constraint'))throw new AppError('Incident edited during assessment.',409);throw e;}
+ try{await db.batch(statements);}catch(e){if(String(e).includes('CHECK constraint'))throw new AppError('Incident or profile edited during assessment.',409);throw e;}
+ return statements.length;
 }
 const HUMAN_STATES=['new','acknowledged','investigating','planned','in_progress','awaiting_parts','awaiting_access','monitoring','resolved'];
 // Applies a teammate's edit with a revision check. The server reads the current body so engine evidence is not lost.

@@ -6,7 +6,7 @@ import {series,neighbors} from '../web/comparison.js';
 import {parseBody,evidenceInput} from './validation.mjs';
 import {validateVisitContent,visitSummary} from '../web/lib/visits.mjs';
 import {latestReport,referenceTracker,nearby,settings as referenceSettings,VARIABLES} from '../web/lib/reference.mjs';
-import {fleetRoute,runAssessment,runFeedFailure,opsView,scheduledMaintenance} from './fleet.mjs';
+import {fleetRoute,runAssessment,runFeedFailure,opsView,scheduledMaintenance,recordAssessmentError,assessmentError} from './fleet.mjs';
 export const RELEASE={version:'1.1.0',protocol:'fleet-ops-1'};
 const limited=(v,n=2000)=>typeof v==='string'?v.trim().slice(0,n):'';
 const response=(b,status=200,headers={})=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}});
@@ -27,19 +27,26 @@ async function synoptic(env,path,params={}){
   const res=await fetch(url,{signal:AbortSignal.timeout(45000)});if(!res.ok)throw new AppError('Weather service is unavailable. Saved observations remain available.',503);const data=await res.json();if(Number(data.SUMMARY?.RESPONSE_CODE)===403)throw new AppError('Your Synoptic account does not include this API service.',403);if(![1,2].includes(Number(data.SUMMARY?.RESPONSE_CODE)))throw new AppError('Weather service did not accept the request. Saved observations remain available.',503);return data;
  }finally{await env.DB.prepare('DELETE FROM locks WHERE name=? AND owner=?').bind('synoptic',lock).run();}
 }
+async function stableHash(metadata){
+ const stable=(metadata.STATION||[]).map(({PERIOD_OF_RECORD,SENSOR_VARIABLES,...rest})=>({...rest,SENSOR_VARIABLES:Object.fromEntries(Object.entries(SENSOR_VARIABLES||{}).map(([v,chs])=>[v,Object.fromEntries(Object.entries(chs||{}).map(([c,info])=>[c,[info?.position??null,!!info?.PERIOD_OF_RECORD?.start]]))]))}));
+ return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(stable))))].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
 async function refresh(env,force=false){
  const existing=await cacheGet(env,'latest');if(!force&&existing&&Date.now()-Date.parse(existing.at)<60000)return networkView(env);
  let snapshot;
  try{const cfg=await config(env);const metadata=await synoptic(env,'stations/metadata',{network:cfg.network,complete:1,sensorvars:1});const latest=await synoptic(env,'stations/latest',{network:cfg.network,showemptystations:1,showemptyvars:1,qc:'on',qc_remove_data:'off',qc_flags:'on',qc_checks:'all',units:'metric'});if(!metadata.STATION?.length)throw new AppError('No stations were returned.',503);
   const retrievedAt=new Date().toISOString(),ingestId=crypto.randomUUID(),rows=latest.STATION||[],inResponse=new Set(rows.map(s=>s.STID));
-  await cacheSet(env,'metadata',metadata,retrievedAt);
+  // Station metadata rarely changes apart from period-of-record end times; skip rewriting an unchanged inventory.
+  const metadataHash=await stableHash(metadata);
+  if(existing?.body?.METADATA_HASH!==metadataHash||!(await env.DB.prepare("SELECT 1 FROM documents WHERE key='cache:metadata'").first()))await cacheSet(env,'metadata',metadata,retrievedAt);
   // An empty or partial "successful" response never erases the last good observations: missing stations are
   // carried forward and labelled, and the assessment treats them as having no new evidence.
-  if(rows.length){const missing=(existing?.body.STATION||[]).filter(s=>!inResponse.has(s.STID)).map(s=>({...s,CARRIED_FORWARD:s.CARRIED_FORWARD||existing.at}));await cacheSet(env,'latest',{...latest,STATION:[...rows,...missing]},retrievedAt);}
-  await saveDoc(env.DB,'refresh-error','settings',{message:rows.length?null:'The weather service returned no station observations. Showing the last good snapshot.'});
+  if(rows.length){const missing=(existing?.body.STATION||[]).filter(s=>!inResponse.has(s.STID)).map(s=>({...s,CARRIED_FORWARD:s.CARRIED_FORWARD||existing.at}));await cacheSet(env,'latest',{...latest,STATION:[...rows,...missing],METADATA_HASH:metadataHash},retrievedAt);}
+  const refreshMessage=rows.length?null:'The weather service returned no station observations. Showing the last good snapshot.';
+  if(((await readDoc(env.DB,'refresh-error'))?.body?.message??null)!==refreshMessage)await saveDoc(env.DB,'refresh-error','settings',{message:refreshMessage});
   snapshot={metadata,latest,ingestId,retrievedAt,thresholds:{delayed:cfg.delayed,stale:cfg.stale}};
  }catch(e){const message=e.status===429?'Another weather request was running at refresh time.':e instanceof AppError?e.message:'Weather service is unavailable. Saved observations remain available.';await saveDoc(env.DB,'refresh-error','settings',{message});if(e.status!==429)try{await runFeedFailure(env,message);}catch(err){console.error('Feed incident update failed:',String(err.message).slice(0,200));}throw e;}
- try{const r=await runAssessment(env,snapshot);if(r?.ingest)await saveDoc(env.DB,'assessment-error','settings',null);}catch(e){console.error('Assessment failed:',String(e.message).replaceAll(env.SYNOPTIC_TOKEN||'__unset__','[redacted]').slice(0,300));await saveDoc(env.DB,'assessment-error','settings',{message:'Station assessment failed for the latest snapshot; incidents may be out of date.',at:new Date().toISOString()});}
+ try{const r=await runAssessment(env,snapshot);if(r?.ingest)await recordAssessmentError(env,null);}catch(e){console.error('Assessment failed:',String(e.message).replaceAll(env.SYNOPTIC_TOKEN||'__unset__','[redacted]').slice(0,300));await recordAssessmentError(env,'Station assessment failed for the latest snapshot; incidents may be out of date.');}
  return networkView(env);
 }
 async function evidence(env,b,stationId){
@@ -66,7 +73,7 @@ async function route(req,env){
  if(path==='/team'&&method==='GET'){if(user.role!=='owner')throw new AppError('Only the owner can manage team access.',403);const {results}=await env.DB.prepare('SELECT id,email,name,role,active FROM users ORDER BY created').all();return response({users:results});}
  if(path==='/team/invites'&&method==='POST'){if(user.role!=='owner')throw new AppError('Only the owner can invite teammates.',403);const b=await parse(req,8192);if(!validEmail(b.email)||!['editor','viewer'].includes(b.role))throw new AppError('Enter an email and access level.');const email=normalizeEmail(b.email),token=randomToken();await env.DB.prepare('INSERT INTO invites(hash,email,role,expires) VALUES(?,?,?,?)').bind(await digest(token),email,b.role,Date.now()+7*86400000).run();return response({url:'https://atolldb.com/#invite='+token,email,role:b.role});}
  if(path.startsWith('/team/users/')&&method==='PATCH'){if(user.role!=='owner')throw new AppError('Only the owner can manage access.',403);const id=path.split('/').at(-1),b=await parse(req);if(id===user.id)throw new AppError('The owner account must remain active.');if(typeof b.active!=='boolean')throw new AppError('Choose an active or disabled account.');await env.DB.batch([env.DB.prepare('UPDATE users SET active=?,credential_version=credential_version+1 WHERE id=? AND role<>?').bind(b.active?1:0,id,'owner'),env.DB.prepare('DELETE FROM sessions WHERE user_id=?').bind(id)]);return response({ok:true});}
- if(path==='/state'&&method==='GET'){const network=await networkView(env);return response({...network,records:await summaries(env.DB,['issue','bench','investigation']),user:publicUser(user),ops:await opsView(env,network),assessmentError:(await readDoc(env.DB,'assessment-error'))?.body||null,release:{...RELEASE,release:env.RELEASE_ID||null}});}
+ if(path==='/state'&&method==='GET'){const network=await networkView(env);return response({...network,records:await summaries(env.DB,['issue','bench','investigation']),user:publicUser(user),ops:await opsView(env,network),assessmentError:await assessmentError(env),release:{...RELEASE,release:env.RELEASE_ID||null}});}
  if(path.startsWith('/ops/')){const res=await fleetRoute(req,env,user,path,method,url,{networkView,cacheGet,parse});if(res)return res;}
  if(path==='/anomalies'&&method==='GET')return response(latestReport(await networkView(env),reportSettings(url)));
  if(path==='/reference'&&method==='GET'){

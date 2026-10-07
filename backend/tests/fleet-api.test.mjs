@@ -153,3 +153,20 @@ test('station notes keep gate codes from viewers and URLs; operations export pag
  assert.equal((await f.json('ops/settings',{role:'owner',method:'POST',body:{fleet:{grouping:{linkKm:500}}}})).status,400);
  assert.equal((await f.json('ops/settings',{role:'owner',method:'POST',body:{fleet:{outageConfirmCount:3}}})).body.fleet.outageConfirmCount,3);
 });
+
+test('a refresh and assessment of a 104-station network stays within the D1 per-invocation query budget',async()=>{
+ const f=fixture();await f.session('editor');
+ // Count every statement D1 would execute, including each statement inside a batch (Cloudflare counts those too).
+ let count=0;const prepare=f.env.DB.prepare.bind(f.env.DB),batch=f.env.DB.batch.bind(f.env.DB);
+ f.env.DB.prepare=q=>{const s=prepare(q);for(const m of ['first','all','run']){const o=s[m].bind(s);s[m]=(...a)=>{if(!s._inBatch)count++;return o(...a);};}return s;};
+ f.env.DB.batch=stmts=>{count+=stmts.length;stmts.forEach(x=>x._inBatch=true);return batch(stmts);};
+ const big=Array.from({length:104},(_,i)=>station(i+1,{xKm:(i%13)*25,yKm:Math.floor(i/13)*25,status:i>=99?'INACTIVE':'ACTIVE'}));
+ const original=globalThis.fetch;globalThis.fetch=async input=>{const url=new URL(input instanceof Request?input.url:String(input));if(url.pathname.endsWith('/stations/metadata'))return Response.json({SUMMARY:{RESPONSE_CODE:1},STATION:big});return Response.json({SUMMARY:{RESPONSE_CODE:1},UNITS,STATION:big.map((m,i)=>observe(m,{obsAt:Date.now()-(i<4?5*3600000:600000),...(i===10?{drop:['volt_1','solar_radiation_1']}:{})}))});};
+ const runs=[];
+ try{for(let k=0;k<3;k++){count=0;assert.equal((await f.call('refresh',{method:'POST'})).status,200);runs.push(count);await age(f);}}finally{globalThis.fetch=original;}
+ const profiles=f.sql.prepare("SELECT length(body) n FROM fleet_blobs WHERE key='profiles'").get().n;
+ assert.ok(runs.every(n=>n<=50),`statements per refresh: ${runs.join(', ')} (Workers Free allows 50, Paid 1000)`);
+ assert.ok(profiles<1_800_000,'profile blob stays well under the 2 MB row limit');
+ assert.ok(f.sql.prepare("SELECT count(*) n FROM incidents WHERE scope='group'").get().n>=1);
+ console.log(`D1 statements per refresh+assessment (first, second, third): ${runs.join(', ')}; profile blob ${profiles} bytes`);
+});

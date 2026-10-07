@@ -20,3 +20,18 @@ Record each issue with the action, expected behavior, actual behavior, timestamp
 Pending review: a teammate has not performed this acceptance test. Teams Graph uploads, Flyspray, internal MSU APIs, and LoggerNet remain unconnected. Shared photos remain local. The removed historical maintenance examples have been cleaned from main-branch history and their old build runs. A private Git bundle preserves the original history. GitHub retains the old direct commit URL; its removal still requires GitHub Support.
 
 Review the Anomaly report and Reference tracker with a station whose nearby histories are available. Check variable, radius, minimum references, tolerance, coverage, observation and fetch times, QC exclusions, and failed sources. Download the report and verify all observations and reference memberships are retained. Outside-range findings need human review of weather, site exposure and sensor placement.
+
+## Fleet operations exercises (October 2026)
+
+| Requirement | Reviewer exercise |
+| --- | --- |
+| One priority order | Compare the Overview queue, Daily review download and planner candidates. Expect P1 groups, then P2, P3, P4 everywhere, with group members counted once. |
+| Hidden sensor loss is visible | Open a station with a stale channel. The inventory should list the channel as missing or stale while the station is still reporting. |
+| Acknowledged is not resolved | Acknowledge an incident as an editor. It stays open until telemetry recovers or someone resolves it with a reason. |
+| Viewers cannot change operations | As a viewer, try to acknowledge, edit notes, create work or save a plan. Expect 403 and no gate code shown. |
+| Work does not invent recovery | Mark a synthetic work item done with a note. The incident stays open until telemetry recovers in consecutive snapshots. |
+| Plans respect urgency | Build a plan with a P2 and several nearby P4 stops. The P2 must be scheduled or appear as an exception with a reason. |
+| Accepted plans are not rewritten | Accept a plan, then wait for an incident change. Expect an "outdated" notice, with the itinerary unchanged. |
+
+Use synthetic records or the local synthetic harness for editor exercises. See docs/fleet-operations.md for the full pilot checklist.
+
