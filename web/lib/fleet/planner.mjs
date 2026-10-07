@@ -1,7 +1,8 @@
 // Forecast-aware field-day planner. Deterministic, bounded heuristic: priority-constrained insertion followed by
 // relocate/2-opt improvement. No global optimality is claimed. Selection precedence follows the canonical priority
 // tuple; driving order is optimised only when it does not delay urgent (P1/P2) arrivals beyond the tolerance.
-import {localToUtc,weekday,validDate,validTime,addDays,localDate,ZONE} from './time.mjs';
+import {localToUtc,weekday,validDate,validTime,addDays,localDate,localTime,ZONE} from './time.mjs';
+const et=ms=>`${localTime(ms,ZONE)} ET`;
 import {compareKeys,tierRank,TIERS} from './priority.mjs';
 import {evaluateWindow,alertsFor,validateRules} from './forecast.mjs';
 import {leg,matrixIndex} from './routing.mjs';
@@ -36,7 +37,7 @@ function simulate(route,ctx){
   const arrive=t+l.durationSec*1000;driveSec+=l.durationSec;distanceM+=l.distanceM||0;
   const service=(c.serviceMinutes??inputs.unknownServiceMinutes)*60000,ws=windowsFor(c,date);
   let start=arrive;
-  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w)return {ok:false,code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${new Date(arrive).toISOString()}).`,stop:c.id};start=Math.max(arrive,w.start);}
+  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w)return {ok:false,code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${et(arrive)}).`,stop:c.id};start=Math.max(arrive,w.start);}
   // Use a long access-window wait for a pending break when it is already allowed.
   for(const b of breaks)if(!b.taken&&start-arrive>=b.minutes*60000&&arrive>=b.earliestMs){b.taken={startMs:arrive,endMs:arrive+b.minutes*60000,at:c.id};breakMin+=b.minutes;}
   const end=start+service,f=forecasts?.[c.stationId];
@@ -49,7 +50,7 @@ function simulate(route,ctx){
  takeBreaks(prev);
  const back=leg(matrix,prev,'end',idx)||(prev==='start'&&inputs.start.lat===inputs.end.lat&&inputs.start.lon===inputs.end.lon?{durationSec:0,distanceM:0}:null);if(!back)return {ok:false,code:'unreachable',reason:`No road route back to ${inputs.end.label}.`,stop:prev==='start'?null:prev};
  const returnMs=t+back.durationSec*1000;driveSec+=back.durationSec;distanceM+=back.distanceM||0;
- if(returnMs>returnByMs)return {ok:false,code:'return-deadline',reason:`Return at ${new Date(returnMs).toISOString()} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the deadline.`,stop:route.at(-1)?.id,returnMs};
+ if(returnMs>returnByMs)return {ok:false,code:'return-deadline',reason:`Return at ${et(returnMs)} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the ${et(returnByMs)} deadline.`,stop:route.at(-1)?.id,returnMs};
  if(returnMs-departMs>inputs.maxWorkdayMinutes*60000)return {ok:false,code:'workday',reason:`Workday would be ${Math.ceil((returnMs-departMs)/60000)} min (limit ${inputs.maxWorkdayMinutes}).`,stop:route.at(-1)?.id};
  for(const b of breaks)if(!b.taken&&route.length&&returnMs>b.latestMs)warnings.push(`${b.label} not scheduled before ${b.latest} (provisional preference).`);
  return {ok:true,stops,returnMs,returnLeg:{driveSec:back.durationSec,distanceM:back.distanceM},breaks:breaks.filter(b=>b.taken).map(b=>({label:b.label,startMs:b.taken.startMs,endMs:b.taken.endMs,at:b.taken.at})),totals:{driveMin:Math.round(driveSec/60),distanceKm:Math.round(distanceM/100)/10,distanceMi:Math.round(distanceM/160.934)/10,serviceMin:Math.round(serviceMin),waitMin:Math.round(waitMin),bufferMin,breakMin,workdayMin:Math.round((returnMs-departMs)/60000),uncertaintyMin:uncertainty},warnings,weatherCost:stops.reduce((s,x)=>s+(x.weather.status==='caution'?2:x.weather.status==='unknown'?1:0),0),uncertaintyReturnMs:returnMs+uncertainty*60000};

@@ -28,6 +28,10 @@ export async function downloadFromAPI(path,filename){
   let combined,cursor='',bytes=0;const seen=new Set();
   do{const page=await request('export'+(cursor?'?cursor='+encodeURIComponent(cursor):''));bytes+=new TextEncoder().encode(JSON.stringify(page)).byteLength;if(bytes>64*1024*1024)throw Error('Workspace export exceeds 64 MB. Download individual records or visits.');if(!combined)combined=page;else{combined.records.push(...page.records);combined.visits.push(...page.visits);}cursor=page.nextCursor;if(cursor&&seen.has(cursor))throw Error('Export changed while downloading. Retry.');seen.add(cursor);}while(cursor);
   delete combined.nextCursor;blob=new Blob([JSON.stringify(combined)],{type:'application/json'});
+ }else if(path==='ops/export'){
+  const out={schemaVersion:1,kind:'enviroweather-fleet-operations-export',exportedAt:new Date().toISOString(),incidents:[],work:[],plans:[],notes:[],profiles:[],overrides:[]};let next={kind:'incidents',offset:0},bytes=0,pages=0;
+  while(next){const page=await request(`ops/export?kind=${next.kind}&offset=${next.offset}`);bytes+=new TextEncoder().encode(JSON.stringify(page.rows)).byteLength;if(bytes>64*1024*1024||++pages>2000)throw Error('Operations export exceeds 64 MB.');out[page.page.kind].push(...page.rows);next=page.next;}
+  blob=new Blob([JSON.stringify(out)],{type:'application/json'});
  }else blob=await fetchCurrent(path,{},true);
  if(version!==generation||!hasSession())throw canceled();
  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);

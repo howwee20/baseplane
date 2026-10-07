@@ -135,3 +135,41 @@ test('accepted plans become outdated on new urgent incidents, closures and forec
  assert.deepEqual(reasons.map(r=>r.code).sort(),['forecast-updated','incident-closed','new-urgent']);
  assert.equal(plan.result.stops.length,1,'itinerary untouched');
 });
+
+test('work-item handoffs import through the existing Field Notes parser without filling readings',async()=>{
+ const {workHandoff,newWorkItem}=await import('../../web/lib/fleet/work.mjs');
+ const {parseVisitPlan,applyVisitPlan}=await import('../../web/field-notes/field-plan.mjs');
+ const {newVisit}=await import('../../web/field-notes/field-core.mjs');
+ const w=newWorkItem({station:'TST10',template:'comms-power'},{incident:{id:'inc-1',tier:'P2',body:{reasons:['Synthetic outage'],channels:[]}},actor:'Synthetic'});
+ const plan=parseVisitPlan(workHandoff(w,{stationName:'Synthetic Station 10'}));
+ assert.equal(plan.stationId,'TST10');assert.ok(plan.plannedChecks.length>=4);assert.ok(plan.plannedChecks.every(c=>c.startsWith('(proposed)')));
+ const visit=applyVisitPlan(newVisit(),plan);
+ assert.equal(visit.fields.siteId,'TST10');assert.equal(visit.status,'draft');
+ const readingKeys=Object.keys(visit.fields).filter(k=>/reading|value|voltage|temp/i.test(k));
+ for(const k of readingKeys)assert.ok(!visit.fields[k],`${k} stays blank`);
+});
+
+test('reference coverage: silent sensors are "not reporting", soil depths must match, co-located and stale references are excluded',async()=>{
+ const {stationCoverage,flatline,angularDifference,circularMean}=await import('../../web/lib/fleet/coverage.mjs');
+ const now=Date.parse('2026-10-07T17:00:00Z'),t=new Date(now-10*60000).toISOString();
+ const mk=(id,lat,lon,fields,sensors={})=>({id,name:id,lat,lon,archiveStatus:'ACTIVE',elevationFt:800,fields:fields.map(([variable,n,value,unit,time=t,qc=[]])=>({key:`${variable}_value_${n}`,variable,value,unit,time,qc,derived:false})),sensors});
+ const pos=(v,n,p)=>({[v]:{[`${v}_${n}`]:{position:p}}});
+ const target=mk('T',43,-85,[['air_temp','1',12,'Celsius'],['soil_temp','1',14,'Celsius']],{...pos('air_temp','1','1.5'),...pos('soil_temp','1','-0.05'),...pos('wind_speed','1','3.0')});
+ const refs=[mk('COLO',43.001,-85.001,[['air_temp','1',12,'Celsius'],['wind_speed','1',2,'m/s']],{...pos('air_temp','1','1.5'),...pos('wind_speed','1','3.0')}),
+  mk('A',43.1,-85,[['air_temp','1',11.5,'Celsius'],['soil_temp','1',13,'Celsius'],['wind_speed','1',2,'m/s']],{...pos('air_temp','1','1.5'),...pos('soil_temp','1','-0.1'),...pos('wind_speed','1','3.0')}),
+  mk('B',43.2,-85,[['air_temp','1',12.4,'Celsius'],['wind_speed','1',3,'m/s']],{...pos('air_temp','1','1.5'),...pos('wind_speed','1','3.0')}),
+  mk('C',42.9,-85.1,[['air_temp','1',12.1,'Celsius'],['wind_speed','1',2.5,'m/s']],{...pos('air_temp','1','1.5'),...pos('wind_speed','1','3.0')}),
+  mk('STALE',42.95,-84.9,[['air_temp','1',30,'Celsius',new Date(now-6*36e5).toISOString()]],pos('air_temp','1','1.5')),
+  mk('TALL',43.05,-84.95,[['air_temp','1',12,'Celsius']],pos('air_temp','1','10.0'))];
+ const cov=stationCoverage(target,[target,...refs],{now});
+ const at=cov.rows.find(r=>r.variable==='air_temp');
+ assert.equal(at.status,'available');assert.deepEqual(at.references.map(r=>r.id).sort(),['A','B','C']);assert.equal(at.inBand,true);
+ const why=Object.fromEntries(at.excluded.map(e=>[e.id,e.reason]));
+ assert.match(why.COLO,/Co-located/);assert.match(why.STALE,/stale/);assert.match(why.TALL,/height differs/i);
+ const ws=cov.rows.find(r=>r.variable==='wind_speed');assert.equal(ws.targetMissing,true);assert.notEqual(ws.status,'no-target-sensor');assert.equal(ws.residual,null);
+ const soil=cov.rows.find(r=>r.variable==='soil_temp');assert.notEqual(soil.status,'available');assert.ok(soil.excluded.some(e=>/depth/.test(e.reason)),'0.05 m and 0.1 m soil sensors are not compared');
+ assert.equal(angularDifference(350,10),-20);assert.ok(Math.abs(circularMean([350,10])-0)<1e-6||Math.abs(circularMean([350,10])-360)<1e-6);
+ const flat=Array.from({length:20},(_,i)=>({t:now-i*36e5,v:5,flagged:false}));
+ assert.ok(flatline(flat,'air_temp'));assert.equal(flatline(flat.map(p=>({...p,v:0})),'precip_accum_one_hour'),null,'zero rain never flatlines');
+ assert.equal(flatline(flat.map(p=>({...p,v:0})).slice(0,12),'wind_speed'),null,'12 h of calm is plausible');
+});

@@ -390,3 +390,57 @@ dialog .footnote{margin-top:8px}
 }
 
 .panelhead p:empty,.footnote:empty{display:none}
+
+/* Fleet operations: tiers use text and a symbol as well as colour (outdoor-readable contrast). */
+.tier{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:2px 7px;font-size:11.5px;font-weight:650;line-height:1.4;border-radius:4px;border:1px solid transparent;white-space:nowrap}
+.tier b{font-size:9px;letter-spacing:-.05em}
+.tier-P1{color:#fff;background:#8f1d2c}
+.tier-P2{color:#fff;background:#b8322a}
+.tier-P3{color:#6b3a0b;background:#fbe3c8;border-color:#efc89c}
+.tier-P4{color:#5c4c08;background:#f7efc4;border-color:#e6d88f}
+.tier-QC{color:#463a6b;background:#ebe7f5;border-color:#d4cdea}
+.tier-PM{color:#2c4a63;background:#e3edf5;border-color:#c7d9e8}
+.tier-FEED{color:var(--red-ink);background:var(--red-bg);border-color:var(--red-line)}
+.tiermetrics .metric{text-align:left;align-items:stretch;flex-direction:column;justify-content:flex-start;white-space:normal;font-weight:400;cursor:pointer}
+.tiermetrics .metric:hover{background:var(--surface)}
+.tiermetrics .metric.urgent{border-color:#e7b8b2;background:#fff7f5}
+.tiermetrics .metric.urgent .value{color:#8f1d2c}
+table.queue td{vertical-align:top}
+.queue-row.selected td,tr.selected td{background:var(--green-soft)}
+.queue-row.child td{background:var(--surface)}
+.queue-row.child td:first-child{padding-left:28px}
+.tree{margin-right:6px;color:var(--faint)}
+.rowactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.expand{margin-top:4px}
+small.overdue{color:var(--red-ink);font-weight:600}
+ul.plain{margin:6px 0 10px;padding-left:18px;font-size:13px;line-height:1.55}
+ul.timeline{list-style:none;margin:0;padding:0;max-height:640px;overflow:auto}
+ul.timeline li{padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px}
+ul.timeline li span{display:block;font-size:11.5px;color:var(--faint)}
+ul.timeline li p{margin:2px 0 0;color:var(--muted);overflow-wrap:anywhere}
+label.check{display:inline-flex;align-items:center;gap:6px;margin:0 14px 6px 0;font-size:13px;color:var(--ink-2)}
+label.check input{width:auto;accent-color:var(--green)}
+.work-row form{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.work-row form input{flex:1 1 220px}
+.work-row .linkbutton{flex-shrink:0}
+.formgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+fieldset.tiers{margin:0 0 14px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm)}
+fieldset.tiers legend{padding:0 4px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+small.rec{color:var(--green-ink);font-weight:650}
+.plan-map{height:360px;border-bottom:1px solid var(--line)}
+.stop-marker span{display:grid;place-items:center;width:24px;height:24px;font-size:11px;font-weight:700;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.nav-links{display:flex;flex-wrap:wrap;gap:8px}
+.nav-links details{width:100%}
+.nav-links details .linkbutton{margin:6px 6px 0 0}
+.printonly{display:none}
+@media(max-width:960px){.formgrid.three{grid-template-columns:1fr 1fr}.tiermetrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.formgrid.three,.formgrid{grid-template-columns:1fr}}
+@media print{
+ .sidebar,.topbar,.noprint,.radar-controls,.radar-caption,#toast,.back,.heading .actions{display:none!important}
+ .shell{display:block}.main{grid-column:auto}.workspace{max-width:none;padding:0}
+ .panel{box-shadow:none;break-inside:avoid;border-color:#999}
+ .printonly{display:block}.map{height:300px}
+ body{background:#fff;font-size:11pt}
+ .tier-P1,.tier-P2{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ a.linkbutton{border:0;padding:0}
+}

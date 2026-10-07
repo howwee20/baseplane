@@ -39,6 +39,7 @@ function validateFleetSettings(b,current){
  const deadlines={...current.deadlines,...(b.deadlines||{})};for(const [k,v] of Object.entries(deadlines))if(!TIERS[k]||!(Number.isInteger(v)&&v>=1&&v<=2160))throw new AppError('Deadlines are whole hours from 1 to 2160 per tier.');
  let rules;try{rules=validateRules(b.rules||current.rules);}catch(e){throw new AppError(e.message);}
  const planner={...current.planner,...(b.planner||{})};
+ if(planner.bases!==undefined){if(!Array.isArray(planner.bases)||planner.bases.length>10)throw new AppError('Use up to 10 base locations.');planner.bases=planner.bases.map(x=>{const lat=Number(x?.lat),lon=Number(x?.lon),label=str(x?.label,100);if(!label||!(lat>=40&&lat<=49.5&&lon>=-92&&lon<=-80))throw new AppError('Base locations need a label and Michigan coordinates.');return {label,lat,lon};});}
  try{validatePlanInputs({...planner,date:'2026-01-05',start:planner.start||{lat:42.7,lon:-84.5}});}catch(e){throw new AppError('Planner defaults: '+e.message);}
  return {fleet:f,deadlines,rules,planner};
 }
@@ -76,14 +77,14 @@ export async function scheduledMaintenance(env){await store.pruneFleet(env.DB);a
 // ---------- overview ----------
 async function healthSnapshot(env){const doc=await readDoc(env.DB,'cache:health');return doc?{health:doc.body.data,at:doc.body.sourceAt,ingestId:doc.body.ingestId,quality:doc.body.quality}:{health:{},at:null,ingestId:null,quality:null};}
 export async function opsView(env,network){
- const [{fleet,deadlines},health,incidents,work,plans,notes,openAlerts,ingests]=await Promise.all([fleetSettings(env),healthSnapshot(env),store.openIncidents(env.DB),store.listWork(env.DB,{open:true,limit:500}),store.listPlans(env.DB,{status:'accepted',limit:50}),store.allStationNotes(env.DB),store.countOpenAlerts(env.DB),store.recentIngests(env.DB,1)]);
+ const [{fleet,deadlines},health,incidents,work,plans,notes,openAlerts,ingests,recent]=await Promise.all([fleetSettings(env),healthSnapshot(env),store.openIncidents(env.DB),store.listWork(env.DB,{open:true,limit:500}),store.listPlans(env.DB,{status:'accepted',limit:50}),store.allStationNotes(env.DB),store.countOpenAlerts(env.DB),store.recentIngests(env.DB,1),store.listAlerts(env.DB,{open:false,limit:8})]);
  const q=buildQueue({incidents,health:health.health,work,plans:plans.map(p=>({...p,stations:p.summary?.stations||[]})),notes,now:Date.now(),deadlines});
  const last=ingests[0]||null,cacheAge=network.cacheAgeMinutes;
  const feedStatus=!network.fetchedAt?'unknown':last?.status==='failed'||network.lastError?'failed':last&&last.quality!=='complete'?'degraded':cacheAge>45?'stale':'ok';
  const regions=[...new Set(Object.values(notes).map(n=>n.region).filter(Boolean))].sort();
  return {versions:{engine:ENGINE_VERSION,priority:PRIORITY_VERSION,health:HEALTH_VERSION},
   feed:{status:feedStatus,lastIngest:last,cacheAgeMinutes:cacheAge,networkFetchedAt:network.fetchedAt,healthAt:health.at,incident:q.feed[0]||null,reasons:q.feed[0]?.reasons||last?.reasons||[]},
-  counts:q.counts,countNote:q.countNote,queue:q.queue,health:health.health,openAlerts,regions,
+  counts:q.counts,countNote:q.countNote,queue:q.queue,health:health.health,openAlerts,recentAlerts:recent.alerts.filter(a=>Date.now()-Date.parse(a.created)<864e5),regions,
   detection:{pollMinutes:15,delayed:network.connection?.delayed??60,stale:network.connection?.stale??180,outageConfirmCount:fleet.outageConfirmCount,recoveryConfirmCount:fleet.recoveryConfirmCount,note:`A station is suspected out once no expected channel has reported for ${network.connection?.stale??180} minutes, and confirmed after ${fleet.outageConfirmCount} consecutive new snapshots without data (polled every 15 minutes). Expect detection about ${network.connection?.stale??180}–${(network.connection?.stale??180)+15*fleet.outageConfirmCount+15} minutes after the last report. This is not instantaneous monitoring.`},
   grouping:{...fleet.grouping,rationale:GROUPING_RATIONALE},tiers:TIERS,tieBreakers:TIE_BREAKERS};
 }
@@ -113,6 +114,8 @@ function validateNotes(b){
 const CLASS_ORDER=['inspection','electronics','exposed'];
 async function planningContext(env,inputs,{excludePlanId=null,networkView}){
  const [incidents,work,notes,accepted,{rules,deadlines},health]=await Promise.all([store.openIncidents(env.DB),store.listWork(env.DB,{open:true,limit:500}),store.allStationNotes(env.DB),store.listPlans(env.DB,{status:'accepted',from:inputs.date,to:addDays(inputs.date,inputs.days-1),limit:100}),fleetSettings(env),healthSnapshot(env)]);
+ // Team-adopted task-weather rules come from owner settings, never from the request.
+ inputs={...inputs,rules};
  const network=await networkView(env),byId=new Map(network.stations.map(s=>[s.id,s]));
  const q=buildQueue({incidents,health:health.health,work,notes,now:Date.now(),deadlines});
  const entries=new Map();

@@ -32,13 +32,16 @@ export function stationCoverage(target,stations,{options={},overrides=[],now=Dat
  const o=referenceSettings({radiusKm:options.radiusKm??100,minNeighbors:options.minNeighbors??3,toleranceScale:options.toleranceScale??1,maxAgeMinutes:options.maxAgeMinutes??90});
  const active=stations.filter(s=>s.id!==target.id&&s.archiveStatus!=='INACTIVE'&&Number.isFinite(s.lat)&&Number.isFinite(s.lon)),rows=[];
  for(const [variable,spec] of Object.entries(COVERAGE_VARIABLES)){
-  const targets=channelsFor(target,variable);
+  let targets=channelsFor(target,variable);
+  // An installed sensor that is silent still has a position in metadata; it is "not reporting", not "absent".
+  if(!targets.length)targets=Object.keys(target.sensors?.[variable]||{}).sort().map(channel=>({channel,key:null,value:null,t:NaN,unit:target.units?.[variable]||spec.units[0],flagged:false,position:positionOf(target,channel),silent:true}));
   const slots=spec.depthExact?targets:targets.slice(0,1);
   if(!slots.length){rows.push({variable,label:spec.label,position:null,status:'no-target-sensor',reason:'Station has no sensor for this variable.',references:[],excluded:[]});continue;}
   for(const t of slots){
    const live=overrides.filter(x=>!x.removed_at&&x.variable===variable),pins=new Set(live.filter(x=>x.action==='pin').map(x=>x.reference)),blocks=new Set(live.filter(x=>x.action==='exclude').map(x=>x.reference));
    const row={variable,label:spec.label,channel:t.channel,position:t.position,unit:t.unit,target:{value:num(t.value)?t.value:null,time:Number.isFinite(t.t)?new Date(t.t).toISOString():null,flagged:t.flagged},references:[],excluded:[],warnings:[],status:'insufficient',reason:''};
-   if(!spec.units.includes(t.unit)){row.status='unavailable';row.reason='Target unit unavailable or unsupported.';rows.push(row);continue;}
+   if(t.silent)row.targetMissing=true;
+   if(!t.silent&&!spec.units.includes(t.unit)){row.status='unavailable';row.reason='Target unit unavailable or unsupported.';rows.push(row);continue;}
    const refTime=Number.isFinite(t.t)&&now-t.t<=o.maxAgeMinutes*60000?t.t:now;
    if(spec.daylightOnly&&isDaylight(refTime,target.lat,target.lon)===false){row.status='not-applicable';row.reason='Solar comparison is not meaningful at night; zero readings are valid.';rows.push(row);continue;}
    const chosen=[];
@@ -51,11 +54,12 @@ export function stationCoverage(target,stations,{options={},overrides=[],now=Dat
     const m=matchChannel(spec,t,channelsFor(s,variable));
     if(!m.channel){ex(m.reason);continue;}
     const c=m.channel;
-    if(c.unit!==t.unit){ex(`Unit mismatch (${c.unit||'none'}).`);continue;}
+    if(!t.silent&&c.unit!==t.unit||t.silent&&!spec.units.includes(c.unit)){ex(`Unit mismatch (${c.unit||'none'}).`);continue;}
     if(!num(c.value)||!Number.isFinite(c.t)){ex('No usable latest reading.');continue;}
     if(c.flagged){ex('QC flag on the reference reading.');continue;}
     if(now-c.t>o.maxAgeMinutes*60000||c.t-now>300000){ex('Reference reading is stale or future-dated.');continue;}
-    if(Math.abs(c.t-refTime)>o.alignmentMinutes*60000){ex(`Not aligned within ±${o.alignmentMinutes} minutes of the target time.`);continue;}
+    if(!t.silent&&Math.abs(c.t-refTime)>o.alignmentMinutes*60000){ex(`Not aligned within ±${o.alignmentMinutes} minutes of the target time.`);continue;}
+    if(t.silent&&chosen.length&&Math.abs(c.t-chosen[0].c.t)>o.alignmentMinutes*60000){ex(`Not aligned within ±${o.alignmentMinutes} minutes of the other references.`);continue;}
     if(spec.kind==='circular'){const sp=channelsFor(s,'wind_speed')[0];if(!sp||!num(sp.value)||sp.value<spec.calmMs){ex('Calm or unknown wind speed; direction undefined.');continue;}}
     const warnings=[];if(m.warning)warnings.push(m.warning);
     const de=Number.isFinite(target.elevationFt)&&Number.isFinite(s.elevationFt)?Math.round((s.elevationFt-target.elevationFt)*0.3048):null;
@@ -65,8 +69,8 @@ export function stationCoverage(target,stations,{options={},overrides=[],now=Dat
    }
    row.references=chosen.map(({s,d,c,warnings})=>({id:s.id,name:s.name,distanceKm:Math.round(d*10)/10,value:c.value,time:new Date(c.t).toISOString(),channel:c.channel,position:c.position,warnings,pinned:pins.has(s.id)}));
    for(const r of row.references)row.warnings.push(...r.warnings.map(w=>`${r.name}: ${w}`));
-   if(row.references.length<o.minNeighbors){row.reason=`Need ${o.minNeighbors} independent, matching, fresh, unflagged references within ${o.radiusKm} km; found ${row.references.length}.`;rows.push(row);continue;}
-   row.status='available';row.reason=`${row.references.length} references.`;
+   if(row.references.length<o.minNeighbors){row.residual=null;row.inBand=null;row.reason=`Need ${o.minNeighbors} independent, matching, fresh, unflagged references within ${o.radiusKm} km; found ${row.references.length}.`;rows.push(row);continue;}
+   row.status='available';row.reason=`${row.references.length} references.${row.targetMissing?' Target sensor not reporting in this snapshot.':''}`;
    const values=row.references.map(r=>r.value);
    if(spec.kind==='circular'){const centre=circularMean(values);row.band=centre===null?null:{median:centre,tolerance:spec.tolerance*o.toleranceScale,circular:true};}
    else row.band=band(values,spec.tolerance*o.toleranceScale);

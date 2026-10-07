@@ -147,6 +147,8 @@ test('zero rain, night solar and calm wind are valid; future timestamps and QC s
  assert.deepEqual(a.issueKeys,['precip_accum_one_hour_1'],'null is missing, not zero');
  a=assessStation({station:observe(meta,{future:['air_temp_1']}),profile,units:UNITS,now:T0});
  assert.equal(a.channels.find(c=>c.channel==='air_temp_1').state,'future');
+ a=assessStation({station:observe(meta,{obsAt:T0-5*3600000}),profile,units:UNITS,now:T0});
+ assert.equal(a.reporting,'outage-candidate');assert.equal(a.reportingCount,0,'a silent station has no reporting channels');assert.ok(a.channels.filter(c=>c.expected).every(c=>c.state==='silent'));
  a=assessStation({station:observe(meta,{qc:{relative_humidity_1:[1]}}),profile,units:UNITS,now:T0});
  assert.equal(a.channels.find(c=>c.channel==='relative_humidity_1').state,'qc-suspect');
  assert.deepEqual(a.issueKeys,[],'QC suspicion is not a missing sensor');

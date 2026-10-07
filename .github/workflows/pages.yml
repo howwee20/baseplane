@@ -21,7 +21,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    # macOS runners were not acquired for the October 5 release; Ubuntu runners build the static artifact.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,13 +33,17 @@ jobs:
         with:
           node-version: 24
 
-      - name: Verify diagnostics and access controls
-        run: node --test backend/tests/*.test.mjs
+      - name: Verify syntax, diagnostics and access controls
+        run: node scripts/check-syntax.mjs && node --test backend/tests/*.test.mjs
 
       - name: Build static site artifact
         run: |
           mkdir -p _site
           cp -R web/. _site/
+          short="${GITHUB_SHA::7}"
+          sed -i "s|<meta name=\"fleet-release\" content=\"dev\">|<meta name=\"fleet-release\" content=\"${short}\">|" _site/index.html
+          grep -q "content=\"${short}\"" _site/index.html
+          printf '{"commit":"%s","builtAt":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > _site/release.json
           printf 'atolldb.com\n' > _site/CNAME
           touch _site/.nojekyll
 
@@ -50,7 +56,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: macos-15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     needs: build
     steps:
       - name: Deploy to GitHub Pages

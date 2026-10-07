@@ -1,0 +1,9 @@
+// LOCAL SYNTHETIC REVIEW ONLY: `npm --prefix backend run dev:synthetic`. Uses a local D1 database, never production.
+{
+  "name": "enviroweather-fleet-api-dev",
+  "main": "dev-worker.mjs",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {"OWNER_EMAIL": "dev-owner@example.test","ALLOWED_ORIGINS": "http://127.0.0.1:8130,http://localhost:8130"},
+  "d1_databases": [{"binding":"DB","database_name":"enviroweather-fleet-dev","database_id":"00000000-0000-0000-0000-000000000000","migrations_dir":"../migrations"}]
+}

@@ -48,6 +48,8 @@ export function assessStation({station,profile=[],units={},now=Date.now(),config
  else if(ageMinutes>c.stale)reporting='outage-candidate';
  else if(ageMinutes>c.delayed)reporting='delayed';
  else reporting='reporting';
+ // When the whole station is silent, its channels are not "reporting" even though they agree with each other.
+ if(['outage-candidate','no-data'].includes(reporting))for(const ch of channels)if(ch.expected&&['ok','qc-suspect','stale'].includes(ch.state)){ch.state='silent';ch.note=`No new data for ${ch.time?Math.round((now-Date.parse(ch.time))/60000):'an unknown number of'} minutes (station not reporting).`;}
  // A missing expected channel may be a renamed/reprogrammed channel if a sibling at the same position started reporting.
  for(const ch of channels){
   if(!ch.expected||!['missing','null-value','stale'].includes(ch.state))continue;
