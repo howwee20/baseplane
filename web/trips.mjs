@@ -67,8 +67,8 @@ function stopCard(ctx,id,i,n,res,editable){
 }
 // Field wording for routing states; technical setup lives in Settings.
 export function plainRouting(message=''){
- if(/not configured|ORS_API_KEY secret put|Create an OpenRouteService/.test(message))return 'Road routing is not set up yet. An administrator can add it under Settings and connections.';
- if(/rejected/.test(message))return 'The road-routing key was rejected. An administrator needs to check it under Settings and connections.';
+ if(/not configured|ORS_API_KEY secret put|Create an OpenRouteService/.test(message))return 'Road routing is not set up yet. Settings and connections shows the server setup step for an administrator.';
+ if(/rejected/.test(message))return 'The road-routing key was rejected. An administrator needs to replace the server key (see Settings and connections).';
  if(/quota|rate limit|limit reached/i.test(message))return 'The road-routing limit was reached. Try again later; saved trips are unaffected.';
  return message?`Road routing is unavailable right now (${message.replace(/\.$/,'')}).`:'Road routing is unavailable right now.';
 }
@@ -173,7 +173,7 @@ export function bindTrips(root,ctx){
  const edit=root.querySelector('[data-edit-trip]');if(edit&&p)edit.onclick=()=>{T.draft={...newDraft(),planId:p.id,revision:p.revision,title:p.title,date:p.date,start:p.inputs.start,end:p.inputs.end,departLocal:p.inputs.departLocal,returnByLocal:p.inputs.returnByLocal,maxWorkdayMinutes:p.inputs.maxWorkdayMinutes,bufferMinutes:p.inputs.bufferMinutes,breaks:p.inputs.breaks,crew:p.inputs.crew,stops:p.result.stops.map(s=>s.stationId),visitMinutes:p.inputs.visitMinutes||{}};saveDraft();T.preview.key='';ctx.go('#/trips/new');};
  root.querySelectorAll('[data-trip-status]').forEach(b=>b.onclick=async()=>{const status=b.dataset.tripStatus,body={revision:p.revision,status};
   if(status==='completed'){const n=prompt('What was visited and done? Telemetry recovery is tracked separately.');if(!n)return;body.completionNote=n;}
-  if(status==='accepted'&&!p.result.feasible){const n=prompt(`This trip breaks a constraint:\n${(p.result.violations||[]).map(v=>v.reason).join('\n')||p.result.blockers?.join('\n')||'Road times were not calculated.'}\n\nWhy accept it anyway?`);if(!n)return;body.overrideReason=n;}
+  if(status==='accepted'&&!p.result.feasible){const why=p.result.routed===false?`Road times were not calculated. ${plainRouting(p.result.blockers?.[0])}`:(p.result.violations||[]).map(v=>v.reason).join('\n')||p.result.blockers?.join('\n')||'It does not meet every constraint.';const n=prompt(`This trip is not fully scheduled:\n${why}\n\nWhy accept it anyway?`);if(!n)return;body.overrideReason=n;}
   try{await ctx.api('ops/plans/'+p.id,{method:'PATCH',body:JSON.stringify(body)});T.trip.data=null;T.plans.data=null;ctx.toast('Trip '+status+'.');ctx.repaint();}catch(e){ctx.toast(e.message);}});
  const copy=root.querySelector('[data-copy-trip]');if(copy)copy.onclick=async()=>{try{const c=await ctx.api('ops/plans/'+p.id+'/copy',{method:'POST',body:'{}'});T.plans.data=null;ctx.go('#/trip/'+c.id);}catch(e){ctx.toast(e.message);}};
  root.querySelectorAll('[data-export-trip]').forEach(b=>b.onclick=async()=>{try{await ctx.downloadFromAPI(`ops/plans/${p.id}/export?format=${b.dataset.exportTrip}`,`trip-${p.date}.${b.dataset.exportTrip}`);}catch(e){ctx.toast(e.message);}});

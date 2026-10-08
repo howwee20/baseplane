@@ -189,6 +189,7 @@ test('trip preview keeps the chosen order, reuses cached road times on reorder, 
  assert.equal(r.status,201);assert.equal(r.body.result.routed,false);assert.deepEqual(r.body.result.stops.map(s=>s.stationId),['TST05','TST02']);assert.equal(r.body.result.stops[1].tier,'P1','a stop keeps the priority of its open issue');
  assert.equal((await f.json('ops/plans/'+r.body.id,{method:'PATCH',body:{revision:r.body.revision,status:'accepted'}})).status,400);
  const acc=await f.json('ops/plans/'+r.body.id,{method:'PATCH',body:{revision:r.body.revision,status:'accepted',overrideReason:'Synthetic: routing not set up yet'}});assert.equal(acc.status,200);assert.match(acc.body.acceptOverride.reason,/routing/);
+ const cp=await f.json('ops/plans/'+r.body.id+'/copy',{method:'POST',body:{}});assert.equal(cp.status,201);assert.equal(cp.body.status,'draft');assert.equal(cp.body.acceptOverride,null,'a copy is a fresh draft, not an accepted override');
  // With routing: manual order preserved, real (mocked) provider geometry returned.
  f.env.ORS_API_KEY='synthetic-ors-key';
  r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:['TST05','TST04','TST02']}}));

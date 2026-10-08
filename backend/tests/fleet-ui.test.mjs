@@ -64,3 +64,14 @@ test('road matrices fetched in canonical order map back to any stop order (reord
  for(let i=0;i<pts.length;i++)for(let j=0;j<pts.length;j++)assert.equal(back.durations[i][j],dur(pts[i],pts[j]),`${pts[i].id}>${pts[j].id}`);
  const reordered=[pts[0],pts[2],pts[1],pts[3]];assert.deepEqual(canonicalOrder(reordered).map(i=>reordered[i].lat+','+reordered[i].lon),order.map(i=>pts[i].lat+','+pts[i].lon),'same canonical set');
 });
+
+test('model links stay hidden unless a person verified the station mapping and the destination is https',async()=>{
+ const {modelLinks,VERIFIED_STATIONS,MODEL_DESTINATIONS}=await import('../../web/lib/model-links.mjs');
+ assert.equal(Object.keys(VERIFIED_STATIONS).length,0,'no station is mapped by default');
+ assert.equal(MODEL_DESTINATIONS.length,0,'no destination is published by default');
+ assert.deepEqual(modelLinks('MIBNZ'),[]);
+ const destinations=[{label:'Model A',url:id=>`https://example.org/m?station=${encodeURIComponent(id)}`},{label:'Plain',url:id=>`http://example.org/${id}`}];
+ assert.deepEqual(modelLinks('MIBNZ',{stations:{MIBNZ:{id:'ew 1'}},destinations}),[],'unverified mapping');
+ assert.deepEqual(modelLinks('toString',{stations:{},destinations}),[],'prototype keys are not mappings');
+ assert.deepEqual(modelLinks('MIBNZ',{stations:{MIBNZ:{id:'ew 1',verifiedBy:'Owner',verifiedAt:'2026-10-07'}},destinations}),[{label:'Model A',url:'https://example.org/m?station=ew%201'}]);
+});

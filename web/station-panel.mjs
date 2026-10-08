@@ -1,6 +1,7 @@
 // Station panel on the map: readings first, evidence and diagnostics on demand.
 import {stationReadings,reading,cardinal,stationHealth,PLAIN_TIER,MEASURES,formatValue} from './lib/readings.mjs';
 import {formatDuration} from './lib/fleet/priority.mjs';
+import {modelLinks} from './lib/model-links.mjs';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>{const t=Date.parse(v||'');return Number.isFinite(t)?new Date(t).toLocaleTimeString('en-US',{timeZone:'America/Detroit',hour:'numeric',minute:'2-digit'}):'—';};
 const when=v=>{const t=Date.parse(v||'');if(!Number.isFinite(t))return '—';const d=new Date(t),today=new Date().toLocaleDateString('en-US',{timeZone:'America/Detroit'});return d.toLocaleDateString('en-US',{timeZone:'America/Detroit'})===today?time(v):d.toLocaleString('en-US',{timeZone:'America/Detroit',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});};
@@ -59,6 +60,7 @@ export function stationPanel(ctx){
   ${readingsTable(s,health,readings)}
   <p class="footnote">Observation times are shown per reading. Network fetched ${esc(when(state.fetchedAt))}.</p>
   <div class="panel-actions">${ctx.canEdit?`<button class="${inTrip?'':'primary'}" data-trip-toggle="${esc(s.id)}">${inTrip?'Remove from trip':'Add to trip'}</button>`:''}${items.filter(i=>i.scope==='station'||i.scope==='group').slice(0,1).map(i=>`<a class="btn" href="#/incident/${esc(i.scope==='group'?i.id:i.id)}">Issue details</a>`).join('')}<a class="btn quiet" href="#/station/${encodeURIComponent(s.id)}/details">Full station record</a></div>
+  ${modelSection(s.id)}
   <section class="fold"><div class="fold-head"><h3>History</h3>${vars.length?`<label class="sr-only" for="hist-var">Measurement</label><select id="hist-var">${vars.map(v=>`<option value="${v}" ${v===S.historyVar?'selected':''}>${esc(MEASURES[v]?.label||v)}</option>`).join('')}</select>`:''}</div>${S.historyLoading?'<p class="muted">Loading the past 24 hours…</p>':S.historyError?`<p class="muted">History unavailable: ${esc(S.historyError)} <button class="link-btn" data-retry-history>Retry</button></p>`:S.history?chart(S.history,vars.includes(S.historyVar)?S.historyVar:vars[0]):''}</section>
   <details class="fold" data-fold="notes" ${S.open.notes?'open':''}><summary>Notes, issues and visits</summary>${S.open.notes?notesSection(ctx,s,items):''}</details>
   <details class="fold" data-fold="details" ${S.open.details?'open':''}><summary>Sensors and nearby comparison</summary>${S.open.details?detailSection(ctx,s,h):''}</details>
@@ -92,3 +94,5 @@ export function bindStationPanel(root,ctx){
  const v=root.querySelector('#hist-var');if(v)v.onchange=()=>{S.historyVar=v.value;ctx.repaint();};
  const retry=root.querySelector('[data-retry-history]');if(retry)retry.onclick=()=>{S.historyError='';S.history=null;ctx.repaint();};
 }
+// Shown only for stations whose Enviroweather mapping has been verified (see lib/model-links.mjs); empty by default.
+function modelSection(id){const links=modelLinks(id);return links.length?`<section class="fold"><h3>Models</h3><div class="nav-links">${links.map(l=>`<a class="btn small" target="_blank" rel="noreferrer" href="${esc(l.url)}">${esc(l.label)}</a>`).join('')}</div></section>`:'';}
