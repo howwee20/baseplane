@@ -33,6 +33,7 @@ function simulate(route,ctx){
  let t=departMs,prev='start',driveSec=0,distanceM=0,waitMin=0,serviceMin=0,bufferMin=0,breakMin=0,uncertainty=0;const stops=[],warnings=[],violations=[];
  // Relaxed mode (a deliberate stop order) records hard-constraint violations and keeps scheduling; strict mode stops.
  const fail=v=>{if(ctx.relaxed){violations.push(v);return null;}return {ok:false,...v};};
+ const etd=ms=>et(ms)+(localDate(ms,ZONE)!==date?' (next day)':'');
  const takeBreaks=(where)=>{for(const b of breaks)if(!b.taken&&t>=b.earliestMs){b.taken={startMs:t,endMs:t+b.minutes*60000,at:where};if(t>b.latestMs)warnings.push(`${b.label} starts after ${inputs.breaks.find(x=>x.label===b.label).latest} (provisional preference).`);t+=b.minutes*60000;breakMin+=b.minutes;}};
  for(const c of route){
   takeBreaks(prev);
@@ -40,7 +41,7 @@ function simulate(route,ctx){
   const arrive=t+l.durationSec*1000;driveSec+=l.durationSec;distanceM+=l.distanceM||0;
   const service=(c.serviceMinutes??inputs.unknownServiceMinutes)*60000,ws=windowsFor(c,date);
   let start=arrive;
-  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w){const f=fail({code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${et(arrive)}).`,stop:c.id});if(f)return f;}else start=Math.max(arrive,w.start);}
+  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w){const f=fail({code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${etd(arrive)}).`,stop:c.id});if(f)return f;}else start=Math.max(arrive,w.start);}
   // Use a long access-window wait for a pending break when it is already allowed.
   for(const b of breaks)if(!b.taken&&start-arrive>=b.minutes*60000&&arrive>=b.earliestMs){b.taken={startMs:arrive,endMs:arrive+b.minutes*60000,at:c.id};breakMin+=b.minutes;}
   const end=start+service,f=forecasts?.[c.stationId];
@@ -53,7 +54,7 @@ function simulate(route,ctx){
  takeBreaks(prev);
  const back=leg(matrix,prev,'end',idx)||(prev==='start'&&inputs.start.lat===inputs.end.lat&&inputs.start.lon===inputs.end.lon?{durationSec:0,distanceM:0}:null);if(!back)return {ok:false,code:'unreachable',reason:`No road route back to ${inputs.end.label}.`,stop:prev==='start'?null:prev};
  const returnMs=t+back.durationSec*1000;driveSec+=back.durationSec;distanceM+=back.distanceM||0;
- if(returnMs>returnByMs){const f=fail({code:'return-deadline',reason:`Return at ${et(returnMs)} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the ${et(returnByMs)} deadline.`,stop:route.at(-1)?.id,returnMs});if(f)return f;}
+ if(returnMs>returnByMs){const f=fail({code:'return-deadline',reason:`Return at ${etd(returnMs)} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the ${et(returnByMs)} deadline.`,stop:route.at(-1)?.id,returnMs});if(f)return f;}
  if(returnMs-departMs>inputs.maxWorkdayMinutes*60000){const f=fail({code:'workday',reason:`Workday would be ${Math.ceil((returnMs-departMs)/60000)} min (limit ${inputs.maxWorkdayMinutes}).`,stop:route.at(-1)?.id});if(f)return f;}
  for(const b of breaks)if(!b.taken&&route.length&&returnMs>b.latestMs)warnings.push(`${b.label} not scheduled before ${b.latest} (provisional preference).`);
  return {ok:violations.length===0,violations,stops,returnMs,returnLeg:{driveSec:back.durationSec,distanceM:back.distanceM},breaks:breaks.filter(b=>b.taken).map(b=>({label:b.label,startMs:b.taken.startMs,endMs:b.taken.endMs,at:b.taken.at})),totals:{driveMin:Math.round(driveSec/60),distanceKm:Math.round(distanceM/100)/10,distanceMi:Math.round(distanceM/160.934)/10,serviceMin:Math.round(serviceMin),waitMin:Math.round(waitMin),bufferMin,breakMin,workdayMin:Math.round((returnMs-departMs)/60000),uncertaintyMin:uncertainty},warnings,weatherCost:stops.reduce((s,x)=>s+(x.weather.status==='caution'?2:x.weather.status==='unknown'?1:0),0),uncertaintyReturnMs:returnMs+uncertainty*60000};

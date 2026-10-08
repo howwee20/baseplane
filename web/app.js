@@ -40,7 +40,7 @@ function toast(text){$('#toast').textContent=text;$('#toast').style.display='blo
 // ---------- shell, routing and the persistent map ----------
 // The shell and the Leaflet map are created once per signed-in session. Routes change the side panel or the page
 // area; the map is never torn down, so position, zoom, selection and layers survive refreshes and panel changes.
-let route={dest:'map'},routed=false,pollTimer=null,lastRefresh=0,shellUser=null,backTo=null,lastPanned=null,lastTripFit=null,refreshing=false;
+let sessionExpired=false,route={dest:'map'},routed=false,pollTimer=null,lastRefresh=0,shellUser=null,backTo=null,lastPanned=null,lastTripFit=null,refreshing=false;
 function go(hash,{replace=false}={}){if(location.hash!==hash)window.history[replace?'replaceState':'pushState'](null,'',hash);applyRoute();}
 function applyRoute(){
  const r=parseRoute(location.hash);
@@ -64,9 +64,9 @@ function openIncident(id){go('#/incident/'+id);}
 function openPlan(id){go('#/trip/'+id);}
 function openPacket(id){go('#/packet/'+id);}
 function openPlanner(opts){for(const id of opts?.required||[])if(!tripHas(id))toggleStop(id,state.user);go('#/trips/new');}
-async function load(){if(!hasSession())return;try{state=await api('state');offline=false;lastRefresh=Date.now();ensureShell();routed=true;applyRoute();}catch(e){if(e.name==='AbortError')return;if(e.status===401){setSession('');return;}if(!e.status&&listPackets().length){offline=true;destroyMap();shellUser=null;root.innerHTML=offlinePage();bindOffline();return;}if($('#app .app-shell')){toast('Workspace unavailable: '+e.message);return;}root.innerHTML=`<div class="empty"><h2>Workspace unavailable</h2><p>${esc(e.message)}</p><button id="retry-open">Retry</button></div>`;$('#retry-open').onclick=load;}}
+async function load(){if(!hasSession())return;try{state=await api('state');offline=false;lastRefresh=Date.now();ensureShell();routed=true;applyRoute();}catch(e){if(e.name==='AbortError')return;if(e.status===401){sessionExpired=true;setSession('');return;}if(!e.status&&listPackets().length){offline=true;destroyMap();shellUser=null;root.innerHTML=offlinePage();bindOffline();return;}if($('#app .app-shell')){toast('Workspace unavailable: '+e.message);return;}root.innerHTML=`<div class="empty"><h2>Workspace unavailable</h2><p>${esc(e.message)}</p><button id="retry-open">Retry</button></div>`;$('#retry-open').onclick=load;}}
 // Background refresh: one timer, skipped while hidden; updates markers and live panels, never the page area.
-async function refreshState(){if(!hasSession()||offline||refreshing)return;refreshing=true;try{state=await api('state');lastRefresh=Date.now();updateHeader();if(mapReady())setStations(state.stations,state.ops);if(['station','attention'].includes(route.panel))renderPanel();}catch(e){if(e.status===401)setSession('');}finally{refreshing=false;}}
+async function refreshState(){if(!hasSession()||offline||refreshing)return;refreshing=true;try{state=await api('state');lastRefresh=Date.now();updateHeader();if(mapReady())setStations(state.stations,state.ops);if(['station','attention'].includes(route.panel))renderPanel();}catch(e){if(e.status===401){sessionExpired=true;setSession('');}}finally{refreshing=false;}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&hasSession()&&!offline&&Date.now()-lastRefresh>5*60000)refreshState();});
 function shellHtml(){
  const u=state.user||{},owner=u.role==='owner';
@@ -148,7 +148,7 @@ function offlinePage(){const list=listPackets();return `<div class="workspace"><
 function bindOffline(){$('#retry-open').onclick=load;root.querySelectorAll('[data-offline-packet]').forEach(b=>b.onclick=()=>{selectedPacket=b.dataset.offlinePacket;root.innerHTML=`<div class="workspace"><button class="back" id="offline-back">← Packets</button>${packetPage({heading,state},selectedPacket)}</div>`;$('#offline-back').onclick=()=>{root.innerHTML=offlinePage();bindOffline();};const pr=$('#print-packet');if(pr)pr.onclick=()=>window.print();});}
 function clearPrivateState(){
  clearInterval(pollTimer);destroyMap();shellUser=null;backTo=null;lastPanned=null;
- state={stations:[],records:[],connection:{}};route={dest:'map'};view='map';selected=null;selectedIncident=null;selectedPlan=null;selectedPacket=null;routed=false;resetOps();resetPlanner();resetFleetSettings();resetStationPanel();resetAttention();resetTrips();clearTripDraft();clearPackets();if(location.hash.startsWith('#/'))window.history.replaceState(null,'',location.pathname);history=null;historyError='';historyLoading=false;historyTicket++;comparison=null;comparisonBusy=false;comparisonTicket++;productCache=null;sharedVisits=[];teamUsers=[];analysis=null;analysisName='';analysisVariable='';busy=false;search='';clearReports();
+ state={stations:[],records:[],connection:{}};route={dest:'map'};view='map';selected=null;selectedIncident=null;selectedPlan=null;selectedPacket=null;routed=false;resetOps();resetPlanner();resetFleetSettings();resetStationPanel();resetAttention();resetTrips();clearTripDraft();clearPackets();if(location.hash.startsWith('#/')&&!sessionExpired)window.history.replaceState(null,'',location.pathname);sessionExpired=false;history=null;historyError='';historyLoading=false;historyTicket++;comparison=null;comparisonBusy=false;comparisonTicket++;productCache=null;sharedVisits=[];teamUsers=[];analysis=null;analysisName='';analysisVariable='';busy=false;search='';clearReports();
  for(const dialog of document.querySelectorAll('dialog')){if(dialog.open)dialog.close();dialog.replaceChildren();}
  $('#toast').textContent='';$('#toast').style.display='none';showAuth(root,()=>load());
 }

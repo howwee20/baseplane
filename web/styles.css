@@ -638,9 +638,7 @@ ul.notices li.bad{background:var(--red-bg);color:var(--red-ink)}ul.notices li.wa
  .sidepanel::before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;background:var(--line-strong);border-radius:2px}
  .panel-head{padding-top:16px}
  .stage.has-panel .leaflet-bottom{bottom:56%}
- .stage.has-panel .map-status{left:50%}
  .map-status{top:8px;right:8px;left:auto;transform:none;font-size:11.5px;padding:3px 4px 3px 9px}
- .stage.has-panel .map-status{left:auto}
  .stage.has-panel .map-status{display:none}
  .page-inner{padding:12px 14px 32px}
  .radar-tools input[type=range]{display:none}

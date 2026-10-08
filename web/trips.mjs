@@ -5,7 +5,9 @@ import {navigationLinks} from './lib/fleet/routing.mjs';
 import {savePacket,getPacket,removePacket} from './lib/fleet/packets.mjs';
 import {addDays,localDate} from './lib/fleet/time.mjs';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const t=ms=>Number.isFinite(ms)?new Date(ms).toLocaleTimeString('en-US',{timeZone:'America/Detroit',hour:'numeric',minute:'2-digit'}):'—';
+// The day the displayed result is planned for, so times on another day say so. Reset per render; set from the result shown.
+let tripDate=null;
+const t=ms=>{if(!Number.isFinite(ms))return '—';const s=new Date(ms).toLocaleTimeString('en-US',{timeZone:'America/Detroit',hour:'numeric',minute:'2-digit'});if(!tripDate)return s;const d=localDate(ms);return d===tripDate?s:`${s} (${d>tripDate?'next day':'day before'})`;};
 const dur=m=>!Number.isFinite(m)?'—':m<60?`${m} min`:`${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')} min`;
 const day=s=>s?new Date(s+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'}):'';
 const WX={ok:'Weather within limits',caution:'Weather caution',unknown:'Weather unknown',blocked:'Weather blocks this task'};
@@ -72,17 +74,19 @@ export function plainRouting(message=''){
 }
 function summary(res,routing){
  if(!res)return '';
+ tripDate=res.date||null;
  if(res.routed===false)return `<div class="routing-off"><strong>Road times not calculated.</strong> ${esc(plainRouting(res.blockers?.[0]))} Stops and visit times are kept in your order, and navigation links still open each leg in a maps app. Nothing is estimated from straight-line distance.</div>`;
  const tt=res.totals;if(!tt)return '';
- return `<dl class="trip-sum"><div><dt>Leave</dt><dd>${t(res.departMs)}</dd></div><div><dt>Back</dt><dd>${t(res.returnMs)}</dd></div><div><dt>Driving</dt><dd>${dur(tt.driveMin)}</dd></div><div><dt>Visits</dt><dd>${dur(tt.serviceMin)}</dd></div><div><dt>Breaks · buffers</dt><dd>${dur(tt.breakMin+tt.bufferMin)}</dd></div><div><dt>Road miles</dt><dd>${tt.distanceMi??'—'}</dd></div></dl><p class="footnote">Road times from ${esc(routing?.provider==='openrouteservice'?'OpenRouteService':routing?.provider||'the routing provider')}${routing?.matrixFetchedAt?`, fetched ${t(Date.parse(routing.matrixFetchedAt))}`:''}; typical speeds, no live traffic.${res.returnLeg?` Return drive ${dur(Math.round(res.returnLeg.driveSec/60))}.`:''}</p>`;
+ return `<dl class="trip-sum"><div><dt>Leave</dt><dd>${t(res.departMs)}</dd></div><div><dt>Back</dt><dd>${t(res.returnMs)}</dd></div><div><dt>Driving</dt><dd>${dur(tt.driveMin)}</dd></div><div><dt>Visits</dt><dd>${dur(tt.serviceMin)}</dd></div><div><dt>Breaks · buffers</dt><dd>${dur(tt.breakMin+tt.bufferMin)}</dd></div><div><dt>Road miles</dt><dd>${tt.distanceMi??'—'}</dd></div></dl><p class="footnote">Road times from ${esc(routing?.provider==='openrouteservice'?'OpenRouteService':routing?.provider||'the routing provider')}${routing?.matrixFetchedAt?`, fetched ${new Date(routing.matrixFetchedAt).toLocaleTimeString('en-US',{timeZone:'America/Detroit',hour:'numeric',minute:'2-digit'})}`:''}; typical speeds, no live traffic.${res.returnLeg?` Return drive ${dur(Math.round(res.returnLeg.driveSec/60))}.`:''}</p>`;
 }
 function notices(ctx,res,stops){
  const out=[];
+ if((res?.warnings||[]).some(w=>w.startsWith('SYNTHETIC')))out.push('<li class="bad"><strong>Synthetic routing (test only):</strong> drive times and the dashed line are not real roads.</li>');
  for(const v of res?.violations||[])out.push(`<li class="bad">${esc(v.reason)}</li>`);
  for(const e of res?.exceptions||[])out.push(`<li class="warn">${esc(e.detail)}</li>`);
  const urgent=(ctx.state.ops?.queue||[]).filter(i=>['P1','P2'].includes(i.effectiveTier)&&!i.stations.some(s=>stops.includes(s)));
  if(urgent.length&&stops.length)out.push(`<li class="warn">Not in this trip: ${urgent.slice(0,4).map(i=>`${esc(PLAIN_TIER[i.effectiveTier])} — ${esc(i.title)}`).join('; ')}${urgent.length>4?` and ${urgent.length-4} more`:''}.</li>`);
- for(const w of (res?.warnings||[]).filter(w=>!/^Manual order is infeasible/.test(w)))out.push(`<li>${esc(w)}</li>`);
+ for(const w of (res?.warnings||[]).filter(w=>!/^(Manual order is infeasible|SYNTHETIC)/.test(w)))out.push(`<li>${esc(w)}</li>`);
  return out.length?`<ul class="notices">${out.join('')}</ul>`:'';
 }
 function editor(ctx){
@@ -93,13 +97,13 @@ function editor(ctx){
   <form id="trip-form" class="trip-form"><div class="row3"><label>Date<input type="date" name="date" value="${esc(d.date)}" required></label><label>Leave<input type="time" name="departLocal" value="${esc(d.departLocal)}" required></label><label>Back by<input type="time" name="returnByLocal" value="${esc(d.returnByLocal)}" required></label></div>
   <label>Start and return<select name="start">${startOptions(ctx,d.start)}</select></label>
   <label class="${custom||d.start===null&&false?'':'hidden-field'}" id="custom-start-field">Coordinates (lat, lon)<input name="coords" placeholder="42.7369, -84.4839" value="${custom?esc(`${d.start.lat}, ${d.start.lon}`):''}"></label></form>
-  <h3 class="stops-h">Stops <span class="muted">(${d.stops.length})</span></h3>
-  ${d.stops.length?`<ol class="stops">${d.stops.map((id,i)=>stopCard(ctx,id,i,d.stops.length,res,true)).join('')}</ol>`:'<p class="muted">Select a station on the map and choose <strong>Add to trip</strong>, or add the stations that need attention.</p>'}
-  <div class="trip-actions"><button type="button" data-suggest>Add stations that need attention</button><button type="button" data-optimize ${d.stops.length<2?'disabled':''} title="Reorder for shorter driving without delaying urgent stops">Optimize order</button></div>
   ${!d.start?'<p class="warn-text">Choose a start to calculate road times.</p>':''}
   ${p.loading?'<p class="calc" role="status">Calculating road times…</p>':''}${p.error?`<p class="bad-text" role="alert">${esc(p.error)}</p>`:''}${stale&&!p.loading&&!p.error?'<p class="muted">Recalculating for your latest change…</p>':''}
   ${summary(res,p.data?.routing)}${notices(ctx,res,d.stops)}
   ${p.data?.geometryError?`<p class="warn-text">Road line unavailable: ${esc(p.data.geometryError)}</p>`:''}
+  <h3 class="stops-h">Stops <span class="muted">(${d.stops.length})</span></h3>
+  ${d.stops.length?`<ol class="stops">${d.stops.map((id,i)=>stopCard(ctx,id,i,d.stops.length,res,true)).join('')}</ol>`:'<p class="muted">Select a station on the map and choose <strong>Add to trip</strong>, or add the stations that need attention.</p>'}
+  <div class="trip-actions"><button type="button" data-suggest>Add stations that need attention</button><button type="button" data-optimize ${d.stops.length<2?'disabled':''} title="Reorder for shorter driving without delaying urgent stops">Optimize order</button></div>
   <div class="trip-actions save">${ctx.canEdit?`<button class="primary" data-save-trip ${d.stops.length&&d.start?'':'disabled'}>${d.planId?'Save changes':'Save trip'}</button>`:''}${d.stops.length?'<button type="button" data-clear-trip class="quiet">Clear stops</button>':''}</div>
   <p class="footnote"><a href="#/trips/compare">Compare the next few days by priority and forecast</a></p>
  </div>`;
@@ -133,13 +137,13 @@ function tripView(ctx,id){
  </div>`;
 }
 export function tripsPanel(ctx,route){
- loadSettings(ctx);draft(ctx.state.user);
+ loadSettings(ctx);draft(ctx.state.user);tripDate=null;
  if(route.view==='edit'){schedule(ctx);return editor(ctx);}
  if(route.view==='trip')return tripView(ctx,route.id);
  return list(ctx);
 }
 function printTrip(p){
- const w=document.querySelector('#print-root');if(!w)return;
+ const w=document.querySelector('#print-root');if(!w)return;tripDate=p.result.date||p.date||null;
  w.innerHTML=`<h1>${esc(p.title)}</h1><p>${esc(day(p.date))} · leave ${t(p.result.departMs)} · back ${t(p.result.returnMs)} · ${esc(p.result.routed===false?'road times not calculated':`${p.result.totals?.distanceMi} road miles`)}</p><table><thead><tr><th>#</th><th>Station</th><th>Arrive</th><th>Visit</th><th>Drive</th><th>Tasks</th></tr></thead><tbody>${p.result.stops.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}<br><small>${esc(s.stationId)} · ${esc(PLAIN_TIER[s.tier]||'')}</small></td><td>${t(s.arriveMs)}</td><td>${dur(s.serviceMinutes)}</td><td>${dur(s.driveMin)}</td><td>${s.tasks.slice(0,5).map(esc).join('<br>')}</td></tr>`).join('')}</tbody></table><p>Printed ${new Date().toLocaleString('en-US',{timeZone:'America/Detroit'})}. Drive times use typical speeds; confirm weather before leaving.</p>`;
  document.body.classList.add('printing-trip');window.print();setTimeout(()=>document.body.classList.remove('printing-trip'),500);
 }

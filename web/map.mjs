@@ -58,9 +58,18 @@ export function setStations(stations,ops){
 export function selectStation(id,{pan=true}={}){
  const prev=selected;selected=id||null;
  for(const sid of [prev,selected]){const m=markers.get(sid),s=stationsById.get(sid);if(m&&s){const html=markerHtml(s,lastOps);m.setIcon(L.divIcon({className:'stn-icon',html,iconSize:null}));m._html=html;m.setZIndexOffset(sid===selected?1000:0);}}
- if(pan&&selected&&markers.get(selected)){const panel=document.querySelector('#panel:not([hidden])'),wide=window.innerWidth>760;map.panInside(markers.get(selected).getLatLng(),{paddingTopLeft:[40,60],paddingBottomRight:[wide&&panel?panel.offsetWidth+30:40,wide?40:Math.round(window.innerHeight*0.55)]});}
+ if(pan&&selected&&markers.get(selected))map.panInside(markers.get(selected).getLatLng(),clearArea(40));
 }
-export function focusStations(ids){const pts=ids.map(i=>markers.get(i)?.getLatLng()).filter(Boolean);if(!pts.length)return;if(pts.length===1)return selectStation(ids[0]);const panel=document.querySelector('#panel:not([hidden])');map.flyToBounds(L.latLngBounds(pts),{paddingTopLeft:[60,60],paddingBottomRight:[(panel&&window.innerWidth>760?panel.offsetWidth:0)+60,60],maxZoom:9,duration:0.6});}
+// Padding that keeps a point out from under the open panel (side panel or phone sheet) and the controls docked above it.
+function clearArea(m){
+ const box=map.getContainer().getBoundingClientRect(),panel=document.querySelector('#panel:not([hidden])'),wide=window.innerWidth>760;
+ let right=m,bottom=m;
+ if(panel){const r=panel.getBoundingClientRect();if(wide)right=Math.max(m,box.right-r.left+m);else bottom=Math.max(m,box.bottom-r.top+m);}
+ const docked=map.getContainer().querySelector('.leaflet-bottom.leaflet-left');
+ if(docked&&!wide){const r=docked.getBoundingClientRect();if(r.height)bottom=Math.max(bottom,box.bottom-r.top+12);}
+ return {paddingTopLeft:[m,m+20],paddingBottomRight:[right,bottom]};
+}
+export function focusStations(ids){const pts=ids.map(i=>markers.get(i)?.getLatLng()).filter(Boolean);if(!pts.length)return;if(pts.length===1)return selectStation(ids[0]);map.flyToBounds(L.latLngBounds(pts),{...clearArea(60),maxZoom:9,duration:0.6});}
 
 // ---------- trip route ----------
 // Only provider geometry is drawn as a road route. Without it, stops are numbered and no line is drawn.
@@ -73,7 +82,7 @@ export function showTrip({start,end,stops=[],geometry=null}){
  stops.forEach((s,i)=>pin(s,String(i+1),'stop',`${i+1}. ${s.name||s.stationId}`));
 }
 export function clearTrip(){if(routeLayer){routeLayer.remove();routeLayer=null;}}
-export function fitTrip({start,stops=[],geometry=null}){const pts=[...(geometry?.geometry||[]),...stops.filter(s=>Number.isFinite(s.lat)).map(s=>[s.lat,s.lon]),...(start?[[start.lat,start.lon]]:[])];if(!pts.length)return;const panel=document.querySelector('#panel:not([hidden])');map.flyToBounds(L.latLngBounds(pts),{paddingTopLeft:[50,50],paddingBottomRight:[(panel&&window.innerWidth>760?panel.offsetWidth:0)+50,50],maxZoom:10,duration:0.5});}
+export function fitTrip({start,stops=[],geometry=null}){const pts=[...(geometry?.geometry||[]),...stops.filter(s=>Number.isFinite(s.lat)).map(s=>[s.lat,s.lon]),...(start?[[start.lat,start.lon]]:[])];if(!pts.length)return;map.flyToBounds(L.latLngBounds(pts),{...clearArea(50),maxZoom:10,duration:0.5});}
 
 // ---------- controls and legend ----------
 function addControls(){
