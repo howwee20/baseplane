@@ -7,7 +7,7 @@ import {parseBody,evidenceInput} from './validation.mjs';
 import {validateVisitContent,visitSummary} from '../web/lib/visits.mjs';
 import {latestReport,referenceTracker,nearby,settings as referenceSettings,VARIABLES} from '../web/lib/reference.mjs';
 import {fleetRoute,runAssessment,runFeedFailure,opsView,scheduledMaintenance,recordAssessmentError,assessmentError} from './fleet.mjs';
-export const RELEASE={version:'1.1.0',protocol:'fleet-ops-1'};
+export const RELEASE={version:'1.2.0',protocol:'fleet-ops-2'};
 const limited=(v,n=2000)=>typeof v==='string'?v.trim().slice(0,n):'';
 const response=(b,status=200,headers={})=>new Response(JSON.stringify(b),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...headers}});
 const parse=parseBody;

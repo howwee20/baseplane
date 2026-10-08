@@ -3,7 +3,7 @@
 // forbid use with a non-Google map and its general terms prohibit caching durations, which saved plans require.
 import {AppError} from '../storage.mjs';
 import {cacheRead,cacheWrite,boundedFetch} from './cache.mjs';
-import {normalizeOrsMatrix,orsDirectionsToRoute,ORS_ATTRIBUTION} from '../../web/lib/fleet/routing.mjs';
+import {normalizeOrsMatrix,orsDirectionsToRoute,ORS_ATTRIBUTION,canonicalOrder,permuteMatrix} from '../../web/lib/fleet/routing.mjs';
 import {validCoordinate} from './nws.mjs';
 const ORS='https://api.openrouteservice.org';
 export const MAX_MATRIX_POINTS=40;// ORS Standard allows 3,500 elements; 40×40 = 1,600 keeps headroom.
@@ -33,11 +33,12 @@ async function post(env,path,body){
 export async function routeMatrix(env,points){
  validatePoints(points,MAX_MATRIX_POINTS);
  if(synthetic(env))return syntheticMatrix(points);
- const cacheKey='route:matrix:'+await digestKey(key(points)),hit=await cacheRead(env.DB,cacheKey);
- if(hit)return {...hit.body,points:points.map((p,i)=>({...hit.body.points[i],id:p.id})),cached:true};
- const json=await post(env,'/v2/matrix/driving-car',{locations:points.map(p=>[p.lon,p.lat]),metrics:['duration','distance'],units:'m'});
- const fetchedAt=new Date().toISOString(),m=normalizeOrsMatrix(json,points,{fetchedAt});
- await cacheWrite(env.DB,cacheKey,m,24*36e5,fetchedAt);return {...m,cached:false};
+ const order=canonicalOrder(points),canonicalPoints=order.map(i=>({...points[i],id:'p'+i}));
+ const cacheKey='route:matrix:'+await digestKey(key(canonicalPoints)),hit=await cacheRead(env.DB,cacheKey);
+ if(hit)return {...permuteMatrix(hit.body,points,order),cached:true};
+ const json=await post(env,'/v2/matrix/driving-car',{locations:canonicalPoints.map(p=>[p.lon,p.lat]),metrics:['duration','distance'],units:'m'});
+ const fetchedAt=new Date().toISOString(),m=normalizeOrsMatrix(json,canonicalPoints,{fetchedAt});
+ await cacheWrite(env.DB,cacheKey,m,24*36e5,fetchedAt);return {...permuteMatrix(m,points,order),cached:false};
 }
 export async function routeGeometry(env,points){
  validatePoints(points,50);

@@ -11,6 +11,6 @@ public/
 .wrangler/
 **/.wrangler/
 .dev.vars
-**/.dev.vars
+**/.dev.vars*
 backend/*.secrets.json
 _site/

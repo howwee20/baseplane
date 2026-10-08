@@ -13,7 +13,7 @@ import {validateProfileEdit} from '../web/lib/fleet/profiles.mjs';
 import {stationCoverage,COVERAGE_VARIABLES} from '../web/lib/fleet/coverage.mjs';
 import {newWorkItem,applyWorkPatch,workHandoff,suggestTemplates,TEMPLATES,validateWindows} from '../web/lib/fleet/work.mjs';
 import {validateRules,TASK_CLASSES} from '../web/lib/fleet/forecast.mjs';
-import {validatePlanInputs,planDay,planOutdated,PLANNER_DEFAULTS,PLANNER_VERSION,planDates} from '../web/lib/fleet/planner.mjs';
+import {validatePlanInputs,planDay,planOutdated,PLANNER_DEFAULTS,PLANNER_VERSION,planDates,unroutedDay} from '../web/lib/fleet/planner.mjs';
 import {navigationLinks} from '../web/lib/fleet/routing.mjs';
 import {distance} from '../web/comparison.js';
 import {localToUtc,addDays} from '../web/lib/fleet/time.mjs';
@@ -125,7 +125,9 @@ async function planningContext(env,inputs,{excludePlanId=null,networkView}){
  const add=(sid,item,group=null)=>{if(!byId.has(sid)||inputs.excludeStations.includes(sid))return;if(inputs.region&&notes[sid]?.region!==inputs.region)return;const e=entries.get(sid);if(!e||compareTier(item,e.item)<0)entries.set(sid,{item,group});};
  const compareTier=(a,b)=>tierRank(a.effectiveTier)-tierRank(b.effectiveTier);
  for(const it of q.queue){if(!inputs.tiers.includes(it.effectiveTier))continue;if(it.scope==='group')for(const m of it.members?.length?it.members:it.stations.map(s=>({...it,station:s})))add(m.station,{...m,effectiveTier:it.effectiveTier,tier:it.tier,priorityKey:it.priorityKey,priorityReasons:it.priorityReasons},it);else if(it.station)add(it.station,it);}
- for(const sid of inputs.required)if(!entries.has(sid)&&byId.has(sid))entries.set(sid,{item:{id:'required:'+sid,effectiveTier:'PM',tier:'PM',priorityKey:priorityKey({id:'required:'+sid,tier:'PM'}),priorityReasons:['Required by the planner'],station:sid},group:null});
+ // Stations the user added keep the priority of any open issue; otherwise they are plain visits.
+ const allItems=q.queue.flatMap(it=>it.scope==='group'?(it.members?.length?it.members:it.stations.map(s=>({...it,station:s}))).map(m=>({...m,effectiveTier:it.effectiveTier,tier:it.tier,priorityKey:it.priorityKey,priorityReasons:it.priorityReasons,_group:it})):[it]);
+ for(const sid of inputs.required)if(!entries.has(sid)&&byId.has(sid)){const it=allItems.find(x=>x.station===sid);entries.set(sid,it?{item:it,group:it._group||null}:{item:{id:'visit:'+sid,effectiveTier:'PM',tier:'PM',priorityKey:priorityKey({id:'visit:'+sid,tier:'PM'}),priorityReasons:['Added to the trip; no open issue'],station:sid},group:null});}
  const planned=new Map();for(const p of accepted)if(p.id!==excludePlanId)for(const s of p.summary?.stations||[])if(!planned.has(s))planned.set(s,{planId:p.id,title:p.title,crew:p.crew,date:p.date});
  const pre=[],candidates=[];
  const maxKm=Math.min(420,inputs.maxWorkdayMinutes/2*80/60*1.05);
@@ -134,13 +136,13 @@ async function planningContext(env,inputs,{excludePlanId=null,networkView}){
   const lat=n.entrance?.lat??st.lat,lon=n.entrance?.lon??st.lon;
   const tpl=items.length?null:TEMPLATES[item.kind==='outage'||item.scope==='group'?'comms-power':item.scope==='review'?'sensor-inspection':item.scope==='maintenance'?'scheduled-service':'sensor-inspection'];
   const est=items.length?items.every(w=>Number.isInteger(w.estimateMinutes))?items.reduce((s,w)=>s+w.estimateMinutes,0):null:tpl.estimateMinutes;
-  const c={id:sid,stationId:sid,name:st.name,lat,lon,entranceKnown:!!n.entrance,tier:item.effectiveTier,priorityKey:item.priorityKey,priorityReasons:item.priorityReasons||[],incidentIds:[item.id,group?.id].filter(x=>x&&!/^(qc|pm|required):/.test(x)),groupId:group?.id||null,workItemIds:items.map(w=>w.id),
+  const c={id:sid,stationId:sid,name:st.name,lat,lon,entranceKnown:!!n.entrance,tier:item.effectiveTier,priorityKey:item.priorityKey,priorityReasons:item.priorityReasons||[],incidentIds:[item.id,group?.id].filter(x=>x&&!/^(qc|pm|required|visit):/.test(x)),groupId:group?.id||null,workItemIds:items.map(w=>w.id),
    tasks:items.length?items.flatMap(w=>(w.confirmedTasks?.length?w.confirmedTasks:w.proposedTasks.map(t=>'(proposed) '+t))):tpl.tasks.map(t=>'(template) '+t),parts:[...new Set(items.flatMap(w=>w.parts||[]))],
-   serviceMinutes:est,serviceUncertainty:items.length?items.reduce((s,w)=>s+(w.uncertaintyMinutes||0),0):tpl.uncertaintyMinutes,estimateBasis:items.length?(items.every(w=>w.estimateBasis==='entered')?'entered':'template default (unconfirmed)'):'template default (no work item)',
+   serviceMinutes:inputs.visitMinutes?.[sid]??est,serviceUncertainty:inputs.visitMinutes?.[sid]?0:items.length?items.reduce((s,w)=>s+(w.uncertaintyMinutes||0),0):tpl.uncertaintyMinutes,estimateBasis:inputs.visitMinutes?.[sid]?'entered':items.length?(items.every(w=>w.estimateBasis==='entered')?'entered':'template default (unconfirmed)'):'template default (no work item)',
    taskClass:(items.length?items.map(w=>w.taskClass):[tpl.taskClass]).sort((a,b)=>CLASS_ORDER.indexOf(b)-CLASS_ORDER.indexOf(a))[0],requiredSkills:[...new Set(items.flatMap(w=>w.skills||[]))],accessWindows:n.accessWindows||items.find(w=>w.accessWindows)?.accessWindows||null,deferral:item.deferral||null,alreadyPlanned:planned.get(sid)||null};
   if(!Number.isFinite(lat)||!Number.isFinite(lon)){pre.push({stationId:sid,name:st.name,tier:c.tier,code:'no-location',reason:'Station has no valid coordinates.'});continue;}
   const d=distance(inputs.start,{lat,lon});
-  if(d>maxKm){pre.push({stationId:sid,name:st.name,tier:c.tier,incidentIds:c.incidentIds,code:'out-of-range',reason:`About ${Math.round(d)} km straight-line from the start — beyond a one-day round trip for this workday (shortlist only; not a driving estimate).`});continue;}
+  if(d>maxKm&&!inputs.required.includes(sid)){pre.push({stationId:sid,name:st.name,tier:c.tier,incidentIds:c.incidentIds,code:'out-of-range',reason:`About ${Math.round(d)} km straight-line from the start — beyond a one-day round trip for this workday (shortlist only; not a driving estimate).`});continue;}
   candidates.push(c);
  }
  candidates.sort((a,b)=>{for(let i=0;i<a.priorityKey.length;i++){if(a.priorityKey[i]===b.priorityKey[i])continue;return typeof a.priorityKey[i]==='number'?a.priorityKey[i]-b.priorityKey[i]:String(a.priorityKey[i]).localeCompare(String(b.priorityKey[i]));}return 0;});
@@ -159,12 +161,14 @@ async function planningContext(env,inputs,{excludePlanId=null,networkView}){
 function planSummary(result,inputs){return {stations:result.stops.map(s=>s.stationId),stops:result.stops.length,returnMs:result.returnMs,departMs:result.departMs,addressed:Object.fromEntries(Object.entries(result.addressed||{}).map(([k,v])=>[k,v.length])),weather:result.weatherSummary,driveMin:result.totals?.driveMin??null,distanceMi:result.totals?.distanceMi??null,feasible:result.feasible,crew:inputs.crew.label};}
 async function computeAndStorePlan(env,user,{inputs,date,order,title,crew,existing,networkView}){
  const ctx=await planningContext(env,{...inputs,date,days:1},{excludePlanId:existing?.id,networkView});
- if(!ctx.matrix)throw new AppError('A plan cannot be saved without road routing: '+(ctx.routing.error||'routing unavailable'),503);
- const result=planDay({inputs:{...ctx.inputs,manualOrder:order?.length?order:null},date,candidates:ctx.candidates,matrix:ctx.matrix,forecasts:ctx.forecasts,alerts:ctx.alerts});
+ // Without road routing a trip can still be saved as an ordered list of stops; drive and arrival times stay blank.
+ if(!ctx.matrix&&!order?.length)throw new AppError('A plan cannot be built without road routing: '+(ctx.routing.error||'routing unavailable'),503);
+ const ordered=order?.length?order.map(id=>ctx.candidates.find(c=>c.stationId===id)).filter(Boolean):ctx.candidates;
+ const result=ctx.matrix?planDay({inputs:{...ctx.inputs,manualOrder:order?.length?order:null},date,candidates:ctx.candidates,matrix:ctx.matrix,forecasts:ctx.forecasts,alerts:ctx.alerts}):unroutedDay({inputs:ctx.inputs,date,candidates:ordered,reason:ctx.routing.error});
  result.excluded=[...ctx.preExcluded,...result.excluded];
  const pts=[{label:inputs.start.label,lat:inputs.start.lat,lon:inputs.start.lon},...result.stops.map(s=>({label:s.name,lat:s.lat,lon:s.lon})),{label:inputs.end.label,lat:inputs.end.lat,lon:inputs.end.lon}];
- let geometry=null,geometryError=null;if(result.stops.length){try{geometry=await routeGeometry(env,pts.map((p,i)=>({id:'p'+i,lat:p.lat,lon:p.lon})));}catch(e){geometryError=e.message;}}
- const plan={...(existing||{}),id:existing?.id||crypto.randomUUID(),status:existing?.status||'draft',date,crew:str(crew||inputs.crew.label,60),title:str(title,200)||`${inputs.crew.label} · ${date}`,version:PLANNER_VERSION,inputs:{...inputs,date,days:1,manualOrder:order||null},result,navigation:navigationLinks(pts),geometry,geometryError,routing:{provider:ctx.matrix.provider,fetchedAt:ctx.matrix.fetchedAt,traffic:ctx.matrix.traffic,attribution:ctx.matrix.attribution,synthetic:!!ctx.matrix.synthetic},forecast:{error:ctx.forecastError,end:ctx.forecastEnd},snapshot:ctx.snapshot,summary:planSummary(result,inputs),outdated:null};
+ let geometry=null,geometryError=null;if(ctx.matrix&&result.stops.length){try{geometry=await routeGeometry(env,pts.map((p,i)=>({id:'p'+i,lat:p.lat,lon:p.lon})));}catch(e){geometryError=e.message;}}
+ const plan={...(existing||{}),id:existing?.id||crypto.randomUUID(),status:existing?.status||'draft',date,crew:str(crew||inputs.crew.label,60),title:str(title,200)||`${inputs.crew.label} · ${date}`,version:PLANNER_VERSION,inputs:{...inputs,date,days:1,manualOrder:order||null},result,navigation:navigationLinks(pts),geometry,geometryError,routing:ctx.matrix?{provider:ctx.matrix.provider,fetchedAt:ctx.matrix.fetchedAt,traffic:ctx.matrix.traffic,attribution:ctx.matrix.attribution,synthetic:!!ctx.matrix.synthetic}:{provider:null,unavailable:true,reason:ctx.routing.error||'Road routing unavailable.'},forecast:{error:ctx.forecastError,end:ctx.forecastEnd},snapshot:ctx.snapshot,summary:planSummary(result,inputs),outdated:null};
  return plan;
 }
 
@@ -208,6 +212,10 @@ export async function fleetRoute(req,env,user,path,method,url,ctx){
  if(parts[1]==='routing'&&method==='GET')return json(routingStatus(env));
  if(parts[1]==='forecast'&&method==='GET'){const ids=(url.searchParams.get('stations')||'').split(',').filter(Boolean);if(!ids.length||ids.length>24||ids.some(x=>!id(x)))throw new AppError('Request forecasts for 1–24 stations.');const network=await ctx.networkView(env);const locs=ids.map(x=>network.stations.find(s=>s.id===x)).filter(s=>s&&Number.isFinite(s.lat)).map(s=>({id:s.id,lat:s.lat,lon:s.lon}));return json(await forecastsFor(env,locs));}
  if(parts[1]==='plans'){
+  if(parts[2]==='preview'&&method==='POST'){editorOnly();await tripRate(env,user);const b=await body();
+   const stops=Array.isArray(b.stops)?[...new Set(b.stops.filter(id))].slice(0,20):[];if(!stops.length)throw new AppError('Add at least one station to the trip.');
+   let inputs;try{inputs=validatePlanInputs({...b.inputs,days:1,tiers:[],required:stops,includeDuplicates:stops,maxStops:20,manualOrder:b.optimize?null:stops});}catch(e){throw new AppError(e.message);}
+   return json(await tripPreview(env,inputs,{stops,optimize:!!b.optimize,networkView:ctx.networkView}));}
   if(parts[2]==='context'&&method==='POST'){editorOnly();await planRate(env,user);const b=await body();let inputs;try{inputs=validatePlanInputs(b.inputs||{});}catch(e){throw new AppError(e.message);}return json(await planningContext(env,inputs,{networkView:ctx.networkView}));}
   if(parts.length===2&&method==='GET'){const from=url.searchParams.get('from'),to=url.searchParams.get('to');for(const d of [from,to])if(d&&!/^\d{4}-\d{2}-\d{2}$/.test(d))throw new AppError('Use YYYY-MM-DD dates.');return json({plans:await store.listPlans(env.DB,{from,to,limit:100})});}
   if(parts.length===2&&method==='POST'){editorOnly();await planRate(env,user);const b=await body();let inputs;try{inputs=validatePlanInputs({...b.inputs,date:b.date||b.inputs?.date});}catch(e){throw new AppError(e.message);}const order=Array.isArray(b.order)?b.order.filter(id).slice(0,20):null;const plan=await computeAndStorePlan(env,user,{inputs,date:inputs.date,order,title:b.title,crew:b.crew,networkView:ctx.networkView});const saved=await store.savePlan(env.DB,plan,null,actor,`Draft created: ${plan.result.stops.length} stops`);await linkPlanEvents(env,saved,actor,'planned');return json(saved,201);}
@@ -219,7 +227,7 @@ export async function fleetRoute(req,env,user,path,method,url,ctx){
    const outdated=['accepted','draft'].includes(plan.status)?planOutdated(plan,{incidents,forecastUpdates:updates}):[];return json({...plan,outdated,revisions:await store.planRevisions(env.DB,pid)});}
   if(parts.length===3&&method==='PATCH'){editorOnly();const b=await body();if(!b.revision||b.revision!==plan.revision)throw new AppError('This plan changed. Reload it; your edits have not been applied.',409);
    let next={...plan},summary=[];
-   if(b.status!==undefined){if(!['draft','accepted','completed','cancelled'].includes(b.status))throw new AppError('Choose a plan status.');if(b.status==='accepted'&&!plan.result?.feasible)throw new AppError('Only a feasible plan can be accepted. Resolve the listed violations first.');if(b.status==='completed'&&str(b.completionNote,2000).length<3)throw new AppError('Record a completion note (what was visited). Telemetry recovery is tracked separately.');next.status=b.status;summary.push('Status '+b.status);if(b.status==='completed')next.completion={note:str(b.completionNote,2000),by:actor,at:new Date().toISOString()};if(b.status==='accepted')next.acceptedAt=new Date().toISOString();}
+   if(b.status!==undefined){if(!['draft','accepted','completed','cancelled'].includes(b.status))throw new AppError('Choose a plan status.');if(b.status==='accepted'&&!plan.result?.feasible){if(str(b.overrideReason,500).length<3)throw new AppError('This trip breaks a constraint (see the warnings). Record why it is being accepted anyway.');next.acceptOverride={reason:str(b.overrideReason,500),by:actor,at:new Date().toISOString(),violations:(plan.result.violations||[]).map(v=>v.reason)};}if(b.status==='completed'&&str(b.completionNote,2000).length<3)throw new AppError('Record a completion note (what was visited). Telemetry recovery is tracked separately.');next.status=b.status;summary.push('Status '+b.status);if(b.status==='completed')next.completion={note:str(b.completionNote,2000),by:actor,at:new Date().toISOString()};if(b.status==='accepted')next.acceptedAt=new Date().toISOString();}
    if(b.title!==undefined){next.title=str(b.title,200)||plan.title;summary.push('Title');}
    if(b.deferrals!==undefined){if(!Array.isArray(b.deferrals)||b.deferrals.some(d=>!id(d.stationId)||str(d.reason,500).length<3))throw new AppError('Record a reason for each deliberate deferral.');next.deferrals=b.deferrals.map(d=>({stationId:d.stationId,reason:str(d.reason,500),by:actor,at:new Date().toISOString()}));summary.push('Deferral reasons');}
    if(b.order!==undefined||b.inputs!==undefined){if(plan.status!=='draft')throw new AppError('Accepted plans are never rewritten. Copy it to a new draft to change stops.');let inputs;try{inputs=validatePlanInputs({...plan.inputs,...(b.inputs||{}),date:plan.date});}catch(e){throw new AppError(e.message);}const order=Array.isArray(b.order)?b.order.filter(id).slice(0,20):plan.inputs.manualOrder;const recomputed=await computeAndStorePlan(env,user,{inputs,date:plan.date,order,title:next.title,crew:next.crew,existing:next,networkView:ctx.networkView});next={...recomputed,status:'draft',deferrals:next.deferrals};summary.push('Recomputed');}
@@ -242,6 +250,19 @@ export async function fleetRoute(req,env,user,path,method,url,ctx){
  }
  throw new AppError('Endpoint not found.',404);
 }
+// Trip previews recompute on every edit; matrices are cached by stop set, so reordering does not spend routing quota.
+async function tripPreview(env,inputs,{stops,optimize,networkView}){
+ const ctx=await planningContext(env,inputs,{networkView});
+ const byStop=new Map(ctx.candidates.map(c=>[c.stationId,c]));
+ const candidates=stops.map(s=>byStop.get(s)).filter(Boolean);
+ const result=ctx.matrix?planDay({inputs:{...ctx.inputs,manualOrder:optimize?null:candidates.map(c=>c.stationId)},date:inputs.date,candidates,matrix:ctx.matrix,forecasts:ctx.forecasts,alerts:ctx.alerts}):unroutedDay({inputs:ctx.inputs,candidates,reason:ctx.routing.error||'Road routing unavailable.'});
+ result.excluded=[...ctx.preExcluded,...result.excluded];
+ const pts=[{id:'start',label:inputs.start.label,lat:inputs.start.lat,lon:inputs.start.lon},...result.stops.map(x=>({id:x.stationId,label:x.name,lat:x.lat,lon:x.lon})),{id:'end',label:inputs.end.label,lat:inputs.end.lat,lon:inputs.end.lon}];
+ let geometry=null,geometryError=null;
+ if(ctx.matrix&&result.stops.length){try{geometry=await routeGeometry(env,pts.map((p,i)=>({id:'p'+i,lat:p.lat,lon:p.lon})));}catch(e){geometryError=e.message;}}
+ return {generatedAt:new Date().toISOString(),inputs:ctx.inputs,order:result.stops.map(x=>x.stationId),candidates:candidates.map(c=>({stationId:c.stationId,name:c.name,lat:c.lat,lon:c.lon,tier:c.tier,serviceMinutes:c.serviceMinutes,estimateBasis:c.estimateBasis,taskClass:c.taskClass,incidentIds:c.incidentIds,workItemIds:c.workItemIds,entranceKnown:c.entranceKnown})),result,geometry,geometryError,navigation:result.stops.length?navigationLinks(pts):null,routing:{...ctx.routing,matrixFetchedAt:ctx.matrix?.fetchedAt||null,cached:!!ctx.matrix?.cached,provider:ctx.matrix?.provider||ctx.routing.provider},forecast:{error:ctx.forecastError,end:ctx.forecastEnd},networkFetchedAt:ctx.networkFetchedAt};
+}
+async function tripRate(env,user){const key='trip:'+user.id,now=Date.now();const row=await env.DB.prepare('INSERT INTO attempts (key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires<? THEN 1 ELSE count+1 END,expires=CASE WHEN expires<? THEN excluded.expires ELSE expires END RETURNING count').bind(key,now+3600000,now,now).first();if(row.count>240)throw new AppError('Trip calculation limit reached (240 per hour) to protect routing and forecast quotas. Saved trips remain available.',429);}
 async function planRate(env,user){const key='plan:'+user.id,now=Date.now();const row=await env.DB.prepare('INSERT INTO attempts (key,count,expires) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires<? THEN 1 ELSE count+1 END,expires=CASE WHEN expires<? THEN excluded.expires ELSE expires END RETURNING count').bind(key,now+3600000,now,now).first();if(row.count>60)throw new AppError('Planning limit reached (60 per hour) to protect routing and forecast quotas. Saved plans remain available.',429);}
 async function linkPlanEvents(env,plan,actor,status){
  const ids=[...new Set((plan.result?.stops||[]).flatMap(s=>s.incidentIds))].filter(uuid).slice(0,40);if(!ids.length)return;

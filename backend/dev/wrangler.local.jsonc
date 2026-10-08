@@ -1,0 +1,11 @@
+// LOCAL REVIEW WITH A COPY OF PRODUCTION DATA: `node dev/seed-from-production.mjs`, then `npm run dev:copy`.
+// Runs the real Worker against a local D1 database. No provider secrets are configured, so the network snapshot is
+// whatever was copied (its real fetch time is shown) and road routing reports "not configured".
+{
+  "name": "enviroweather-fleet-api-local",
+  "main": "../worker.mjs",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {"OWNER_EMAIL": "dev-owner@example.test","ALLOWED_ORIGINS": "http://127.0.0.1:8130,http://localhost:8130"},
+  "d1_databases": [{"binding":"DB","database_name":"enviroweather-fleet-local","database_id":"00000000-0000-0000-0000-000000000001","migrations_dir":"../migrations"}]
+}

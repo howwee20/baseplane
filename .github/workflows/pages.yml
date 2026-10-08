@@ -43,6 +43,7 @@ jobs:
           short="${GITHUB_SHA::7}"
           sed -i "s|<meta name=\"fleet-release\" content=\"dev\">|<meta name=\"fleet-release\" content=\"${short}\">|" _site/index.html
           grep -q "content=\"${short}\"" _site/index.html
+          node scripts/stamp-release.mjs _site "${short}"
           printf '{"commit":"%s","builtAt":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > _site/release.json
           printf 'atolldb.com\n' > _site/CNAME
           touch _site/.nojekyll
