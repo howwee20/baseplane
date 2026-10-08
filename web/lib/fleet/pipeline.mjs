@@ -11,7 +11,8 @@ export function engineContext(notes={}){
  for(const [id,n] of Object.entries(notes)){if(n?.region)regions[id]=n.region;if(Array.isArray(n?.dependencies)&&n.dependencies.length)dependencies[id]=n.dependencies;}
  return {regions,dependencies};
 }
-export function assessNetwork({metadata,latest,profiles={},notes={},thresholds={},config=FLEET_DEFAULTS,now=Date.now()}){
+export function assessNetwork({metadata,latest,profiles={},notes={},thresholds={},config:partial=FLEET_DEFAULTS,now=Date.now()}){
+ const config={...FLEET_DEFAULTS,...partial};
  const byId=new Map((latest?.STATION||[]).map(s=>[s.STID,s])),assessments=[],profileChanges=[],profileRows={};
  const stations=metadata?.STATION?.length?metadata.STATION:latest?.STATION||[];
  for(const meta of stations){
@@ -22,7 +23,9 @@ export function assessNetwork({metadata,latest,profiles={},notes={},thresholds={
  }
  return {assessments,profileChanges,profileRows};
 }
-export function processSnapshot({metadata,latest,ingestId,retrievedAt,previousIngest=null,profiles={},notes={},stationStates={},incidents=[],thresholds={},config=FLEET_DEFAULTS,ids}){
+export function processSnapshot({metadata,latest,ingestId,retrievedAt,previousIngest=null,profiles={},notes={},stationStates={},incidents=[],thresholds={},config:partial=FLEET_DEFAULTS,ids}){
+ // Partial settings never blank out a default (an undefined lag limit would disable stale-channel detection).
+ const config={...FLEET_DEFAULTS,...partial,grouping:{...FLEET_DEFAULTS.grouping,...partial?.grouping}};
  const now=Date.parse(retrievedAt),quality=assessIngest({metadata,latest,previous:previousIngest,now,config:{massOutageFraction:config.massOutageFraction,stale:thresholds.stale||180}});
  const ingest={id:ingestId,retrievedAt,status:'ok',...quality};
  const {assessments,profileChanges,profileRows}=assessNetwork({metadata,latest,profiles,notes,thresholds,config,now});

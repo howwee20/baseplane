@@ -111,9 +111,12 @@ export function runEngine({ingest,assessments=[],stationStates={},incidents=[],c
   if(!same(body.channels,channels)||!same(body.sensorGroups,groupsAffected.map(g=>({id:g.id,label:g.label,provisional:g.provisional,channels:g.channels})))){if(body.channels.length&&!outage)event(inc,'channels-changed',`Affected channels: ${channels.join(', ')||'none'}.`);body.channels=channels;body.sensorGroups=groupsAffected.map(g=>({id:g.id,label:g.label,provisional:g.provisional,channels:g.channels}));body.provisionalGrouping=groupsAffected.some(g=>g.provisional);touch(inc);}
   body.stations=[station];body.title=a.name;body.reasonCodes=a.reasonCodes;body.reasons=a.reasons;body.feedHeld=s.feedHeld;
   body.evidence={ingestId:ingest.id,retrievedAt:at,feedQuality:ingest.quality,reporting:a.reporting,newest:a.newest,ageMinutes:a.ageMinutes,expectedCount:a.expectedCount,reportingCount:a.reportingCount,outageCount:s.outageCount,recoveryCount:s.recoveryCount,sensorCount:s.sensor.count,affected:a.channels.filter(ch=>channels.includes(ch.channel)||outage&&ch.expected).slice(0,40).map(ch=>({channel:ch.channel,state:ch.state,time:ch.time,unit:ch.unit}))};
-  inc.lastGood=s.lastGoodAt;inc.firstSuspected=inc.firstSuspected||at;inc.lastAssessed=at;inc._changed=true;
+  // For a sensor issue the relevant "last good" is when the affected sensor last reported, not the station.
+  const affectedTimes=outage?[]:a.channels.filter(ch=>channels.includes(ch.channel)&&ch.time).map(ch=>Date.parse(ch.time)).filter(Number.isFinite);
+  const sensorLast=affectedTimes.length?new Date(Math.max(...affectedTimes)).toISOString():null;
+  inc.lastGood=outage?s.lastGoodAt:sensorLast||s.sensor.firstSeenAt||s.lastGoodAt;inc.firstSuspected=inc.firstSuspected||at;inc.lastAssessed=at;inc._changed=true;
   // Uncertainty of onset: somewhere between the last good observation and the first snapshot that lacked data.
-  body.onset={earliest:s.lastGoodAt,latest:outage?s.firstSuspectedAt:s.sensor.firstSeenAt};
+  body.onset={earliest:outage?s.lastGoodAt:sensorLast,latest:outage?s.firstSuspectedAt:s.sensor.firstSeenAt};
  }
 
  // Group outages among fully non-reporting stations.

@@ -115,7 +115,8 @@ test('grouping avoids chaining; merge/split overrides and partial recovery prese
  assert.ok(clusters.length>=2,'a 150 km chain is split');
  const late=clusterOutages([{id:'A',lat:43,lon:-85,onset:T0},{id:'B',lat:43,lon:-85.2,onset:T0+6*3600000}],{});
  assert.equal(late.filter(c=>!c.belowMinimum).length,0,'onsets hours apart are not grouped');
- const metas=[station(1,{xKm:0}),station(2,{xKm:15}),station(3,{xKm:30}),station(4,{xKm:300})];const w=world(metas);
+ // Enough healthy stations that three silent ones are a station problem, not a suspected provider outage.
+ const metas=[station(1,{xKm:0}),station(2,{xKm:15}),station(3,{xKm:30}),station(4,{xKm:300}),station(5,{xKm:420}),station(6,{xKm:540}),station(7,{xKm:660})];const w=world(metas);
  const down=k=>({TST01:{obsAt:step(k)-5*3600000},TST02:{obsAt:step(k)-5*3600000},TST03:{obsAt:step(k)-5*3600000}});
  for(let k=0;k<3;k++)w.run(down(k),{at:step(k)});
  const group=w.open().find(i=>i.scope==='group');assert.equal(group.body.stations.length,3);const gid=group.id;
@@ -172,6 +173,15 @@ test('sensor issues escalate to a station outage in place and de-escalate on par
  assert.ok(w.events.some(e=>e.incidentId===id&&e.type==='de-escalated'));
 });
 
+test('a sensor issue dates from when that sensor last reported, not from the station',()=>{
+ const w=world([station(1),station(2,{xKm:500})]);
+ for(let k=0;k<2;k++)w.run({TST01:{obsAt:step(k)-600000,lag:{volt_1:600}}},{at:step(k)});
+ const inc=w.station('TST01');assert.equal(inc.kind,'sensor');
+ assert.equal(inc.lastGood,new Date(step(1)-600000-600*60000).toISOString(),'last good = the stale channel\'s last report');
+ assert.ok(Date.parse(inc.body.onset.earliest)<=Date.parse(inc.body.onset.latest),'onset window is ordered');
+ for(let k=2;k<4;k++)w.run({TST01:{obsAt:step(k)-600000,drop:['volt_1']}},{at:step(k)});
+ assert.equal(w.station('TST01').body.onset.earliest,null,'an absent channel has an unknown last report');
+});
 test('manual resolution without recovered telemetry reopens the same incident',()=>{
  const w=world([station(1),station(2,{xKm:500})]);
  for(let k=0;k<3;k++)w.run({TST01:{obsAt:step(k)-5*3600000}},{at:step(k)});

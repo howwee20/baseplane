@@ -116,8 +116,8 @@ function createRadar(){
   if(!active){t.textContent='Off';dEl.textContent='Radar is off. Stations are unaffected.';return;}
   if(error&&!frames.length){t.textContent='Radar unavailable';dEl.textContent=`${error} Station data is unaffected.`;return;}
   const f=frames[current];if(!f){t.textContent='Loading radar…';return;}
-  const latest=current===frames.length-1;t.textContent=`${latest?'Latest':'Past'} · ${time(f.ts)}`;
-  dEl.innerHTML=`Observed radar, not a forecast. Frame valid ${time(f.ts)} ET${f.loadedAt?`; image retrieved ${time(f.loadedAt)}`:''}${listFetchedAt?`; frame list checked ${time(listFetchedAt)}`:''}. ${frames.length} frames over the past ${Math.round((frames.at(-1).ts-frames[0].ts)/60000)} minutes. ${RADAR_SOURCE}. Blank areas can mean no echoes or missing coverage; radar is not measured rainfall.${f.failed?' This frame failed to load.':''}`;
+  const latest=current===frames.length-1;t.textContent=`${latest?'Latest':'Past'} · ${time(f.ts)}${error?' · not updating':''}`;
+  dEl.innerHTML=`Observed radar, not a forecast. Frame valid ${time(f.ts)} ET${f.loadedAt?`; image retrieved ${time(f.loadedAt)}`:''}${listFetchedAt?`; frame list checked ${time(listFetchedAt)}`:''}. ${frames.length} frames over the past ${Math.round((frames.at(-1).ts-frames[0].ts)/60000)} minutes. ${RADAR_SOURCE}. Blank areas can mean no echoes or missing coverage; radar is not measured rainfall.${f.failed?' This frame failed to load.':''}${error?` Could not check for newer frames (${error}); showing the last frames retrieved.`:''}`;
  };
  const overlay=i=>{const f=frames[i];if(!overlays.has(f.ts)){const o=L.imageOverlay(frameUrl(f.ts),RADAR_BOUNDS,{pane:'radar',opacity:0,interactive:false,crossOrigin:false,alt:`Observed radar valid ${time(f.ts)}`});o.on('load',()=>{f.loadedAt=Date.now();status();});o.on('error',()=>{f.failed=true;status();});o.addTo(map);overlays.set(f.ts,o);}return overlays.get(f.ts);};
  const show=i=>{current=i;frames.forEach((f,j)=>{if(overlays.has(f.ts)||j===i)overlay(j).setOpacity(j===i?prefs.opacity:0);});status();};
