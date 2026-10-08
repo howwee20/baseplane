@@ -544,7 +544,8 @@ svg.hist text{fill:var(--muted);font:10.5px var(--font)}svg.hist .grid{stroke:va
 .t-P1{background:#8f1d2c;color:#fff}.t-P2{background:#b8322a;color:#fff}.t-P3{background:#fbe3c8;color:#6b3a0b}.t-P4{background:#f7efc4;color:#5c4c08}.t-QC{background:#ebe7f5;color:#463a6b}
 /* Trips */
 .trip-form label{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;font-size:12px;font-weight:500;color:var(--muted)}
-.trip-form .row3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
+.trip-form .row3{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);gap:8px}.trip-form .row3 input{width:100%;min-width:0}
+@media(max-width:420px){.trip-form .row3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.trip-form .row3 label:first-child{grid-column:1/-1}}
 .trip-form input,.trip-form select{width:100%}
 .hidden-field{display:none!important}
 .stops-h{margin:14px 0 6px;font-size:13.5px}
