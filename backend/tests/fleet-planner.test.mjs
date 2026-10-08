@@ -187,3 +187,13 @@ test('offline packets omit gate codes, are scoped to the saving account and are 
  assert.deepEqual(listPackets('a@example.test').map(p=>p.id),[plan.id]);
  clearPackets();assert.equal(listPackets().length,0);
 });
+
+test('a deliberate stop order that runs past midnight keeps scheduling and labels the next-day return',()=>{
+ const t={};sym(t,'start','FAR',600,900);t['FAR>end']=[600,900];
+ const m=fixtureMatrix(points(['FAR']),t);
+ const r=planDay({inputs:validatePlanInputs({...base,manualOrder:['FAR']}),candidates:[stop('FAR','P2')],matrix:m,now:NOW});
+ assert.deepEqual(r.stops.map(s=>s.stationId),['FAR']);
+ const late=r.violations.find(v=>v.code==='return-deadline');
+ assert.ok(late,'return deadline is reported, not silently dropped');
+ assert.equal(late.reason,'Return at 05:00 ET (next day) is 720 min after the 17:00 ET deadline.');
+});

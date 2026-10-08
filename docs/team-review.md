@@ -25,7 +25,7 @@ Review the Anomaly report and Reference tracker with a station whose nearby hist
 
 | Requirement | Reviewer exercise |
 | --- | --- |
-| One priority order | Compare the Overview queue, Daily review download and planner candidates. Expect P1 groups, then P2, P3, P4 everywhere, with group members counted once. |
+| One priority order | Compare the Needs attention list, the operations export and the stations Trips adds with *Add stations that need attention*. Expect P1 groups, then P2, P3, P4 everywhere, with group members counted once. |
 | Hidden sensor loss is visible | Open a station with a stale channel. The inventory should list the channel as missing or stale while the station is still reporting. |
 | Acknowledged is not resolved | Acknowledge an incident as an editor. It stays open until telemetry recovers or someone resolves it with a reason. |
 | Viewers cannot change operations | As a viewer, try to acknowledge, edit notes, create work or save a plan. Expect 403 and no gate code shown. |

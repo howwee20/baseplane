@@ -9,7 +9,7 @@ const numeric=v=>typeof v==='number'&&Number.isFinite(v);
 const minutes=ms=>Math.round(ms/60000);
 
 export function assessStation({station,profile=[],units={},now=Date.now(),config={},maintenance=null,inResponse=true}){
- const c={...HEALTH_DEFAULTS,...config},obs=new Map(),derived=[];
+ const c={...HEALTH_DEFAULTS,...Object.fromEntries(Object.entries(config).filter(([,v])=>v!==undefined))},obs=new Map(),derived=[];
  for(const [key,v] of Object.entries(station?.OBSERVATIONS||{})){
   const k=parseObservationKey(key);if(!k||!v||typeof v!=='object')continue;
   const entry={...k,value:v.value,time:parseInstant(v.date_time),qc:qcList(v.qc),qcStatus:v.qc?.status||null};

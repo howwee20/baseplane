@@ -11,6 +11,15 @@ export function normalizeOrsMatrix(json,points,{fetchedAt=new Date().toISOString
  const snapped=(json.sources||[]).map((s,i)=>({id:points[i]?.id,snappedDistanceM:typeof s?.snapped_distance==='number'?s.snapped_distance:null}));
  return {version:ROUTING_VERSION,provider:'openrouteservice',profile:'driving-car',fetchedAt,traffic:'none',trafficNote:'Typical road speeds without live or departure-time traffic.',attribution:ORS_ATTRIBUTION,points:points.map((p,i)=>({id:p.id,lat:p.lat,lon:p.lon,snappedDistanceM:snapped[i]?.snappedDistanceM??null})),durations,distances,unreachable};
 }
+// Road matrices are fetched and cached in a canonical (sorted) point order so reordering trip stops never triggers a
+// new provider request; this maps a canonical matrix back to the caller's order.
+export const pointKey=p=>`${Number(p.lat).toFixed(5)},${Number(p.lon).toFixed(5)}`;
+export function canonicalOrder(points){return points.map((p,i)=>({p,i,k:pointKey(p)})).sort((a,b)=>a.k<b.k?-1:a.k>b.k?1:a.i-b.i).map(x=>x.i);}
+export function permuteMatrix(canonical,points,order){
+ const pos=new Map(order.map((orig,c)=>[orig,c])),n=points.length,durations=[],distances=[],unreachable=[];
+ for(let i=0;i<n;i++){durations.push([]);distances.push([]);for(let j=0;j<n;j++){const d=canonical.durations[pos.get(i)][pos.get(j)];durations[i].push(d);distances[i].push(canonical.distances[pos.get(i)][pos.get(j)]);if(d===null&&i!==j)unreachable.push({from:points[i].id,to:points[j].id});}}
+ return {...canonical,points:points.map((p,i)=>({id:p.id,lat:p.lat,lon:p.lon,snappedDistanceM:canonical.points[pos.get(i)]?.snappedDistanceM??null})),durations,distances,unreachable};
+}
 export function matrixIndex(matrix){return new Map(matrix.points.map((p,i)=>[p.id,i]));}
 export function leg(matrix,from,to,index=matrixIndex(matrix)){const i=index.get(from),j=index.get(to);if(i===undefined||j===undefined)return null;const d=matrix.durations[i][j];return d===null||d===undefined?null:{durationSec:d,distanceM:matrix.distances[i][j]};}
 export function orsDirectionsToRoute(json){

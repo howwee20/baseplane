@@ -20,10 +20,13 @@ Field Notes saves locally and can work offline after an initial successful load.
 
 Fleet now judges each station against an expected-sensor profile, keeps incidents with stable identity and persistence over new snapshots, groups simultaneous outages, and orders all work with one canonical P1–P4 priority engine. It adds maintenance work items, per-variable reference coverage, NWS task-weather evaluation, road-routed field-day planning (OpenRouteService), saved plans, offline packets and a Field Notes work handoff. Rules, defaults, provider setup, release order and the pilot checklist are in [docs/fleet-operations.md](docs/fleet-operations.md); the starting capability/gap matrix is in [docs/fleet-capability-matrix.md](docs/fleet-capability-matrix.md). Detection is polling-based (roughly 3–4 hours from the last report to a confirmed outage), not instantaneous. Synoptic remains the upstream data provider.
 
+The interface is map-first: the Michigan map with observed radar is the home page, stations open in a side panel (a bottom sheet on phones), **Needs attention** holds the priority queue, **Trips** combines planning and saved trips, and **Records** holds investigations and Field Notes. Every older link redirects. Changes, the navigation map, the routing verdict and release steps are in [docs/map-first-redesign.md](docs/map-first-redesign.md).
+
 ## Connections
 
 - Synoptic MSU account: metadata, latest, time series, advanced QC flags/segments, derived precipitation, window statistics calculated from loaded history. The separate Synoptic Statistics API is not included in the current account. One concurrent upstream request, serialized by D1 leases. Network snapshots refresh every 15 minutes; history/products cache for ten minutes.
-- Michigan radar: NWS imagery via Iowa Environmental Mesonet, separate from historical evidence.
+- Michigan radar: observed NWS NEXRAD composite frames via Iowa Environmental Mesonet, separate from historical evidence.
+- Basemap: OpenStreetMap standard tiles (attribution shown; light use under the OSM tile policy).
 - Teams Field Notes channel is linked. Automatic Graph uploads are not configured.
 - Flyspray Ticket Tracker: account activation and a supported API connection remain required.
 - Campbell website login does not establish LoggerNet, direct logger, or internal MSU API access. File imports remain supported.

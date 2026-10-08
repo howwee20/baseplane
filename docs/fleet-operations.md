@@ -1,15 +1,16 @@
 # Fleet operations: rules, setup and release
 
-This guide covers station health, incidents, priority, references, maintenance work and the field-day planner (API protocol `fleet-ops-1`, Worker 1.1.0). Synoptic stays the upstream observation provider. Fleet replaces the Synoptic *interface* for daily monitoring; it does not remove the data dependency.
+This guide covers station health, incidents, priority, references, maintenance work and the field-day planner (API protocol `fleet-ops-2`, Worker 1.2.0). The map-first interface, its navigation map from old to new routes, the routing verdict and the 1.2.0 release steps are in [map-first-redesign.md](map-first-redesign.md). Synoptic stays the upstream observation provider. Fleet replaces the Synoptic *interface* for daily monitoring; it does not remove the data dependency.
 
 ## Daily workflow
 
-1. **Overview** answers what is down and what comes first: P1–P4 counts, the network fetch time, any feed-health warning, the canonical queue (filterable by text, tier, region, owner and status), the tier-coloured map (rows and markers select each other), and what changed in the last 24 hours.
-2. **Daily review** is the full queue in the same order, with a download.
+1. The **map** (`#/map`) is the home page: every station with the chosen measurement as fill colour and its health as shape and glyph, observed radar, and the time of the latest station data. Select a marker or search for a station to open its panel: latest valid readings with their own times, quality notes, a 24-hour chart, *Add to trip*, and folds for notes, issues, visits, sensors and nearby comparison.
+2. **Needs attention** (header button, `#/attention`) answers what is down and what comes first: the canonical queue grouped P1 → P4 with suspected and confirmed labelled, a separate *Quality checks* tab, and *Recent changes* (alerts) with acknowledgement.
 3. An **incident** (`#/incident/<id>`) shows why it has that priority, the onset window, evidence and timeline. Editors can acknowledge, assign, change state, override urgency or defer (both need a recorded reason), add notes, merge or split groups, and create work items.
-4. A **station** page (`#/station/<id>`) shows expected versus reporting channels, reference coverage per variable, incidents, maintenance history, access notes and *Plan visit*.
-5. The **field-day planner** (`#/planner`) compares up to seven days, recommends one with reasons and alternatives, and allows reorder and remove. A saved plan (`#/plan/<id>`) supports accept, complete, cancel, copy, JSON/CSV export, a printable packet, deliberate offline saving, navigation links and *Start Field Notes*.
+4. The full **station record** (`#/station/<id>/details`) shows expected versus reporting channels, reference coverage per variable, incidents, maintenance history and access notes.
+5. **Trips** (`#/trips`): add stations from the map, keep your order or choose *Optimize order*, and save. A saved trip (`#/trip/<id>`) supports accept (an infeasible trip needs a recorded reason), completion, cancel, copy, JSON/CSV export, print, deliberate offline saving, navigation links and Field Notes. The multi-day comparison is at `#/trips/compare`.
 6. A **work item**'s *Start Field Notes* opens the existing visit-plan review (`/field-notes/?work=<id>`). Readings and completion boxes stay empty. Record the work performed on the work item; the incident resolves only when telemetry recovers.
+7. **Records** holds investigations, Field Notes, stations, the reference (anomaly) report and the reference tracker. Account, team access, settings and connections, the logger file inspector and exports are in the account menu.
 
 ## Priority (canonical, `priority-v1`)
 
@@ -34,7 +35,7 @@ The sort key is a lexicographic tuple, never a blended score:
 8. A ready work item.
 9. Incident ID.
 
-Group members are nested under their group, and each count includes every station exactly once. The same `buildQueue`/`comparePriority` code drives the overview, Daily review, exports, alerts and the planner.
+Group members are nested under their group, and each count includes every station exactly once. The same `buildQueue`/`comparePriority` code drives Needs attention, exports, alerts and trip planning.
 
 Provisional response deadlines (owner-editable; not adopted policy): P1 24 h, P2 48 h, P3 7 d, P4 14 d.
 
@@ -206,12 +207,13 @@ Provisional rules only produce cautions. The owner can mark a class *adopted*, w
 ## Road routing (OpenRouteService, `routing-v1`)
 
 - **Provider.** `POST /v2/matrix/driving-car` (directed durations and distances; `null` means unroutable) and `/v2/directions/driving-car/geojson` for the route line. Both are behind `backend/providers/routing.mjs`.
-- **Bounds.** At most 40 points per matrix. Cached 24 h. Planning is limited to 60 requests per user per hour.
+- **Bounds.** At most 40 points per matrix. Cached 24 h in canonical point order, so reordering or removing stops reuses the cached matrix instead of calling the provider again. Day comparison and saving are limited to 60 requests per user per hour; the live trip preview (`POST /ops/plans/preview`) to 240.
+- **No substitutes.** Without a provider matrix a trip is returned as *road times not calculated*: stops keep their order and visit times, nothing is estimated from straight-line distance, and no road line is drawn. Synthetic fixtures are labelled SYNTHETIC and drawn as a dashed red line.
 - **Limitations.** There is no departure-time traffic model, and this is disclosed in the UI. Station coordinates are routed unless a road entrance is recorded; the final access walk is marked unknown.
 - **Attribution:** © openrouteservice by HeiGIT · Data from OpenStreetMap contributors (results CC-BY-SA 4.0).
 - **Why not Google Routes.** Google Maps Platform Service Specific Terms §19.2 forbid using Routes content with a non-Google map (this app uses Leaflet), and the general terms do not permit caching durations, which saved plans require.
 
-**Setup still needed:** no routing credential is configured in production, so the planner returns a clear blocker until one is.
+**Setup still needed:** no routing credential is configured in production (Oct 7: the only Worker secret is `SYNOPTIC_TOKEN`), so trips show road times as not calculated until one is. A live road route has not yet been verified.
 
 1. Create an OpenRouteService key at <https://account.heigit.org> (Standard plan, free: about 500 matrix and 2,000 directions requests per day, 40 per minute; verify current numbers there). MSU may qualify for the Collaborative plan.
 2. From `backend/`, run `npx wrangler secret put ORS_API_KEY`.
@@ -247,20 +249,13 @@ The planner never claims optimality.
 
 ## Release and rollback
 
-The current live state (Oct 7): Pages serves `799b3d6` (an older frontend), and the Worker is `f61c6649` (security commit). Do these steps in order:
-
-1. **Back up.** Take a private copy with `npx wrangler d1 export enviroweather-fleet --remote --output <private path>`. The export pauses D1 queries for a few seconds. A copy taken Oct 7 15:40 UTC is in `work/fleet-backups/` (outside the repository, mode 600; it contains password hashes and session digests).
-2. **Migrate.** Run `npx wrangler d1 migrations apply enviroweather-fleet --remote` (adds `0005_fleet_operations`, forward-only, new tables only). Rehearsed on the backup copy: it applied cleanly and left every existing table unchanged.
-3. **Routing (optional).** `npx wrangler secret put ORS_API_KEY`.
-4. **Deploy the Worker.** `npm --prefix backend run deploy` (records `RELEASE_ID`). Check `/api/health` → `version 1.1.0`, `protocol fleet-ops-1`.
-5. **Deploy the frontend.** Merge the branch to `main`; Pages builds on `ubuntu-24.04` with a 15-minute timeout and stamps the commit into `<meta name="fleet-release">` and `/release.json`. Confirm the sidebar shows `Web <sha> · API 1.1.0` and that no protocol warning appears.
-6. **First assessment.** Within 15 minutes the first scheduled refresh bootstraps the expected-sensor profile document (about 1,400 channels) and opens incidents as *suspected*. Confirmation follows over the next snapshots. On the October 7 production copy, the rehearsal would open one P2 candidate (a station silent since 3:05 AM ET), one P3 candidate (temperature/RH and solar channels stuck for more than 2 hours while the station's other channels report) and three QC reviews. These are telemetry observations, not hardware diagnoses.
+The 1.2.0 release (map-first interface, `fleet-ops-2`) has exact, ordered steps in [map-first-redesign.md](map-first-redesign.md#release-steps): back up D1 (no migration), deploy the edge CSP, deploy the Worker, merge to `main` for Pages, then optionally add the routing key. Production on Oct 7 runs Pages and Worker release `9724a28` (Worker 1.1.0, `fleet-ops-1`).
 
 Rollback:
 
-- **Worker:** `npx wrangler rollback` (or choose the previous version in the dashboard). Version 1.0.0 ignores the new tables.
-- **Frontend:** redeploy the previous commit through Pages. The 1.1.0 frontend shows a protocol warning, rather than breaking, if it meets the older API.
-- The migration is additive. If you must remove it, restore from the backup instead of dropping tables by hand.
+- **Worker:** `npx wrangler rollback` (or choose the previous version in the dashboard).
+- **Frontend:** revert the merge on `main`. A frontend that meets a different API protocol shows a version notice rather than breaking.
+- Migrations are additive. If you must remove one, restore from a backup instead of dropping tables by hand.
 - Frontend rollback does not restore browser notebooks or undo database edits.
 
 ## Local synthetic review
@@ -273,7 +268,7 @@ npm --prefix backend run dev:synthetic
 
 ## Tests and evidence
 
-`npm run check` and `npm run fleet:test` run 94 tests: the original 69 plus engine, planner, coverage, API and release tests. All provider data in tests is synthetic. Acceptance criteria 1–16 are covered by automated tests. Criterion 17 was walked through in a browser against the synthetic dev stack: sign in, overview, map sync, group expansion, acknowledge and assign, create work, plan options, save, accept, offline packet, Field Notes handoff and visit creation, recording work done, and a tablet width with no horizontal page overflow.
+`npm run check` and `npm run fleet:test` run 105 tests: the original 69 plus engine, planner, coverage, API, release and interface-logic tests. All provider data in tests is synthetic. Acceptance criteria 1–16 are covered by automated tests. Criterion 17 was walked through in a browser against the synthetic dev stack: sign in, overview, map sync, group expansion, acknowledge and assign, create work, plan options, save, accept, offline packet, Field Notes handoff and visit creation, recording work done, and a tablet width with no horizontal page overflow.
 
 **Not yet performed:**
 

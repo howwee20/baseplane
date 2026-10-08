@@ -20,7 +20,8 @@ export function validatePlanInputs(b={}){
  const breaks=(Array.isArray(i.breaks)?i.breaks:[]).slice(0,3).map(x=>{if(!validTime(x.earliest)||!validTime(x.latest)||x.latest<x.earliest||!(Number.isInteger(x.minutes)&&x.minutes>0&&x.minutes<=120))throw Error('Breaks need HH:MM earliest/latest and 1–120 minutes.');return {label:String(x.label||'Break').slice(0,40),earliest:x.earliest,latest:x.latest,minutes:x.minutes};});
  const ids=v=>Array.isArray(v)?[...new Set(v.filter(x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(x)))].slice(0,40):[];
  const crew={label:String(i.crew?.label||'Crew').slice(0,60),size:Number.isInteger(i.crew?.size)&&i.crew.size>=1&&i.crew.size<=6?i.crew.size:1,skills:Array.isArray(i.crew?.skills)?[...new Set(i.crew.skills.filter(s=>typeof s==='string').map(s=>s.trim().toLowerCase().slice(0,40)).filter(Boolean))].slice(0,10):[]};
- return {date:i.date,days:Number.isInteger(i.days)&&i.days>=1&&i.days<=7?i.days:1,start,end,departLocal:i.departLocal,returnByLocal:i.returnByLocal,maxWorkdayMinutes:i.maxWorkdayMinutes,bufferMinutes:i.bufferMinutes,urgentDelayToleranceMinutes:i.urgentDelayToleranceMinutes,maxStops:i.maxStops,unknownServiceMinutes:i.unknownServiceMinutes,maxIterations:Math.min(1000,Math.max(10,Number(i.maxIterations)||300)),breaks,crew,required:ids(i.required),excludeStations:ids(i.excludeStations),includeDuplicates:ids(i.includeDuplicates),manualOrder:b.manualOrder?ids(b.manualOrder):null,region:typeof i.region==='string'?i.region.slice(0,60):null,tiers:Array.isArray(i.tiers)?i.tiers.filter(t=>TIERS[t]):['P1','P2','P3','P4','QC','PM'],rules:validateRules(i.rules||{})};
+ const visitMinutes={};for(const [k,v] of Object.entries(i.visitMinutes||{}).slice(0,40))if(/^[A-Za-z0-9_-]{1,100}$/.test(k)&&Number.isInteger(v)&&v>=5&&v<=480)visitMinutes[k]=v;
+ return {visitMinutes,date:i.date,days:Number.isInteger(i.days)&&i.days>=1&&i.days<=7?i.days:1,start,end,departLocal:i.departLocal,returnByLocal:i.returnByLocal,maxWorkdayMinutes:i.maxWorkdayMinutes,bufferMinutes:i.bufferMinutes,urgentDelayToleranceMinutes:i.urgentDelayToleranceMinutes,maxStops:i.maxStops,unknownServiceMinutes:i.unknownServiceMinutes,maxIterations:Math.min(1000,Math.max(10,Number(i.maxIterations)||300)),breaks,crew,required:ids(i.required),excludeStations:ids(i.excludeStations),includeDuplicates:ids(i.includeDuplicates),manualOrder:b.manualOrder?ids(b.manualOrder):null,region:typeof i.region==='string'?i.region.slice(0,60):null,tiers:Array.isArray(i.tiers)?i.tiers.filter(t=>TIERS[t]):['P1','P2','P3','P4','QC','PM'],rules:validateRules(i.rules||{})};
 }
 function windowsFor(c,date){
  if(!c.accessWindows)return null;
@@ -29,7 +30,10 @@ function windowsFor(c,date){
 // Simulates one ordered route. Returns schedule plus the first hard violation, if any.
 function simulate(route,ctx){
  const {inputs,date,matrix,idx,departMs,returnByMs,forecasts,alerts}=ctx,breaks=inputs.breaks.map(b=>({...b,earliestMs:localToUtc(date,b.earliest).ms,latestMs:localToUtc(date,b.latest).ms,taken:null}));
- let t=departMs,prev='start',driveSec=0,distanceM=0,waitMin=0,serviceMin=0,bufferMin=0,breakMin=0,uncertainty=0;const stops=[],warnings=[];
+ let t=departMs,prev='start',driveSec=0,distanceM=0,waitMin=0,serviceMin=0,bufferMin=0,breakMin=0,uncertainty=0;const stops=[],warnings=[],violations=[];
+ // Relaxed mode (a deliberate stop order) records hard-constraint violations and keeps scheduling; strict mode stops.
+ const fail=v=>{if(ctx.relaxed){violations.push(v);return null;}return {ok:false,...v};};
+ const etd=ms=>et(ms)+(localDate(ms,ZONE)!==date?' (next day)':'');
  const takeBreaks=(where)=>{for(const b of breaks)if(!b.taken&&t>=b.earliestMs){b.taken={startMs:t,endMs:t+b.minutes*60000,at:where};if(t>b.latestMs)warnings.push(`${b.label} starts after ${inputs.breaks.find(x=>x.label===b.label).latest} (provisional preference).`);t+=b.minutes*60000;breakMin+=b.minutes;}};
  for(const c of route){
   takeBreaks(prev);
@@ -37,12 +41,12 @@ function simulate(route,ctx){
   const arrive=t+l.durationSec*1000;driveSec+=l.durationSec;distanceM+=l.distanceM||0;
   const service=(c.serviceMinutes??inputs.unknownServiceMinutes)*60000,ws=windowsFor(c,date);
   let start=arrive;
-  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w)return {ok:false,code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${et(arrive)}).`,stop:c.id};start=Math.max(arrive,w.start);}
+  if(ws){const w=ws.find(w=>Math.max(arrive,w.start)+service<=w.end);if(!w){const f=fail({code:'access-window',reason:`${c.name} cannot be completed inside its access window (arrival ${etd(arrive)}).`,stop:c.id});if(f)return f;}else start=Math.max(arrive,w.start);}
   // Use a long access-window wait for a pending break when it is already allowed.
   for(const b of breaks)if(!b.taken&&start-arrive>=b.minutes*60000&&arrive>=b.earliestMs){b.taken={startMs:arrive,endMs:arrive+b.minutes*60000,at:c.id};breakMin+=b.minutes;}
   const end=start+service,f=forecasts?.[c.stationId];
   const weather=evaluateWindow(f?.forecast||null,{startMs:start,endMs:end,taskClass:c.taskClass,rules:inputs.rules,lat:c.lat,lon:c.lon,alerts:f?alertsFor(alerts,{zones:f.zones||[],startMs:start,endMs:end}):[],now:ctx.now});
-  if(weather.status==='blocked')return {ok:false,code:'weather',reason:`${c.name}: ${weather.reasons.filter(r=>/Adopted/.test(r)).join(' ')}`,stop:c.id};
+  if(weather.status==='blocked'){const f=fail({code:'weather',reason:`${c.name}: ${weather.reasons.filter(r=>/Adopted/.test(r)).join(' ')}`,stop:c.id});if(f)return f;}
   waitMin+=(start-arrive)/60000;serviceMin+=service/60000;bufferMin+=inputs.bufferMinutes;uncertainty+=c.serviceUncertainty||0;
   stops.push({id:c.id,arriveMs:arrive,serviceStartMs:start,serviceEndMs:end,departMs:end+inputs.bufferMinutes*60000,driveSec:l.durationSec,distanceM:l.distanceM,weather});
   t=end+inputs.bufferMinutes*60000;prev=c.id;
@@ -50,10 +54,10 @@ function simulate(route,ctx){
  takeBreaks(prev);
  const back=leg(matrix,prev,'end',idx)||(prev==='start'&&inputs.start.lat===inputs.end.lat&&inputs.start.lon===inputs.end.lon?{durationSec:0,distanceM:0}:null);if(!back)return {ok:false,code:'unreachable',reason:`No road route back to ${inputs.end.label}.`,stop:prev==='start'?null:prev};
  const returnMs=t+back.durationSec*1000;driveSec+=back.durationSec;distanceM+=back.distanceM||0;
- if(returnMs>returnByMs)return {ok:false,code:'return-deadline',reason:`Return at ${et(returnMs)} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the ${et(returnByMs)} deadline.`,stop:route.at(-1)?.id,returnMs};
- if(returnMs-departMs>inputs.maxWorkdayMinutes*60000)return {ok:false,code:'workday',reason:`Workday would be ${Math.ceil((returnMs-departMs)/60000)} min (limit ${inputs.maxWorkdayMinutes}).`,stop:route.at(-1)?.id};
+ if(returnMs>returnByMs){const f=fail({code:'return-deadline',reason:`Return at ${etd(returnMs)} is ${Math.ceil((returnMs-returnByMs)/60000)} min after the ${et(returnByMs)} deadline.`,stop:route.at(-1)?.id,returnMs});if(f)return f;}
+ if(returnMs-departMs>inputs.maxWorkdayMinutes*60000){const f=fail({code:'workday',reason:`Workday would be ${Math.ceil((returnMs-departMs)/60000)} min (limit ${inputs.maxWorkdayMinutes}).`,stop:route.at(-1)?.id});if(f)return f;}
  for(const b of breaks)if(!b.taken&&route.length&&returnMs>b.latestMs)warnings.push(`${b.label} not scheduled before ${b.latest} (provisional preference).`);
- return {ok:true,stops,returnMs,returnLeg:{driveSec:back.durationSec,distanceM:back.distanceM},breaks:breaks.filter(b=>b.taken).map(b=>({label:b.label,startMs:b.taken.startMs,endMs:b.taken.endMs,at:b.taken.at})),totals:{driveMin:Math.round(driveSec/60),distanceKm:Math.round(distanceM/100)/10,distanceMi:Math.round(distanceM/160.934)/10,serviceMin:Math.round(serviceMin),waitMin:Math.round(waitMin),bufferMin,breakMin,workdayMin:Math.round((returnMs-departMs)/60000),uncertaintyMin:uncertainty},warnings,weatherCost:stops.reduce((s,x)=>s+(x.weather.status==='caution'?2:x.weather.status==='unknown'?1:0),0),uncertaintyReturnMs:returnMs+uncertainty*60000};
+ return {ok:violations.length===0,violations,stops,returnMs,returnLeg:{driveSec:back.durationSec,distanceM:back.distanceM},breaks:breaks.filter(b=>b.taken).map(b=>({label:b.label,startMs:b.taken.startMs,endMs:b.taken.endMs,at:b.taken.at})),totals:{driveMin:Math.round(driveSec/60),distanceKm:Math.round(distanceM/100)/10,distanceMi:Math.round(distanceM/160.934)/10,serviceMin:Math.round(serviceMin),waitMin:Math.round(waitMin),bufferMin,breakMin,workdayMin:Math.round((returnMs-departMs)/60000),uncertaintyMin:uncertainty},warnings,weatherCost:stops.reduce((s,x)=>s+(x.weather.status==='caution'?2:x.weather.status==='unknown'?1:0),0),uncertaintyReturnMs:returnMs+uncertainty*60000};
 }
 const arrivalOf=(sched,id)=>sched.stops.find(s=>s.id===id)?.serviceStartMs;
 // Rejects a change that delays any stop of higher priority than `rank` by more than the tolerance.
@@ -99,9 +103,10 @@ export function planDay({inputs,date=inputs.date,candidates,matrix,forecasts={},
  if(inputs.manualOrder){
   route=inputs.manualOrder.map(id=>pool.find(c=>c.stationId===id)).filter(Boolean);
   for(const c of pool)if(!route.includes(c))ex(c,'not-selected','Not in the manual stop order.');
-  sched=simulate(route,ctx);
-  if(!sched.ok){warnings.push('Manual order is infeasible: '+sched.reason);return finalize(route,null,{manual:true,violation:sched});}
-  const auto=planDay({inputs:{...inputs,manualOrder:null},date,candidates:route,matrix,forecasts,alerts,now});
+  sched=simulate(route,{...ctx,relaxed:true});
+  if(!sched.stops){warnings.push('Manual order is infeasible: '+sched.reason);return finalize(route,null,{manual:true,violation:sched});}
+  if(sched.violations.length)warnings.push('Manual order is infeasible: '+sched.violations.map(v=>v.reason).join(' '));
+  const auto=inputs.skipComparison?{stops:[]}:planDay({inputs:{...inputs,manualOrder:null},date,candidates:route,matrix,forecasts,alerts,now});
   for(const c of route){if(tierRank(c.tier)>2)continue;const a=auto.stops.find(s=>s.stationId===c.stationId)?.serviceStartMs,b=arrivalOf(sched,c.id);if(a&&b&&b-a>inputs.urgentDelayToleranceMinutes*60000)exceptions.push({type:'manual-order-urgent-delay',stationId:c.stationId,detail:`Manual order reaches ${c.tier} ${c.name} ${Math.round((b-a)/60000)} min later than the priority-respecting order. Record a reason if deliberate.`});}
   return finalize(route,sched,{manual:true});
  }
@@ -123,7 +128,7 @@ export function planDay({inputs,date=inputs.date,candidates,matrix,forecasts={},
  return finalize(route,sched,{iterations:imp.iterations});
 
  function finalize(r,s,meta){
-  const byId=new Map(r.map(c=>[c.id,c])),stops=(s?.stops||[]).map((x,i)=>{const c=byId.get(x.id);const w=[];if(!c.entranceKnown)w.push('Final access and walking time unknown; routed to the station coordinates.');const snap=matrix.points[idx.get(c.id)]?.snappedDistanceM;if(Number.isFinite(snap)&&snap>200)w.push(`Nearest routable road is about ${Math.round(snap)} m from the routing point.`);if(c.estimateBasis!=='entered')w.push(c.serviceMinutes==null?`On-site time unknown; ${inputs.unknownServiceMinutes} min assumed.`:'On-site time is a template estimate (unconfirmed).');if(x.weather.status==='unknown')w.push('Weather at this time is unknown.');
+  const byId=new Map(r.map(c=>[c.id,c])),stops=(s?.stops||[]).map((x,i)=>{const c=byId.get(x.id);const w=[];if(!c.entranceKnown)w.push('Final access and walking time unknown; routed to the station coordinates.');const snap=matrix.points[idx.get(c.id)]?.snappedDistanceM;if(Number.isFinite(snap)&&snap>200)w.push(`Nearest routable road is about ${Math.round(snap)} m from the routing point.`);if(c.estimateBasis!=='entered')w.push(c.serviceMinutes==null?`On-site time unknown; ${inputs.unknownServiceMinutes} min assumed.`:'On-site time is a template estimate (unconfirmed).');if(x.weather.status==='unknown')w.push('Weather at this time is unknown.');if(c.alreadyPlanned)w.push(`Also on accepted trip "${c.alreadyPlanned.title}" (${c.alreadyPlanned.crew||'crew'}, ${c.alreadyPlanned.date}).`);
    return {order:i+1,stationId:c.stationId,name:c.name,lat:c.lat,lon:c.lon,tier:c.tier,priorityReasons:c.priorityReasons||[],incidentIds:c.incidentIds||[],groupId:c.groupId||null,workItemIds:c.workItemIds||[],tasks:c.tasks||[],parts:c.parts||[],taskClass:c.taskClass,serviceMinutes:c.serviceMinutes??inputs.unknownServiceMinutes,uncertaintyMinutes:c.serviceUncertainty||0,estimateBasis:c.estimateBasis||'unknown',driveMin:Math.round(x.driveSec/60),distanceKm:Math.round((x.distanceM||0)/100)/10,arriveMs:x.arriveMs,waitMin:Math.round((x.serviceStartMs-x.arriveMs)/60000),serviceStartMs:x.serviceStartMs,serviceEndMs:x.serviceEndMs,departMs:x.departMs,weather:{status:x.weather.status,reasons:x.weather.reasons,values:x.weather.values,taskClass:x.weather.taskClass,adopted:x.weather.adopted,updateTime:x.weather.updateTime,fetchedAt:x.weather.fetchedAt},warnings:w};});
   const addressed={};for(const st of stops)(addressed[st.tier]??=[]).push(st.stationId);
   const all=[...candidates];
@@ -134,7 +139,7 @@ export function planDay({inputs,date=inputs.date,candidates,matrix,forecasts={},
   if(s&&s.uncertaintyReturnMs>returnByMs&&stops.length)warnings.push(`If every task runs to its upper estimate (+${s.totals.uncertaintyMin} min), return would be ${Math.ceil((s.uncertaintyReturnMs-returnByMs)/60000)} min after the deadline.`);
   if(matrix.traffic==='none')warnings.push('Drive times use typical road speeds without departure-time traffic.');
   if(matrix.synthetic)warnings.push('SYNTHETIC routing fixture — not real driving times.');
-  return {version:PLANNER_VERSION,date,feasible:!!s&&s.ok,manual:!!meta.manual,departMs,returnByMs,returnMs:s?.returnMs??null,stops,breaks:s?.breaks||[],returnLeg:s?.returnLeg||null,totals:s?.totals||null,excluded,exceptions,warnings:[...warnings,...(s?.warnings||[])],blockers:meta.violation?[meta.violation.reason]:[],addressed,addressedIncidents:incidents,
+  return {version:PLANNER_VERSION,date,feasible:!!s&&s.ok,violations:s?.violations||[],manual:!!meta.manual,departMs,returnByMs,returnMs:s?.returnMs??null,stops,breaks:s?.breaks||[],returnLeg:s?.returnLeg||null,totals:s?.totals||null,excluded,exceptions,warnings:[...warnings,...(s?.warnings||[])],blockers:meta.violation?[meta.violation.reason]:[],addressed,addressedIncidents:incidents,
    weatherSummary:stops.reduce((m,x)=>(m[x.weather.status]=(m[x.weather.status]||0)+1,m),{}),
    score:[unaddressed('P1'),unaddressed('P2'),unaddressed('P3'),unaddressed('P4'),s?.weatherCost??0,s?.totals?.driveMin??0],iterations:meta.iterations||0};
  }
@@ -188,4 +193,12 @@ export function planOutdated(plan,{incidents=[],now=Date.now(),forecastUpdates={
  for(const [sid,u] of Object.entries(forecastUpdates)){const was=snap.forecasts?.[sid]?.updateTime;if(was&&u&&Date.parse(u)>Date.parse(was))reasons.push({code:'forecast-updated',detail:`Forecast for ${sid} updated since planning; re-check weather before departure.`});}
  if(plan.status==='accepted'&&plan.date<localDate(now,ZONE))reasons.push({code:'date-passed',detail:'Plan date has passed; record completion or cancel.'});
  return reasons;
+}
+// A trip without road routing: stops in the chosen order with visit times, and no drive or arrival times.
+// Nothing is estimated from straight-line distance.
+export function unroutedDay({inputs,date=inputs.date,candidates,reason}){
+ const departMs=localToUtc(date,inputs.departLocal).ms,returnByMs=localToUtc(date,inputs.returnByLocal).ms;
+ const stops=candidates.map((c,i)=>({order:i+1,stationId:c.stationId,name:c.name,lat:c.lat,lon:c.lon,tier:c.tier,priorityReasons:c.priorityReasons||[],incidentIds:c.incidentIds||[],groupId:c.groupId||null,workItemIds:c.workItemIds||[],tasks:c.tasks||[],parts:c.parts||[],taskClass:c.taskClass,serviceMinutes:c.serviceMinutes??inputs.unknownServiceMinutes,uncertaintyMinutes:c.serviceUncertainty||0,estimateBasis:c.estimateBasis||'unknown',driveMin:null,distanceKm:null,arriveMs:null,waitMin:0,serviceStartMs:null,serviceEndMs:null,departMs:null,weather:{status:'unknown',reasons:['Arrival times not calculated without road routing.'],values:{}},warnings:[]}));
+ const addressed={};for(const s of stops)(addressed[s.tier]??=[]).push(s.stationId);
+ return {version:PLANNER_VERSION,date,feasible:false,routed:false,violations:[],manual:true,departMs,returnByMs,returnMs:null,stops,breaks:[],returnLeg:null,totals:{driveMin:null,distanceKm:null,distanceMi:null,serviceMin:stops.reduce((t,s)=>t+s.serviceMinutes,0),waitMin:0,bufferMin:0,breakMin:0,workdayMin:null,uncertaintyMin:0},excluded:[],exceptions:[],warnings:[],blockers:[reason||'Road routing unavailable: drive and arrival times were not calculated.'],addressed,addressedIncidents:[...new Set(stops.flatMap(s=>s.incidentIds))],weatherSummary:{},score:null,iterations:0};
 }

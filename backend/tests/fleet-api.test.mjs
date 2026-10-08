@@ -170,3 +170,61 @@ test('a refresh and assessment of a 104-station network stays within the D1 per-
  assert.ok(f.sql.prepare("SELECT count(*) n FROM incidents WHERE scope='group'").get().n>=1);
  console.log(`D1 statements per refresh+assessment (first, second, third): ${runs.join(', ')}; profile blob ${profiles} bytes`);
 });
+
+test('trip preview keeps the chosen order, reuses cached road times on reorder, lists violations and stays honest without routing',async()=>{
+ const f=fixture();for(const r of ['owner','editor','viewer'])await f.session(r);
+ const state={scenario:down,nws:0,ors:0,orsCalls:[]};
+ const wrapped=providers(state),capture=async(input,init)=>{const u=new URL(input instanceof Request?input.url:String(input));if(u.hostname==='api.openrouteservice.org')state.orsCalls.push(u.pathname);return wrapped(input,init);};
+ const run=fn=>{const o=globalThis.fetch;globalThis.fetch=capture;return fn().finally(()=>{globalThis.fetch=o;});};
+ await run(async()=>{await f.call('refresh',{method:'POST'});});
+ const date=new Date(Date.now()+864e5).toISOString().slice(0,10),inputs={date,start:{label:'Synthetic base',lat:43,lon:-85.1},departLocal:'07:00',returnByLocal:'19:00',maxWorkdayMinutes:720,crew:{label:'Crew A',skills:['electronics']},visitMinutes:{TST05:25}};
+ // No routing key: stops stay in order, nothing is estimated.
+ let r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:['TST05','TST02']}}));
+ assert.equal(r.status,200);assert.equal(r.body.result.routed,false);assert.deepEqual(r.body.result.stops.map(s=>s.stationId),['TST05','TST02']);
+ assert.equal(r.body.result.stops[0].driveMin,null);assert.equal(r.body.geometry,null);assert.equal(r.body.result.stops[0].serviceMinutes,25,'visit minutes respected');
+ assert.equal(state.orsCalls.length,0);
+ assert.equal((await f.json('ops/plans/preview',{role:'viewer',method:'POST',body:{inputs,stops:['TST05']}})).status,403);
+ // Save an unrouted trip; accepting it needs a recorded reason.
+ r=await run(()=>f.json('ops/plans',{method:'POST',body:{inputs:{...inputs,tiers:[],required:['TST05','TST02']},date,order:['TST05','TST02']}}));
+ assert.equal(r.status,201);assert.equal(r.body.result.routed,false);assert.deepEqual(r.body.result.stops.map(s=>s.stationId),['TST05','TST02']);assert.equal(r.body.result.stops[1].tier,'P1','a stop keeps the priority of its open issue');
+ assert.equal((await f.json('ops/plans/'+r.body.id,{method:'PATCH',body:{revision:r.body.revision,status:'accepted'}})).status,400);
+ const acc=await f.json('ops/plans/'+r.body.id,{method:'PATCH',body:{revision:r.body.revision,status:'accepted',overrideReason:'Synthetic: routing not set up yet'}});assert.equal(acc.status,200);assert.match(acc.body.acceptOverride.reason,/routing/);
+ const cp=await f.json('ops/plans/'+r.body.id+'/copy',{method:'POST',body:{}});assert.equal(cp.status,201);assert.equal(cp.body.status,'draft');assert.equal(cp.body.acceptOverride,null,'a copy is a fresh draft, not an accepted override');
+ // With routing: manual order preserved, real (mocked) provider geometry returned.
+ f.env.ORS_API_KEY='synthetic-ors-key';
+ r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:['TST05','TST04','TST02']}}));
+ assert.deepEqual(r.body.order,['TST05','TST04','TST02']);assert.notEqual(r.body.result.routed,false);assert.ok(r.body.geometry?.geometry?.length>=2);assert.ok(r.body.navigation.google.length>=1);
+ const matrixCalls=state.orsCalls.filter(p=>p.includes('/matrix/')).length;assert.equal(matrixCalls,1);
+ r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:['TST02','TST05','TST04']}}));
+ assert.deepEqual(r.body.order,['TST02','TST05','TST04'],'reordered stops stay in the new order');
+ assert.equal(state.orsCalls.filter(p=>p.includes('/matrix/')).length,1,'reordering reuses the cached road matrix');
+ assert.ok(state.orsCalls.filter(p=>p.includes('/directions/')).length>=2,'each order gets its own road geometry');
+ // Optimize returns an order covering the same stops.
+ r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:['TST02','TST05','TST04'],optimize:true}}));
+ assert.deepEqual([...r.body.order].sort(),['TST02','TST04','TST05']);
+ // A late return is listed as a violation; the user's stops and order remain.
+ r=await run(()=>f.json('ops/plans/preview',{method:'POST',body:{inputs:{...inputs,returnByLocal:'08:00'},stops:['TST05','TST04']}}));
+ assert.equal(r.body.result.feasible,false);assert.deepEqual(r.body.order,['TST05','TST04']);assert.ok(r.body.result.violations.some(v=>v.code==='return-deadline'));
+ assert.equal((await f.json('ops/plans/preview',{method:'POST',body:{inputs,stops:[]}})).status,400);
+});
+
+test('trip editor ignores a slower, older preview response after a newer edit',async t=>{
+ const mem=new Map();const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+ Object.defineProperty(globalThis,'localStorage',{value:{get length(){return mem.size;},key:i=>[...mem.keys()][i]??null,getItem:k=>mem.get(k)??null,setItem:(k,v)=>mem.set(k,String(v)),removeItem:k=>mem.delete(k)},configurable:true});
+ t.after(()=>{if(original)Object.defineProperty(globalThis,'localStorage',original);else delete globalThis.localStorage;});
+ const trips=await import('../../web/trips.mjs?stale-test');
+ const pending=[];const user={email:'editor@example.test',role:'editor'};
+ const stations=['TST01','TST02'].map((id,i)=>({id,name:id,lat:43+i/10,lon:-85,archiveStatus:'ACTIVE'}));
+ const ctx={state:{user,stations,ops:{queue:[]}},canEdit:true,toast(){},repaint(){trips.tripsPanel(ctx,{view:'edit'});},mapTrip(){},api:(path,opts)=>{if(path==='ops/settings')return Promise.resolve({planner:{bases:[{label:'Base',lat:42.7,lon:-84.5}]},routing:{configured:true}});const body=JSON.parse(opts.body);return new Promise(res=>pending.push({stops:body.stops,res}));}};
+ trips.toggleStop('TST01',user);trips.tripsPanel(ctx,{view:'edit'});
+ await new Promise(r=>setTimeout(r,600));
+ assert.equal(pending.length,1);
+ trips.toggleStop('TST02',user);trips.tripsPanel(ctx,{view:'edit'});
+ await new Promise(r=>setTimeout(r,600));
+ assert.equal(pending.length,2);assert.deepEqual(pending[1].stops,['TST01','TST02']);
+ const answer=stops=>({order:stops,result:{stops:stops.map(s=>({stationId:s,serviceMinutes:30,driveMin:10,weather:{status:'ok',reasons:[]},warnings:[]})),totals:{driveMin:10*stops.length,serviceMin:30*stops.length,breakMin:0,bufferMin:0},violations:[],exceptions:[],warnings:[]},geometry:{geometry:[[0,stops.length]]},routing:{}});
+ pending[1].res(answer(['TST01','TST02']));await new Promise(r=>setTimeout(r,10));
+ pending[0].res(answer(['TST01']));await new Promise(r=>setTimeout(r,10));
+ assert.deepEqual(trips.tripMapData(ctx,'edit').geometry.geometry,[[0,2]],'the newer two-stop result stays');
+ trips.resetTrips();trips.clearTripDraft();
+});
